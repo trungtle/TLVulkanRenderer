@@ -14,12 +14,13 @@ Viewer::Viewer(
 	// Initialize glfw
 	glfwInit();
 	
-	// Init Vulkan
-	VulkanRenderer renderer;
-
 	// Create window
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	m_window = glfwCreateWindow(m_width, m_height, "Vulkan window", nullptr, nullptr);
+
+	// Init Vulkan
+	VulkanRenderer renderer(m_window);
+
 }
 
 

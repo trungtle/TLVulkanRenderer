@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "VulkanRenderer.h"
+#include <set>
 
 // This is the list of validation layers we want
 const std::vector<const char*> VALIDATION_LAYERS = {
@@ -41,11 +42,16 @@ CreateDebugReportCallbackEXT(
 
 // ------------------
 
-VulkanRenderer::VulkanRenderer()
-	: m_instance(VK_NULL_HANDLE), 
-		m_debugCallback(VK_NULL_HANDLE), 
-			m_physicalDevice(VK_NULL_HANDLE), 
-				m_name("Vulkan Application")
+VulkanRenderer::VulkanRenderer(
+	GLFWwindow* window
+	)
+	:
+	m_window(window)
+	, m_instance(VK_NULL_HANDLE) 
+	, m_debugCallback(VK_NULL_HANDLE)
+	, m_surfaceKHR(VK_NULL_HANDLE)
+	, m_physicalDevice(VK_NULL_HANDLE)
+	, m_name("Vulkan Application")
 {
 	VkResult result = InitVulkan();
 	assert(result == VK_SUCCESS);
@@ -59,7 +65,10 @@ VulkanRenderer::VulkanRenderer()
 
 	result = SetupDebugCallback();
 	assert(result == VK_SUCCESS);
-	
+
+	result = CreateWindowSurface();
+	assert(result == VK_SUCCESS);
+
 	result = SelectPhysicalDevice();
 	assert(result == VK_SUCCESS);
 
@@ -71,6 +80,7 @@ VulkanRenderer::VulkanRenderer()
 VulkanRenderer::~VulkanRenderer()
 {
 	vkDestroyDevice(m_device, nullptr);
+	vkDestroySurfaceKHR(m_instance, m_surfaceKHR, nullptr);
 	vkDestroyInstance(m_instance, nullptr);
 }
 
@@ -129,6 +139,18 @@ VulkanRenderer::SetupDebugCallback()
 }
 
 VkResult 
+VulkanRenderer::CreateWindowSurface() 
+{
+	VkResult result = glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surfaceKHR);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create window surface");
+	}
+
+	return result;
+}
+
+
+VkResult 
 VulkanRenderer::SelectPhysicalDevice() 
 {
 	uint32_t physicalDeviceCount = 0;
@@ -142,7 +164,7 @@ VulkanRenderer::SelectPhysicalDevice()
 	vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, physicalDevices.data());
 	
 	for (auto physicalDevice : physicalDevices) {
-		if (IsDeviceVulkanCompatible(physicalDevice)) {
+		if (IsDeviceVulkanCompatible(physicalDevice, m_surfaceKHR)) {
 			m_physicalDevice = physicalDevice;
 			break;
 		}
@@ -154,24 +176,30 @@ VulkanRenderer::SelectPhysicalDevice()
 VkResult 
 VulkanRenderer::SetupLogicalDevice() 
 {
-	QueueFamilyIndices queueFamilyIndices = FindQueueFamilyIndices(m_physicalDevice);
+	QueueFamilyIndices queueFamilyIndices = FindQueueFamilyIndices(m_physicalDevice, m_surfaceKHR);
 
-	VkDeviceQueueCreateInfo queueCreateInfo = {};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-	queueCreateInfo.queueCount = 1; // Only using one queue for now. We actually don't need that many.
-	
-	// Queue priority. Required even if we only have one queue.
-	float queuePriority = 1.0f;
-	queueCreateInfo.pQueuePriorities = &queuePriority;
+	// Create a set of unique families for the required queues
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+	std::set<int> uniqueQueueFamilies = { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
+	for (auto i : uniqueQueueFamilies) {
+		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
+		queueCreateInfo.queueCount = 1; // Only using one queue for now. We actually don't need that many.
+		float queuePriority = 1.0f; // Queue priority. Required even if we only have one queue.
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+
+		// Append to queue create infos
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
 
 	// @todo: should add new & interesting features later
 	VkPhysicalDeviceFeatures deviceFeatures = {};
 
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceCreateInfo.queueCreateInfoCount = 1; // Only using 1 queue
-	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+	deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
 	deviceCreateInfo.enabledExtensionCount = 0;
 
 	// Grab validation layers
@@ -189,6 +217,8 @@ VulkanRenderer::SetupLogicalDevice()
 	
 	// Grabs the first queue in the graphics queue family since we only need one graphics queue anyway
 	vkGetDeviceQueue(m_device, queueFamilyIndices.graphicsFamily, 0, &m_graphicsQueue);
+
+
 	
 	return result;
 }
@@ -253,9 +283,26 @@ GetRequiredExtensions(
 	return extensions;
 }
 
+bool
+IsDeviceVulkanCompatible(
+	const VkPhysicalDevice& physicalDeivce
+	, const VkSurfaceKHR& surfaceKHR
+)
+{
+	VkPhysicalDeviceProperties deviceProperties;
+	vkGetPhysicalDeviceProperties(physicalDeivce, &deviceProperties);
+
+	// Gather queue indices
+	QueueFamilyIndices indices = FindQueueFamilyIndices(physicalDeivce, surfaceKHR);
+
+	return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && indices.IsComplete();
+}
+
+
 QueueFamilyIndices 
 FindQueueFamilyIndices(
 	const VkPhysicalDevice& physicalDeivce
+	, const VkSurfaceKHR& surfaceKHR
 	)
 {
 	QueueFamilyIndices queueFamilyIndices;
@@ -273,6 +320,16 @@ FindQueueFamilyIndices(
 			queueFamilyIndices.graphicsFamily = i;
 		}
 
+		// We need at least one queue that can present image to the KHR surface.
+		// This could be a different queue from our graphics queue.
+		// @todo: enforce graphics queue and present queue to be the same?
+		VkBool32 presentationSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDeivce, i, surfaceKHR, &presentationSupport);
+
+		if (queueFamily.queueCount > 0 && presentationSupport) {
+			queueFamilyIndices.presentFamily = i;
+		}
+
 		if (queueFamilyIndices.IsComplete()) {
 			break;
 		}
@@ -281,18 +338,5 @@ FindQueueFamilyIndices(
 	}
 
 	return queueFamilyIndices;
-}
-
-bool 
-IsDeviceVulkanCompatible(
-	const VkPhysicalDevice& physicalDeivce
-	) 
-{
-	VkPhysicalDeviceProperties deviceProperties;
-	vkGetPhysicalDeviceProperties(physicalDeivce, &deviceProperties);
-
-	QueueFamilyIndices indices = FindQueueFamilyIndices(physicalDeivce);
-
-	return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && indices.IsComplete();
 }
 

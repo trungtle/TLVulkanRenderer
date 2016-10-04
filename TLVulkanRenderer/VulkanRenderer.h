@@ -1,3 +1,10 @@
+/**
+ * Several of the code structure here is referenced at:
+ *  - https://vulkan-tutorial.com/ by Alexander Overvoorde
+ *  - WSI Tutorial by Chris Hebert
+ *  - https://github.com/SaschaWillems/Vulkan by Sascha Willems
+ */
+
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
@@ -13,19 +20,55 @@
 #include <string>
 using namespace std;
 
+/**
+ * \brief 
+ */
+struct QueueFamilyIndices {
+	int graphicsFamily = -1;
+	int presentFamily = -1;
+
+	bool IsComplete() {
+		return graphicsFamily >= 0 && presentFamily >= 0;
+	}
+};
+
+/**
+ * \brief 
+ */
 class VulkanRenderer
 {
 public:
-	VulkanRenderer();
+	VulkanRenderer(
+		GLFWwindow* window
+		);
 	~VulkanRenderer();
 
 private:
 
+	/**
+	 * \brief 
+	 */
+	GLFWwindow* m_window;
+	
+	/**
+	 * \brief 
+	 */
 	VkInstance m_instance;
 	VkDebugReportCallbackEXT m_debugCallback;
+	VkSurfaceKHR m_surfaceKHR;
 	VkPhysicalDevice m_physicalDevice;
 	VkDevice m_device;
+
+
+	/**
+	 * \brief This doesn't have to be the same as the present queue
+	 */
 	VkQueue m_graphicsQueue;
+
+	/**
+	* \brief This doesn't have to be the same as the graphics queue
+	*/
+	VkQueue m_presentQueue;
 
 	string m_name;
 	bool m_isEnableValidationLayers;
@@ -36,7 +79,10 @@ private:
 	VkResult 
 	SetupDebugCallback();
 	
-	VkResult 
+	VkResult
+	CreateWindowSurface();
+
+	VkResult
 	SelectPhysicalDevice();
 	
 	VkResult
@@ -44,14 +90,7 @@ private:
 
 	void 
 	Render();
-};
 
-struct QueueFamilyIndices {
-	int graphicsFamily = -1;
-
-	bool IsComplete() {
-		return graphicsFamily >= 0;
-	}
 };
 
 bool 
@@ -65,12 +104,6 @@ GetRequiredExtensions(
 	);
 
 
-QueueFamilyIndices
-FindQueueFamilyIndices(
-	const VkPhysicalDevice& physicalDeivce
-	);
-
-
 /**
  * \brief Check if this GPU is Vulkan compatible
  * \param VkPhysicalDevice to inspect
@@ -78,4 +111,13 @@ FindQueueFamilyIndices(
  */
 bool IsDeviceVulkanCompatible(
 	const VkPhysicalDevice& physicalDeivce
-	);
+	, const VkSurfaceKHR& surfaceKHR // For finding queue that can present image to our surface
+);
+
+QueueFamilyIndices
+FindQueueFamilyIndices(
+	const VkPhysicalDevice& physicalDeivce
+	, const VkSurfaceKHR& surfaceKHR // For finding queue that can present image to our surface
+);
+
+
