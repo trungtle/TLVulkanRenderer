@@ -3,6 +3,7 @@
 
 #include "VulkanRenderer.h"
 #include <set>
+#include <algorithm>
 
 // This is the list of validation layers we want
 const std::vector<const char*> VALIDATION_LAYERS = {
@@ -51,6 +52,9 @@ VulkanRenderer::VulkanRenderer(
 	, m_debugCallback(VK_NULL_HANDLE)
 	, m_surfaceKHR(VK_NULL_HANDLE)
 	, m_physicalDevice(VK_NULL_HANDLE)
+	, m_device(VK_NULL_HANDLE)
+	, m_graphicsQueue(VK_NULL_HANDLE)
+	, m_presentQueue(VK_NULL_HANDLE)
 	, m_name("Vulkan Application")
 {
 	VkResult result = InitVulkan();
@@ -97,8 +101,7 @@ VulkanRenderer::InitVulkan()
 	appInfo.apiVersion = VK_API_VERSION_1_0;
 
 	// Grab extensions. This includes the KHR surface extension and debug layer if in debug mode
-	std::vector<const char*> enabledExtensions = { VK_KHR_SURFACE_EXTENSION_NAME };
-	std::vector<const char*> extensions = GetRequiredExtensions(m_isEnableValidationLayers);
+	std::vector<const char*> extensions = GetInstanceRequiredExtensions(m_isEnableValidationLayers);
 
 	// Create instance info struct
 	VkInstanceCreateInfo instanceCreateInfo = {};
@@ -176,9 +179,15 @@ VulkanRenderer::SelectPhysicalDevice()
 VkResult 
 VulkanRenderer::SetupLogicalDevice() 
 {
-	QueueFamilyIndices queueFamilyIndices = FindQueueFamilyIndices(m_physicalDevice, m_surfaceKHR);
+	// @todo: should add new & interesting features later
+	VkPhysicalDeviceFeatures deviceFeatures = {};
+
+	// Create logical device info struct and populate it
+	VkDeviceCreateInfo deviceCreateInfo = {};
+	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
 	// Create a set of unique families for the required queues
+	QueueFamilyIndices queueFamilyIndices = FindQueueFamilyIndices(m_physicalDevice, m_surfaceKHR);
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 	std::set<int> uniqueQueueFamilies = { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
 	for (auto i : uniqueQueueFamilies) {
@@ -193,14 +202,13 @@ VulkanRenderer::SetupLogicalDevice()
 		queueCreateInfos.push_back(queueCreateInfo);
 	}
 
-	// @todo: should add new & interesting features later
-	VkPhysicalDeviceFeatures deviceFeatures = {};
-
-	VkDeviceCreateInfo deviceCreateInfo = {};
-	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-	deviceCreateInfo.enabledExtensionCount = 0;
+
+	// Grab logical device extensions
+	std::vector<const char*> enabledExtensions = GetDeviceRequiredExtensions(m_physicalDevice);
+	deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
+	deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
 	// Grab validation layers
 	if (m_isEnableValidationLayers) {
@@ -218,7 +226,8 @@ VulkanRenderer::SetupLogicalDevice()
 	// Grabs the first queue in the graphics queue family since we only need one graphics queue anyway
 	vkGetDeviceQueue(m_device, queueFamilyIndices.graphicsFamily, 0, &m_graphicsQueue);
 
-
+	// Grabs the first queue in the present queue family since we only need one present queue anyway
+	vkGetDeviceQueue(m_device, queueFamilyIndices.presentFamily, 0, &m_presentQueue);
 	
 	return result;
 }
@@ -261,7 +270,7 @@ CheckValidationLayerSupport(
 }
 
 std::vector<const char*> 
-GetRequiredExtensions(
+GetInstanceRequiredExtensions(
 	bool enableValidationLayers
 	) 
 {
@@ -283,19 +292,59 @@ GetRequiredExtensions(
 	return extensions;
 }
 
+std::vector<const char*> 
+GetDeviceRequiredExtensions(
+	const VkPhysicalDevice& physicalDevice
+	) 
+{
+	const std::vector<const char*> requiredExtensions = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	};
+
+	uint32_t extensionCount = 0;
+	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+
+	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+
+	for (auto& reqruiedExtension : requiredExtensions) {
+		if (std::find_if(availableExtensions.begin(), availableExtensions.end(), 
+		[&reqruiedExtension](const VkExtensionProperties& prop)
+		{
+			return strcmp(prop.extensionName, reqruiedExtension) == 0;
+		}) == availableExtensions.end()) {
+			// Couldn't find this extension, return an empty list
+			return {};
+		}
+	}
+
+	return requiredExtensions;
+}
+
 bool
 IsDeviceVulkanCompatible(
 	const VkPhysicalDevice& physicalDeivce
 	, const VkSurfaceKHR& surfaceKHR
 )
 {
+	// Can this physical device support all the extensions we'll need (ex. swap chain)
+	std::vector<const char*> requiredExtensions = GetDeviceRequiredExtensions(physicalDeivce);
+	bool hasAllRequiredExtensions = requiredExtensions.size() > 0;
+
+	// Check if we have the device properties desired
 	VkPhysicalDeviceProperties deviceProperties;
 	vkGetPhysicalDeviceProperties(physicalDeivce, &deviceProperties);
+	bool isDiscreteGPU = deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 
-	// Gather queue indices
-	QueueFamilyIndices indices = FindQueueFamilyIndices(physicalDeivce, surfaceKHR);
+	// Query queue indices
+	QueueFamilyIndices queueFamilyIndices = FindQueueFamilyIndices(physicalDeivce, surfaceKHR);
 
-	return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && indices.IsComplete();
+	// Query swapchain support
+	SwapchainSupport swapchainSupport = QuerySwapchainSupport(physicalDeivce, surfaceKHR);
+
+	return hasAllRequiredExtensions &&
+		swapchainSupport.IsComplete() &&
+		queueFamilyIndices.IsComplete();
 }
 
 
@@ -340,3 +389,34 @@ FindQueueFamilyIndices(
 	return queueFamilyIndices;
 }
 
+SwapchainSupport 
+QuerySwapchainSupport(
+	const VkPhysicalDevice& physicalDevice
+	, const VkSurfaceKHR& surface
+	) 
+{
+	SwapchainSupport swapchainInfo;
+
+	// Query surface capabilities
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &swapchainInfo.capabilities);
+
+	// Query supported surface formats
+	uint32_t formatCount = 0;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
+
+	if (formatCount != 0) {
+		swapchainInfo.surfaceFormats.resize(formatCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, swapchainInfo.surfaceFormats.data());
+	}
+
+	// Query supported surface present modes
+	uint32_t presentModeCount = 0;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
+
+	if (presentModeCount != 0) {
+		swapchainInfo.presentModes.resize(presentModeCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, swapchainInfo.presentModes.data());
+	}
+
+	return swapchainInfo;
+}

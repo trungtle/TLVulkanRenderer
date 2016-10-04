@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <string>
+#include <set>
 using namespace std;
 
 /**
@@ -27,8 +28,21 @@ struct QueueFamilyIndices {
 	int graphicsFamily = -1;
 	int presentFamily = -1;
 
-	bool IsComplete() {
+	bool IsComplete() const {
 		return graphicsFamily >= 0 && presentFamily >= 0;
+	}
+};
+
+/**
+ * \brief 
+ */
+struct SwapchainSupport {
+	VkSurfaceCapabilitiesKHR capabilities;
+	std::vector<VkSurfaceFormatKHR> surfaceFormats;
+	std::vector<VkPresentModeKHR> presentModes;
+
+	bool IsComplete() const {
+		return !surfaceFormats.empty() && !presentModes.empty();
 	}
 };
 
@@ -99,8 +113,13 @@ CheckValidationLayerSupport(
 	);
 
 std::vector<const char*> 
-GetRequiredExtensions(
+GetInstanceRequiredExtensions(
 	bool enableValidationLayers
+	);
+
+std::vector<const char*>
+GetDeviceRequiredExtensions(
+	const VkPhysicalDevice& physicalDevice
 	);
 
 
@@ -116,8 +135,13 @@ bool IsDeviceVulkanCompatible(
 
 QueueFamilyIndices
 FindQueueFamilyIndices(
-	const VkPhysicalDevice& physicalDeivce
+	const VkPhysicalDevice& physicalDevicece
 	, const VkSurfaceKHR& surfaceKHR // For finding queue that can present image to our surface
 );
 
+SwapchainSupport
+QuerySwapchainSupport(
+	const VkPhysicalDevice& physicalDevice 
+	, const VkSurfaceKHR& surface
+	);
 
