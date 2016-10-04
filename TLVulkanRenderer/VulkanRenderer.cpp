@@ -51,6 +51,9 @@ VulkanRenderer::VulkanRenderer(
 	, m_debugCallback(VK_NULL_HANDLE)
 	, m_surfaceKHR(VK_NULL_HANDLE)
 	, m_physicalDevice(VK_NULL_HANDLE)
+	, m_device(VK_NULL_HANDLE)
+	, m_graphicsQueue(VK_NULL_HANDLE)
+	, m_presentQueue(VK_NULL_HANDLE)
 	, m_name("Vulkan Application")
 {
 	VkResult result = InitVulkan();
@@ -218,7 +221,8 @@ VulkanRenderer::SetupLogicalDevice()
 	// Grabs the first queue in the graphics queue family since we only need one graphics queue anyway
 	vkGetDeviceQueue(m_device, queueFamilyIndices.graphicsFamily, 0, &m_graphicsQueue);
 
-
+	// Grabs the first queue in the present queue family since we only need one present queue anyway
+	vkGetDeviceQueue(m_device, queueFamilyIndices.presentFamily, 0, &m_presentQueue);
 	
 	return result;
 }
