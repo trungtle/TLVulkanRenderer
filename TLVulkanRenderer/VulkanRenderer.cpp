@@ -2,8 +2,8 @@
 #include <iostream>
 
 #include "VulkanRenderer.h"
-#include <set>
 #include <algorithm>
+#include "thirdparty/spdlog/spdlog.h"
 
 // This is the list of validation layers we want
 const std::vector<const char*> VALIDATION_LAYERS = {
