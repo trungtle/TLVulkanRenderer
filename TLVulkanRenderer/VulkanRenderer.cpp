@@ -41,6 +41,20 @@ CreateDebugReportCallbackEXT(
 	}
 }
 
+void
+DestroyDebugReportCallbackEXT(
+    VkInstance vkInstance,
+    VkDebugReportCallbackEXT pCallback,
+    const VkAllocationCallbacks* pAllocator
+    )
+{
+    auto func = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(vkInstance, "vkDestroyDebugReportCallbackEXT");
+    if (func != nullptr)
+    {
+        func(vkInstance, pCallback, pAllocator);
+    }
+}
+
 // ------------------
 
 VulkanRenderer::VulkanRenderer(
@@ -90,6 +104,7 @@ VulkanRenderer::~VulkanRenderer()
     vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 	vkDestroyDevice(m_device, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surfaceKHR, nullptr);
+    DestroyDebugReportCallbackEXT(m_instance, m_debugCallback, nullptr);
 	vkDestroyInstance(m_instance, nullptr);
 }
 
