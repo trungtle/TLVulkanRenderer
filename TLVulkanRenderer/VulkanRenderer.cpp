@@ -76,6 +76,8 @@ VulkanRenderer::VulkanRenderer(
 	result = SelectPhysicalDevice();
 	assert(result == VK_SUCCESS);
 
+	QuerySwapchainSupport(m_physicalDevice, m_surfaceKHR);
+
 	result = SetupLogicalDevice();
 	assert(result == VK_SUCCESS);
 }
@@ -108,13 +110,13 @@ VulkanRenderer::InitVulkan()
 	instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instanceCreateInfo.pNext = nullptr;
 	instanceCreateInfo.pApplicationInfo = &appInfo;
-	instanceCreateInfo.enabledExtensionCount = extensions.size();
+	instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 	instanceCreateInfo.ppEnabledExtensionNames = extensions.data();
 
 	// Grab validation layers
 	if (m_isEnableValidationLayers) {
 		assert(CheckValidationLayerSupport(VALIDATION_LAYERS));
-		instanceCreateInfo.enabledLayerCount = VALIDATION_LAYERS.size();
+		instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		instanceCreateInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 	} else {
 		instanceCreateInfo.enabledLayerCount = 0;
@@ -173,6 +175,15 @@ VulkanRenderer::SelectPhysicalDevice()
 		}
 	}
 
+	return m_physicalDevice != nullptr ? VK_SUCCESS : VK_ERROR_DEVICE_LOST;
+}
+
+VkResult 
+VulkanRenderer::CreateSwapchain() 
+{
+
+	SwapchainSupport swapchainSupport = QuerySwapchainSupport(m_physicalDevice, m_surfaceKHR);
+
 	return VK_SUCCESS;
 }
 
@@ -213,7 +224,7 @@ VulkanRenderer::SetupLogicalDevice()
 	// Grab validation layers
 	if (m_isEnableValidationLayers) {
 		assert(CheckValidationLayerSupport(VALIDATION_LAYERS));
-		deviceCreateInfo.enabledLayerCount = VALIDATION_LAYERS.size();
+		deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		deviceCreateInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 	}
 	else {
@@ -276,12 +287,12 @@ GetInstanceRequiredExtensions(
 {
 	std::vector<const char*> extensions;
 
-	unsigned int extensionCount = 0;
+	uint32_t extensionCount = 0;
 	const char** glfwExtensions;
 
 	glfwExtensions = glfwGetRequiredInstanceExtensions(&extensionCount);
 	
-	for (auto i = 0; i < extensionCount; ++i) {
+	for (uint32_t i = 0; i < extensionCount; ++i) {
 		extensions.push_back(glfwExtensions[i]);
 	}
 
@@ -419,4 +430,95 @@ QuerySwapchainSupport(
 	}
 
 	return swapchainInfo;
+}
+
+VkSurfaceFormatKHR 
+SelectDesiredSwapchainSurfaceFormat(
+	const std::vector<VkSurfaceFormatKHR> availableFormats
+	) 
+{
+	assert(availableFormats.empty() == false);
+
+	// List of some formats options we would like to choose from. Rank from most preferred down.
+	// @todo: move this to a configuration file so we could easily configure it in the future
+	std::vector<VkSurfaceFormatKHR> preferredFormats = {
+
+		// *N.B*
+		// We want to use sRGB to display to the screen, since that's the color space our eyes can perceive accurately.
+		// See http://stackoverflow.com/questions/12524623/what-are-the-practical-differences-when-working-with-colors-in-a-linear-vs-a-no
+		// for more details.
+		// For mannipulating colors, use a 32 bit unsigned normalized RGB since it's an easier format to do math with.
+
+		{ VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+	};
+
+	// Just return the first reasonable format we found
+	for (const auto& format : availableFormats) {
+		for (const auto& preferred : preferredFormats) {
+			if (format.format == preferred.format && format.colorSpace == preferred.colorSpace) {
+				return format;
+			}
+		}
+	}
+
+	// Couldn't find one that satisfy our preferrence, so just return the first one we found
+	return availableFormats[0];
+}
+
+VkPresentModeKHR 
+SelectDesiredSwapchainPresentMode(
+	const std::vector<VkPresentModeKHR> availablePresentModes
+	) 
+{
+	assert(availablePresentModes.empty() == false);
+
+	// Maybe we should do tripple buffering here to avoid tearing & stuttering
+	// @todo: This SHOULD be a configuration passed from somewhere else in a global configuration state
+	bool enableTrippleBuffering = true;
+	if (enableTrippleBuffering) {
+		// Search for VK_PRESENT_MODE_MAILBOX_KHR. This is because we're interested in 
+		// using tripple buffering.
+		for (const auto& presentMode : availablePresentModes) {
+			if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+				return VK_PRESENT_MODE_MAILBOX_KHR;
+			}
+		}
+	}
+
+	// Couldn't find one that satisfy our preferrence, so just return
+	// VK_PRESENT_MODE_FIFO_KHR, since it is guaranteed to be supported by the Vulkan spec
+	return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D 
+SelectDesiredSwapchainExtent(
+	const VkSurfaceCapabilitiesKHR surfaceCapabilities
+	, bool useCurrentExtent
+	, unsigned int desiredWidth
+	, unsigned int desiredHeight
+	) 
+{
+	// @ref From Vulkan 1.0.29 spec (with KHR extension) at
+	// https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceCapabilitiesKHR
+	// "currentExtent is the current width and height of the surface, or the special value (0xFFFFFFFF, 0xFFFFFFFF) 
+	// indicating that the surface size will be determined by the extent of a swapchain targeting the surface."
+	// So we first check if this special value is set. If it is, proceed with the desiredWidth and desiredHeight
+	if (surfaceCapabilities.currentExtent.width != 0xFFFFFFFF ||
+		surfaceCapabilities.currentExtent.height != 0xFFFFFFFF) 
+	{
+		return surfaceCapabilities.currentExtent;
+	}
+
+	// Pick the extent that user prefer here
+	VkExtent2D extent;
+	
+	// Properly select extent based on our surface capability's min and max of the extent
+	uint32_t minWidth = surfaceCapabilities.minImageExtent.width;
+	uint32_t maxWidth = surfaceCapabilities.maxImageExtent.width;
+	uint32_t minHeight = surfaceCapabilities.minImageExtent.height;
+	uint32_t maxHeight = surfaceCapabilities.maxImageExtent.height;
+	extent.width = std::max(minWidth, std::min(maxWidth, static_cast<uint32_t>(desiredWidth)));
+	extent.height = std::max(minHeight, std::min(maxHeight, static_cast<uint32_t>(desiredHeight)));
+
+	return extent;
 }
