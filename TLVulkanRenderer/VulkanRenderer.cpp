@@ -55,6 +55,7 @@ VulkanRenderer::VulkanRenderer(
 	, m_device(VK_NULL_HANDLE)
 	, m_graphicsQueue(VK_NULL_HANDLE)
 	, m_presentQueue(VK_NULL_HANDLE)
+	, m_swapchain(VK_NULL_HANDLE)
 	, m_name("Vulkan Application")
 {
 	VkResult result = InitVulkan();
@@ -76,15 +77,17 @@ VulkanRenderer::VulkanRenderer(
 	result = SelectPhysicalDevice();
 	assert(result == VK_SUCCESS);
 
-	QuerySwapchainSupport(m_physicalDevice, m_surfaceKHR);
-
 	result = SetupLogicalDevice();
+	assert(result == VK_SUCCESS);
+
+	result = CreateSwapchain();
 	assert(result == VK_SUCCESS);
 }
 
 
 VulkanRenderer::~VulkanRenderer()
 {
+    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 	vkDestroyDevice(m_device, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surfaceKHR, nullptr);
 	vkDestroyInstance(m_instance, nullptr);
@@ -179,15 +182,6 @@ VulkanRenderer::SelectPhysicalDevice()
 }
 
 VkResult 
-VulkanRenderer::CreateSwapchain() 
-{
-
-	SwapchainSupport swapchainSupport = QuerySwapchainSupport(m_physicalDevice, m_surfaceKHR);
-
-	return VK_SUCCESS;
-}
-
-VkResult 
 VulkanRenderer::SetupLogicalDevice() 
 {
 	// @todo: should add new & interesting features later
@@ -197,14 +191,14 @@ VulkanRenderer::SetupLogicalDevice()
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-	// Create a set of unique families for the required queues
-	QueueFamilyIndices queueFamilyIndices = FindQueueFamilyIndices(m_physicalDevice, m_surfaceKHR);
+	// Create a set of unique queue families for the required queues
+	m_queueFamilyIndices = FindQueueFamilyIndices(m_physicalDevice, m_surfaceKHR);
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	std::set<int> uniqueQueueFamilies = { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
+	std::set<int> uniqueQueueFamilies = { m_queueFamilyIndices.graphicsFamily, m_queueFamilyIndices.presentFamily };
 	for (auto i : uniqueQueueFamilies) {
 		VkDeviceQueueCreateInfo queueCreateInfo = {};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		queueCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
+		queueCreateInfo.queueFamilyIndex = m_queueFamilyIndices.graphicsFamily;
 		queueCreateInfo.queueCount = 1; // Only using one queue for now. We actually don't need that many.
 		float queuePriority = 1.0f; // Queue priority. Required even if we only have one queue.
 		queueCreateInfo.pQueuePriorities = &queuePriority;
@@ -235,11 +229,108 @@ VulkanRenderer::SetupLogicalDevice()
 	VkResult result = vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device);
 	
 	// Grabs the first queue in the graphics queue family since we only need one graphics queue anyway
-	vkGetDeviceQueue(m_device, queueFamilyIndices.graphicsFamily, 0, &m_graphicsQueue);
+	vkGetDeviceQueue(m_device, m_queueFamilyIndices.graphicsFamily, 0, &m_graphicsQueue);
 
 	// Grabs the first queue in the present queue family since we only need one present queue anyway
-	vkGetDeviceQueue(m_device, queueFamilyIndices.presentFamily, 0, &m_presentQueue);
+	vkGetDeviceQueue(m_device, m_queueFamilyIndices.presentFamily, 0, &m_presentQueue);
 	
+	return result;
+}
+
+VkResult
+VulkanRenderer::CreateSwapchain()
+{
+	// Query existing support
+	SwapchainSupport swapchainSupport = QuerySwapchainSupport(m_physicalDevice, m_surfaceKHR);
+
+	// Select three settings:
+	// 1. Surface format
+	// 2. Present mode
+	// 3. Extent
+	// @todo Right now the preference is embedded inside these functions. We need to expose it to a global configuration file somewhere instead.
+	VkSurfaceFormatKHR surfaceFormat = SelectDesiredSwapchainSurfaceFormat(swapchainSupport.surfaceFormats);
+	VkPresentModeKHR presentMode = SelectDesiredSwapchainPresentMode(swapchainSupport.presentModes);
+	VkExtent2D extent = SelectDesiredSwapchainExtent(swapchainSupport.capabilities);
+
+	// Select the number of images to be in our swapchain queue. To properly implement tripple buffering, 
+	// we might need an extra image in the queue so bumb the count up. Also, create info struct
+	// for swap chain requires the minimum image count
+	uint32_t minImageCount = swapchainSupport.capabilities.minImageCount + 1;
+
+	// Vulkan also specifies that a the maxImageCount could be 0 to indicate that there is no limit besides memory requirement.
+	if (swapchainSupport.capabilities.maxImageCount > 0 &&
+		minImageCount > swapchainSupport.capabilities.maxImageCount)
+	{
+		// Just need to restrict it to be something greater than the capable minImageCount but not greater than
+		// maxImageCount if we're limited on maxImageCount
+		minImageCount = swapchainSupport.capabilities.maxImageCount;
+	}
+
+	// Construct the swapchain create info struct
+	VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
+	swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	swapchainCreateInfo.surface = m_surfaceKHR;
+	swapchainCreateInfo.imageFormat = surfaceFormat.format;
+	swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
+	swapchainCreateInfo.minImageCount = minImageCount;
+	swapchainCreateInfo.presentMode = presentMode;
+	swapchainCreateInfo.imageExtent = extent;
+
+	// Amount of layers for each image. This is always 1 unless we're developing for stereoscopic 3D app.
+	swapchainCreateInfo.imageArrayLayers = 1;
+
+	// See ref. for a list of different image usage flags we could use
+	// @ref: https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkImageUsageFlagBits
+	// @todo: For now, we're just rendering directly to the image view as color attachment. It's possible to use
+	// something like VK_IMAGE_USAGE_TRANSFER_DST_BIT to transfer to another image for post-processing before presenting.
+	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	// Swap chain is set up differently depending on whether or not 
+	// our graphics queue and present queue are from the same family
+	// Images will be drawn on the graphics queue then submitted to the present queue.
+	assert(m_queueFamilyIndices.IsComplete());
+	if (m_queueFamilyIndices.presentFamily == m_queueFamilyIndices.graphicsFamily) 
+	{
+		// Image is owned by a single queue family. Best performance. 
+		// This is the case on most hardware.
+		swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapchainCreateInfo.queueFamilyIndexCount = 0; // Optional
+		swapchainCreateInfo.pQueueFamilyIndices = nullptr; // Optional
+	} 
+	else 
+	{
+		// Image can be used by multiple queue families.
+		const uint32_t indices[2] = {
+			static_cast<uint32_t>(m_queueFamilyIndices.graphicsFamily),
+			static_cast<uint32_t>(m_queueFamilyIndices.presentFamily),
+		};
+		swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		swapchainCreateInfo.queueFamilyIndexCount = 2;
+		swapchainCreateInfo.pQueueFamilyIndices = indices;
+	}
+
+	// This transform is applied to the image in the swapchain.
+	// For ex. a 90 rotation. We don't want any transformation here for now.
+	swapchainCreateInfo.preTransform = swapchainSupport.capabilities.currentTransform;
+
+	// This is the blending to be applied with other windows
+	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+	// Don't care about pixels obscured, unless we need them to compute some prediction.
+	swapchainCreateInfo.clipped = VK_TRUE;
+
+	// This is handle for a backup swapchain in case our current one is trashed and
+	// we need to recover. 
+	// @todo NULL for now.
+	swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+
+	// Create the swap chain now!
+	VkResult result = vkCreateSwapchainKHR(m_device, &swapchainCreateInfo, nullptr, &m_swapchain);
+	if (result != VK_SUCCESS) 
+	{
+        throw std::runtime_error("Failed to create swapchain!");
+	}
+
 	return result;
 }
 
