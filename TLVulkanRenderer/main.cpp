@@ -2,6 +2,7 @@
 
 int main() {
 
-	Application app(800, 600);
+    // Launch our application using the Vulkan API
+	Application app(800, 600, EGraphicsAPI::Vulkan);
 	app.Run();
 }

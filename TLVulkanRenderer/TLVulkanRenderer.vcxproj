@@ -150,6 +150,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="GeometryBase.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="VulkanRenderer.cpp" />
@@ -157,6 +158,7 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="GeometryBase.h" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\common.h" />

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Renderer.h"
 #include "VulkanRenderer.h"
 
 class Application
@@ -7,7 +8,8 @@ class Application
 public:
 	Application(
 		int width = 800, 
-		int height = 600
+		int height = 600,
+        EGraphicsAPI useAPI = EGraphicsAPI::Vulkan /* Default with Vulkan */
 		);
 	~Application();
 
@@ -17,10 +19,11 @@ public:
 	void Run();
 
 private:
-
 	int m_width;
 	int m_height;
+    
+    EGraphicsAPI m_useGraphicsAPI;
 	GLFWwindow* m_window;
-    VulkanRenderer* m_renderer;
+    Renderer* m_renderer;
 };
 

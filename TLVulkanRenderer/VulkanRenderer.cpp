@@ -33,7 +33,7 @@ CreateDebugReportCallbackEXT(
 	VkDebugReportCallbackEXT* pCallback
 	) 
 {
-	auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(vkInstance, "vkCreateDebugReportCallbackEXT");
+	auto func = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(vkInstance, "vkCreateDebugReportCallbackEXT"));
 	if (func != nullptr) {
 		return func(vkInstance, pCreateInfo, pAllocator, pCallback);
 	} else {
@@ -48,7 +48,7 @@ DestroyDebugReportCallbackEXT(
     const VkAllocationCallbacks* pAllocator
     )
 {
-    auto func = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(vkInstance, "vkDestroyDebugReportCallbackEXT");
+    auto func = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(vkInstance, "vkDestroyDebugReportCallbackEXT"));
     if (func != nullptr)
     {
         func(vkInstance, pCallback, pAllocator);
@@ -61,7 +61,7 @@ VulkanRenderer::VulkanRenderer(
 	GLFWwindow* window
 	)
 	:
-	m_window(window)
+	Renderer(window)
 	, m_instance(VK_NULL_HANDLE) 
 	, m_debugCallback(VK_NULL_HANDLE)
 	, m_surfaceKHR(VK_NULL_HANDLE)
@@ -470,6 +470,7 @@ IsDeviceVulkanCompatible(
 	SwapchainSupport swapchainSupport = QuerySwapchainSupport(physicalDeivce, surfaceKHR);
 
 	return hasAllRequiredExtensions &&
+        isDiscreteGPU &&
 		swapchainSupport.IsComplete() &&
 		queueFamilyIndices.IsComplete();
 }
