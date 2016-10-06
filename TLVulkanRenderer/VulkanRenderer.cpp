@@ -331,6 +331,16 @@ VulkanRenderer::CreateSwapchain()
         throw std::runtime_error("Failed to create swapchain!");
 	}
 
+    // Initialize the vector of swapchain images here. 
+    uint32_t imageCount;
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr);
+    m_swapchainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, m_swapchainImages.data());
+
+    // Initialize other swapchain related fields
+    m_swapchainImageFormat = surfaceFormat.format;
+    m_swapchainExtent = extent;
+
 	return result;
 }
 

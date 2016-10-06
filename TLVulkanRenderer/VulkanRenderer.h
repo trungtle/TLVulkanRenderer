@@ -136,6 +136,21 @@ private:
 	 */
 	VkSwapchainKHR m_swapchain;
 
+    /**
+     * \brief Array of images queued in the swapchain
+     */
+    std::vector<VkImage> m_swapchainImages;
+
+    /**
+     * \brief Image format inside swapchain
+     */
+    VkFormat m_swapchainImageFormat;
+
+    /**
+     * \brief Image extent inside swapchain
+     */
+    VkExtent2D m_swapchainExtent;
+
 	/**
 	* \brief Name of the Vulkan application. This is the name of our whole application in general.
 	*/
