@@ -2,8 +2,8 @@
 #include <iostream>
 
 #include "VulkanRenderer.h"
-#include <set>
 #include <algorithm>
+#include "thirdparty/spdlog/spdlog.h"
 
 // This is the list of validation layers we want
 const std::vector<const char*> VALIDATION_LAYERS = {
@@ -33,12 +33,26 @@ CreateDebugReportCallbackEXT(
 	VkDebugReportCallbackEXT* pCallback
 	) 
 {
-	auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(vkInstance, "vkCreateDebugReportCallbackEXT");
+	auto func = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(vkInstance, "vkCreateDebugReportCallbackEXT"));
 	if (func != nullptr) {
 		return func(vkInstance, pCreateInfo, pAllocator, pCallback);
 	} else {
 		return VK_ERROR_EXTENSION_NOT_PRESENT;
 	}
+}
+
+void
+DestroyDebugReportCallbackEXT(
+    VkInstance vkInstance,
+    VkDebugReportCallbackEXT pCallback,
+    const VkAllocationCallbacks* pAllocator
+    )
+{
+    auto func = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(vkInstance, "vkDestroyDebugReportCallbackEXT"));
+    if (func != nullptr)
+    {
+        func(vkInstance, pCallback, pAllocator);
+    }
 }
 
 // ------------------
@@ -47,7 +61,7 @@ VulkanRenderer::VulkanRenderer(
 	GLFWwindow* window
 	)
 	:
-	m_window(window)
+	Renderer(window)
 	, m_instance(VK_NULL_HANDLE) 
 	, m_debugCallback(VK_NULL_HANDLE)
 	, m_surfaceKHR(VK_NULL_HANDLE)
@@ -90,6 +104,7 @@ VulkanRenderer::~VulkanRenderer()
     vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 	vkDestroyDevice(m_device, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surfaceKHR, nullptr);
+    DestroyDebugReportCallbackEXT(m_instance, m_debugCallback, nullptr);
 	vkDestroyInstance(m_instance, nullptr);
 }
 
@@ -331,6 +346,16 @@ VulkanRenderer::CreateSwapchain()
         throw std::runtime_error("Failed to create swapchain!");
 	}
 
+    // Initialize the vector of swapchain images here. 
+    uint32_t imageCount;
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr);
+    m_swapchainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, m_swapchainImages.data());
+
+    // Initialize other swapchain related fields
+    m_swapchainImageFormat = surfaceFormat.format;
+    m_swapchainExtent = extent;
+
 	return result;
 }
 
@@ -445,6 +470,7 @@ IsDeviceVulkanCompatible(
 	SwapchainSupport swapchainSupport = QuerySwapchainSupport(physicalDeivce, surfaceKHR);
 
 	return hasAllRequiredExtensions &&
+        isDiscreteGPU &&
 		swapchainSupport.IsComplete() &&
 		queueFamilyIndices.IsComplete();
 }
@@ -610,6 +636,9 @@ SelectDesiredSwapchainExtent(
 	uint32_t maxHeight = surfaceCapabilities.maxImageExtent.height;
 	extent.width = std::max(minWidth, std::min(maxWidth, static_cast<uint32_t>(desiredWidth)));
 	extent.height = std::max(minHeight, std::min(maxHeight, static_cast<uint32_t>(desiredHeight)));
+
+    auto console = spdlog::stdout_logger_mt("console", true /*use color*/);
+    SPDLOG_TRACE(console, "Extent created with width: {}, height: {}", extent.width, extent.height);
 
 	return extent;
 }

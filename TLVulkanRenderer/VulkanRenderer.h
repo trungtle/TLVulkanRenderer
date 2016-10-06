@@ -8,21 +8,12 @@
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
-
-#include <vector>
-#include <string>
-#include <set>
-using namespace std;
+#include "Renderer.h"
 
 /**
- * \brief 
+ * \brief A struct to store queue family indices
  */
 typedef struct QueueFamilyIndicesTyp {
 	int graphicsFamily = -1;
@@ -34,7 +25,7 @@ typedef struct QueueFamilyIndicesTyp {
 } QueueFamilyIndices;
 
 /**
- * \brief 
+ * \brief Struct to store available swapchain support
  */
 typedef struct SwapchainSupportTyp {
 	VkSurfaceCapabilitiesKHR capabilities;
@@ -49,13 +40,17 @@ typedef struct SwapchainSupportTyp {
 /**
  * \brief 
  */
-class VulkanRenderer
+class VulkanRenderer : public Renderer
 {
 public:
 	VulkanRenderer(
 		GLFWwindow* window
 		);
-	~VulkanRenderer();
+	virtual 
+    ~VulkanRenderer() final;
+
+    virtual void
+    Render() final;
 
 private:
 	VkResult 
@@ -75,14 +70,6 @@ private:
 
 	VkResult
 	CreateSwapchain();
-
-	void
-	Render();
-
-	/**
-	* \brief The window handle from glfw
-	*/
-	GLFWwindow* m_window;
 
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
@@ -135,6 +122,21 @@ private:
 	 * \seealso VkImage
 	 */
 	VkSwapchainKHR m_swapchain;
+
+    /**
+     * \brief Array of images queued in the swapchain
+     */
+    std::vector<VkImage> m_swapchainImages;
+
+    /**
+     * \brief Image format inside swapchain
+     */
+    VkFormat m_swapchainImageFormat;
+
+    /**
+     * \brief Image extent inside swapchain
+     */
+    VkExtent2D m_swapchainExtent;
 
 	/**
 	* \brief Name of the Vulkan application. This is the name of our whole application in general.
