@@ -24,19 +24,19 @@ using namespace std;
 /**
  * \brief 
  */
-struct QueueFamilyIndices {
+typedef struct QueueFamilyIndicesTyp {
 	int graphicsFamily = -1;
 	int presentFamily = -1;
 
 	bool IsComplete() const {
 		return graphicsFamily >= 0 && presentFamily >= 0;
 	}
-};
+} QueueFamilyIndices;
 
 /**
  * \brief 
  */
-struct SwapchainSupport {
+typedef struct SwapchainSupportTyp {
 	VkSurfaceCapabilitiesKHR capabilities;
 	std::vector<VkSurfaceFormatKHR> surfaceFormats;
 	std::vector<VkPresentModeKHR> presentModes;
@@ -44,17 +44,7 @@ struct SwapchainSupport {
 	bool IsComplete() const {
 		return !surfaceFormats.empty() && !presentModes.empty();
 	}
-};
-
-struct SwapchainDesiredSetting {
-
-	// Present mode preference
-
-	// Surface format preference
-	//std::vector<VkSurfaceFormatKHR> desiredSurfaceFormats;
-
-	// Surface extent
-};
+} SwapchainSupport;
 
 /**
  * \brief 
@@ -68,35 +58,6 @@ public:
 	~VulkanRenderer();
 
 private:
-
-	/**
-	 * \brief 
-	 */
-	GLFWwindow* m_window;
-	
-	/**
-	 * \brief 
-	 */
-	VkInstance m_instance;
-	VkDebugReportCallbackEXT m_debugCallback;
-	VkSurfaceKHR m_surfaceKHR;
-	VkPhysicalDevice m_physicalDevice;
-	VkDevice m_device;
-
-
-	/**
-	 * \brief This doesn't have to be the same as the present queue
-	 */
-	VkQueue m_graphicsQueue;
-
-	/**
-	* \brief This doesn't have to be the same as the graphics queue
-	*/
-	VkQueue m_presentQueue;
-
-	string m_name;
-	bool m_isEnableValidationLayers;
-
 	VkResult 
 	InitVulkan();
 	
@@ -110,13 +71,85 @@ private:
 	SelectPhysicalDevice();
 	
 	VkResult
-	CreateSwapchain();
-
-	VkResult
 	SetupLogicalDevice();
 
-	void 
+	VkResult
+	CreateSwapchain();
+
+	void
 	Render();
+
+	/**
+	* \brief The window handle from glfw
+	*/
+	GLFWwindow* m_window;
+
+	/**
+	* \brief Handle to the per-application Vulkan instance. 
+	*		 There is no global state in Vulkan, and the instance represents per-application state.
+	*		 Creating an instance also initializes the Vulkan library.
+	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#initialization-instances
+	*/
+	VkInstance m_instance;
+
+	/**
+	 * \brief This is the callback for the debug report in the Vulkan validation extension
+	 */
+	VkDebugReportCallbackEXT m_debugCallback;
+	
+	/**
+	 * \brief Abstract for native platform surface or window object
+	 * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#_wsi_surface
+	 */
+	VkSurfaceKHR m_surfaceKHR;
+
+	/**
+	 * \brief Handle to the actual GPU, or physical device. It is used for informational purposes only and maynot affect the Vulkan state itself.
+	 * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-physical-device-enumeration
+	 */
+	VkPhysicalDevice m_physicalDevice;
+
+	/**
+	 * \brief In Vulkan, this is called a logical device. It represents the logical connection
+	 *		  to physical device and how the application sees it.
+	 * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-devices
+	 */
+	VkDevice m_device;
+
+	/**
+	* \brief Handles to the Vulkan graphics queue. This may or may not be the same as the present queue
+	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-queues
+	*/
+	VkQueue m_graphicsQueue;
+
+	/**
+	* \brief Handles to the Vulkan present queue. This may or may not be the same as the graphics queue
+	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-queues
+	*/
+	VkQueue m_presentQueue;
+
+	/**
+	 * \brief Abstraction for an array of images (VkImage) to be presented to the screen surface. 
+	 *		  Typically, one image is presented at a time while multiple others can be queued.
+	 * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#_wsi_swapchain
+	 * \seealso VkImage
+	 */
+	VkSwapchainKHR m_swapchain;
+
+	/**
+	* \brief Name of the Vulkan application. This is the name of our whole application in general.
+	*/
+	string m_name;
+
+	/**
+	* \brief If true, will include the validation layer
+	*/
+	bool m_isEnableValidationLayers;
+
+	/**
+	 * \brief Store the queue family indices
+	 */
+	QueueFamilyIndices m_queueFamilyIndices;
 
 };
 
