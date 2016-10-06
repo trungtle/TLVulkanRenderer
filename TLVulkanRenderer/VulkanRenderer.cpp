@@ -636,5 +636,8 @@ SelectDesiredSwapchainExtent(
 	extent.width = std::max(minWidth, std::min(maxWidth, static_cast<uint32_t>(desiredWidth)));
 	extent.height = std::max(minHeight, std::min(maxHeight, static_cast<uint32_t>(desiredHeight)));
 
+    auto console = spdlog::stdout_logger_mt("console", true /*use color*/);
+    SPDLOG_TRACE(console, "Extent created with width: {}, height: {}", extent.width, extent.height);
+
 	return extent;
 }

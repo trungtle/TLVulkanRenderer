@@ -151,7 +151,7 @@
     <ClCompile Include="GeometryBase.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="Viewer.cpp" />
+    <ClCompile Include="Application.cpp" />
     <ClCompile Include="VulkanRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -164,7 +164,7 @@
     <ClInclude Include="thirdparty\spdlog\include\spdlog\logger.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\spdlog.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\tweakme.h" />
-    <ClInclude Include="Viewer.h" />
+    <ClInclude Include="Application.h" />
     <ClInclude Include="VulkanRenderer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

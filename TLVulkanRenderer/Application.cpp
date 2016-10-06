@@ -1,9 +1,9 @@
 #include <iostream>
 #include <functional>
 
-#include "Viewer.h"
+#include "Application.h"
 
-Viewer::Viewer(
+Application::Application(
 	int width,
 	int height
 	) : 
@@ -19,19 +19,19 @@ Viewer::Viewer(
 	m_window = glfwCreateWindow(m_width, m_height, "Vulkan window", nullptr, nullptr);
 
 	// Init Vulkan
-	VulkanRenderer renderer(m_window);
+	m_renderer = new VulkanRenderer(m_window);
 
 }
 
 
-Viewer::~Viewer()
+Application::~Application()
 {
-	glfwDestroyWindow(m_window);
-
+    delete m_renderer;
+    glfwDestroyWindow(m_window);
 	glfwTerminate();
 }
 
-void Viewer::Run() {
+void Application::Run() {
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
