@@ -73,6 +73,17 @@ private:
 
     VkResult
     CreateImageViews();
+
+	VkResult
+	CreateGraphicsPipeline();
+
+	VkResult
+	CreateShaderModule(
+		const std::vector<char>& code
+		, VkShaderModule& shaderModule
+		);
+
+
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
 	*		 There is no global state in Vulkan, and the instance represents per-application state.

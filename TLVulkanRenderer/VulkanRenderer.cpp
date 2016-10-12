@@ -1,9 +1,9 @@
 #include <assert.h>
 #include <iostream>
+#include <algorithm>
 
 #include "VulkanRenderer.h"
-#include <algorithm>
-#include "thirdparty/spdlog/spdlog.h"
+#include "Utilities.h"
 
 // This is the list of validation layers we want
 const std::vector<const char*> VALIDATION_LAYERS = {
@@ -118,6 +118,11 @@ VulkanRenderer::VulkanRenderer(
     result = CreateImageViews();
     assert(result == VK_SUCCESS);
     m_logger->info("Created {} VkImageViews", m_swapchainImageViews.size());
+
+	result = CreateGraphicsPipeline();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created graphics pipeline");
+
 }
 
 
@@ -419,6 +424,70 @@ VulkanRenderer::CreateImageViews()
     return result;
 }
 
+
+VkResult 
+VulkanRenderer::CreateGraphicsPipeline() {
+	
+	VkResult result = VK_SUCCESS;
+
+	// Load SPIR-V bytecode
+	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
+	// by invoking the custom script shaders/compileShaders.bat
+	std::vector<char> vertShaderBytecode;
+	std::vector<char> fragShaderBytecode;
+	LoadSPIR_V("shaders/vert.spv", "shaders/frag.spv", vertShaderBytecode, fragShaderBytecode);
+	m_logger->info("Loaded {} vertex shader, file size {} bytes", "shaders/vert.spv", vertShaderBytecode.size());
+	m_logger->info("Loaded {} frag shader, file size {} bytes", "shaders/frag.spv", fragShaderBytecode.size());
+	
+	// Create shader modules from bytecodes
+	VkShaderModule vertShader;
+	CreateShaderModule(
+		vertShaderBytecode,
+		vertShader
+		);
+
+	VkShaderModule fragShader;
+	CreateShaderModule(
+		vertShaderBytecode,
+		fragShader
+	);
+
+	// Create the pipeline by linking the shader modules to stages
+	VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+
+
+	// We don't need the shader modules after the graphics pipeline creation. Destroy them now.
+	vkDestroyShaderModule(m_device, vertShader, nullptr);
+	vkDestroyShaderModule(m_device, fragShader, nullptr);
+
+
+	return result;
+}
+
+
+VkResult
+VulkanRenderer::CreateShaderModule(
+	const std::vector<char>& code
+	, VkShaderModule& shaderModule
+)
+{
+	VkResult result = VK_SUCCESS;
+
+	VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
+	shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	shaderModuleCreateInfo.codeSize = code.size();
+	shaderModuleCreateInfo.pCode = (uint32_t*)code.data();
+
+	result = vkCreateShaderModule(m_device, &shaderModuleCreateInfo, nullptr, &shaderModule);
+	if (result != VK_SUCCESS) 
+	{
+		throw std::runtime_error("Failed to create shader module");
+	}
+
+	return result;
+}
+
+
 void 
 VulkanRenderer::Render() 
 {
@@ -697,8 +766,6 @@ SelectDesiredSwapchainExtent(
 	extent.width = std::max(minWidth, std::min(maxWidth, static_cast<uint32_t>(desiredWidth)));
 	extent.height = std::max(minHeight, std::min(maxHeight, static_cast<uint32_t>(desiredHeight)));
 
-    auto console = spdlog::stdout_logger_mt("console", true /*use color*/);
-    SPDLOG_TRACE(console, "Extent created with width: {}, height: {}", extent.width, extent.height);
-
 	return extent;
 }
+

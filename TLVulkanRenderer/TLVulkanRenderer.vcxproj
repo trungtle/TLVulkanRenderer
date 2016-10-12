@@ -153,11 +153,13 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Utilities.cpp" />
     <ClCompile Include="VulkanRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="GeometryBase.h" />
+    <ClInclude Include="Utilities.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h" />
@@ -168,6 +170,10 @@
     <ClInclude Include="thirdparty\spdlog\include\spdlog\tweakme.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="VulkanRenderer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\fragShader.frag" />
+    <None Include="shaders\vertShader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
