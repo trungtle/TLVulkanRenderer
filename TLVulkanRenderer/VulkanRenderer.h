@@ -9,7 +9,7 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
-
+#include "thirdparty/spdlog/spdlog.h"
 #include "Renderer.h"
 
 /**

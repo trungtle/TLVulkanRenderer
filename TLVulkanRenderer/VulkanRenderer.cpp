@@ -72,8 +72,21 @@ VulkanRenderer::VulkanRenderer(
 	, m_swapchain(VK_NULL_HANDLE)
 	, m_name("Vulkan Application")
 {
+    // -- Initialize logger
+
+    // Combine console and file logger
+    std::vector<spdlog::sink_ptr> sinks;
+    sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
+    // Create a 5MB rotating logger
+    sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_st>("VulkanRenderer", "log", 1024 * 1024 * 5, 3));
+    m_logger = std::make_shared<spdlog::logger>("Logger", begin(sinks), end(sinks));
+    m_logger->set_pattern("<%H:%M:%S>[%I] %v");
+
+    // -- Initialize Vulkan
+
 	VkResult result = InitVulkan();
 	assert(result == VK_SUCCESS);
+    m_logger->info<std::string>("Initalizes Vulkan instance");
 
 // Only enable the validation layer when running in debug mode
 #ifdef NDEBUG
@@ -84,18 +97,23 @@ VulkanRenderer::VulkanRenderer(
 
 	result = SetupDebugCallback();
 	assert(result == VK_SUCCESS);
+    m_logger->info<std::string>("Setup debug callback");
 
 	result = CreateWindowSurface();
 	assert(result == VK_SUCCESS);
+    m_logger->info<std::string>("Created window surface");
 
 	result = SelectPhysicalDevice();
 	assert(result == VK_SUCCESS);
+    m_logger->info<std::string>("Selected physical device");
 
 	result = SetupLogicalDevice();
 	assert(result == VK_SUCCESS);
+    m_logger->info<std::string>("Setup logical device");
 
 	result = CreateSwapchain();
 	assert(result == VK_SUCCESS);
+    m_logger->info<std::string>("Created swapchain");
 }
 
 
