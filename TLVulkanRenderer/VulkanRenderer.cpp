@@ -114,11 +114,18 @@ VulkanRenderer::VulkanRenderer(
 	result = CreateSwapchain();
 	assert(result == VK_SUCCESS);
     m_logger->info<std::string>("Created swapchain");
+
+    result = CreateImageViews();
+    assert(result == VK_SUCCESS);
+    m_logger->info("Created {} VkImageViews", m_swapchainImageViews.size());
 }
 
 
 VulkanRenderer::~VulkanRenderer()
 {
+	for (auto& imageView : m_swapchainImageViews) {
+        vkDestroyImageView(m_device, imageView, nullptr);
+    }
     vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 	vkDestroyDevice(m_device, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surfaceKHR, nullptr);
@@ -375,6 +382,41 @@ VulkanRenderer::CreateSwapchain()
     m_swapchainExtent = extent;
 
 	return result;
+}
+
+VkResult 
+VulkanRenderer::CreateImageViews() 
+{
+    VkResult result;
+    m_swapchainImageViews.resize(m_swapchainImages.size());
+    for (auto i = 0; i < m_swapchainImageViews.size(); ++i) {
+        VkImageViewCreateInfo imageViewCreateInfo = {};
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.image = m_swapchainImages[i];
+        imageViewCreateInfo.format = m_swapchainImageFormat;
+        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D; // 1D, 2D, 3D textures or cubemap
+        
+        // Use default mapping for swizzle
+        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+        // The subresourcerange field is used to specify the purpose of this image view
+        // https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkImageSubresourceRange
+        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // Use as color targets
+        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+        imageViewCreateInfo.subresourceRange.levelCount = 1;
+        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewCreateInfo.subresourceRange.layerCount = 1; // Could have more if we're doing stereoscopic rendering
+
+        result = vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_swapchainImageViews[i]);
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create VkImageView");
+            return result;
+        }
+    }
+    return result;
 }
 
 void 

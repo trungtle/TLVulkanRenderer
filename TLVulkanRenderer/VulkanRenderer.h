@@ -71,6 +71,8 @@ private:
 	VkResult
 	CreateSwapchain();
 
+    VkResult
+    CreateImageViews();
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
 	*		 There is no global state in Vulkan, and the instance represents per-application state.
@@ -153,6 +155,16 @@ private:
 	 */
 	QueueFamilyIndices m_queueFamilyIndices;
 
+    /**
+     * \brief This is a view into the Vulkan 
+     * \ref https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-image-views
+     */
+    std::vector<VkImageView> m_swapchainImageViews;
+
+    /**
+     * \brief Logger
+     */
+    std::shared_ptr<spdlog::logger> m_logger;
 };
 
 bool 
@@ -262,3 +274,4 @@ SelectDesiredSwapchainExtent(
 	, unsigned int desiredWidth = 0 /* unused if useCurrentExtent is true */
 	, unsigned int desiredHeight = 0 /* unused if useCurrentExtent is true */
 );
+
