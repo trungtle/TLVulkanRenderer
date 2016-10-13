@@ -119,6 +119,10 @@ VulkanRenderer::VulkanRenderer(
     assert(result == VK_SUCCESS);
     m_logger->info("Created {} VkImageViews", m_swapchainImageViews.size());
 
+	result = CreateRenderPass();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created renderpass");
+
 	result = CreateGraphicsPipeline();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created graphics pipeline");
@@ -128,6 +132,7 @@ VulkanRenderer::VulkanRenderer(
 
 VulkanRenderer::~VulkanRenderer()
 {
+	vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 	for (auto& imageView : m_swapchainImageViews) {
         vkDestroyImageView(m_device, imageView, nullptr);
     }
@@ -424,6 +429,51 @@ VulkanRenderer::CreateImageViews()
     return result;
 }
 
+VkResult 
+VulkanRenderer::CreateRenderPass() 
+{
+	// Specify color attachment
+	VkAttachmentDescription colorAttachment = {};
+	colorAttachment.format = m_swapchainImageFormat;
+	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	// What to do with the color attachment before loading rendered content
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; // Clear to black
+	// What to do after rendering
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Read back rendered image
+	// Stencil ops
+	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	// Pixel layout of VkImage objects in memory
+	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR; // To be presented in swapchain
+
+	// Create subpasses. A phase of rendering within a render pass, that reads and writes a subset of the attachments
+	// Subpass can depend on previous rendered framebuffers, so it could be used for post-processing.
+	// It uses the attachment reference of the color attachment specified above.
+	VkAttachmentReference colorAttachmentRef = {};
+	// Index to which attachment in the attachment descriptions array. This is equivalent to the attachment at layout(location = 0)
+	colorAttachmentRef.attachment = 0;
+	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS; // Make this subpass binds to graphics point
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentRef;
+
+	VkRenderPassCreateInfo renderPassCreateInfo = {};
+	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassCreateInfo.attachmentCount = 1;
+	renderPassCreateInfo.pAttachments = &colorAttachment;
+	renderPassCreateInfo.subpassCount = 1;
+	renderPassCreateInfo.pSubpasses = &subpass;
+
+	VkResult result = vkCreateRenderPass(m_device, &renderPassCreateInfo, nullptr, &m_renderPass);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create render pass");
+	}
+
+	return result;
+}
 
 VkResult 
 VulkanRenderer::CreateGraphicsPipeline() {

@@ -75,6 +75,7 @@ private:
     CreateImageViews();
 
 	VkResult
+	CreateRenderPass();
 	CreateGraphicsPipeline();
 
 	VkResult
@@ -171,6 +172,11 @@ private:
      * \ref https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-image-views
      */
     std::vector<VkImageView> m_swapchainImageViews;
+
+	/**
+	 * \brief Holds the renderpass object. This also represents the framebuffer attachments
+	 */
+	VkRenderPass m_renderPass;
 
     /**
      * \brief Logger
