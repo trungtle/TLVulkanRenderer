@@ -1,5 +1,5 @@
 /**
- * Several of the code structure here is referenced at:
+ * The basic of this is heavily referenced at:
  *  - https://vulkan-tutorial.com/ by Alexander Overvoorde
  *  - WSI Tutorial by Chris Hebert
  *  - https://github.com/SaschaWillems/Vulkan by Sascha Willems
@@ -90,6 +90,19 @@ private:
 		, VkShaderModule& shaderModule
 		);
 
+	VkResult
+	CreateFramebuffers();
+
+	/**
+	 * \brief Vulkan commands are created in advance and submitted to the queue, 
+	 *        instead of using direct function calls.
+	 * \return 
+	 */
+	VkResult
+	CreateCommandPool();
+
+	VkResult
+	CreateCommandBuffers();
 
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
@@ -159,6 +172,17 @@ private:
     VkExtent2D m_swapchainExtent;
 
 	/**
+	* \brief This is a view into the Vulkan
+	* \ref https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-image-views
+	*/
+	std::vector<VkImageView> m_swapchainImageViews;
+
+	/**
+	* \brief Swapchain framebuffers for each image view
+	*/
+	std::vector<VkFramebuffer> m_swapchainFramebuffers;
+
+	/**
 	* \brief Name of the Vulkan application. This is the name of our whole application in general.
 	*/
 	string m_name;
@@ -173,12 +197,6 @@ private:
 	 */
 	QueueFamilyIndices m_queueFamilyIndices;
 
-    /**
-     * \brief This is a view into the Vulkan 
-     * \ref https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-image-views
-     */
-    std::vector<VkImageView> m_swapchainImageViews;
-
 	/**
 	 * \brief This describes the uniforms inside shaders
 	 */
@@ -189,7 +207,20 @@ private:
 	 */
 	VkRenderPass m_renderPass;
 
+	/**
+	 * \brief Graphics pipeline
+	 */
 	VkPipeline m_graphicsPipeline;
+
+	/**
+	 * \brief Command pool
+	 */
+	VkCommandPool m_graphicsCommandPool;
+
+	/**
+	 * \brief Command buffers to record our commands
+	 */
+	std::vector<VkCommandBuffer> m_commandBuffers;
 
     /**
      * \brief Logger

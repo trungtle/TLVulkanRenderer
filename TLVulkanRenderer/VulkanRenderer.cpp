@@ -127,17 +127,34 @@ VulkanRenderer::VulkanRenderer(
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created graphics pipeline");
 
+	result = CreateFramebuffers();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created framebuffers");
+
+	result = CreateCommandPool();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created command pool");
+
+	result = CreateCommandBuffers();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created command buffers");
 }
 
 
 VulkanRenderer::~VulkanRenderer()
 {
+	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, m_commandBuffers.size(), m_commandBuffers.data());
+	vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
+	for (auto& frameBuffer : m_swapchainFramebuffers) {
+		vkDestroyFramebuffer(m_device, frameBuffer, nullptr);
+	}
 	vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 	vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 	for (auto& imageView : m_swapchainImageViews) {
         vkDestroyImageView(m_device, imageView, nullptr);
     }
-    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+	vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
+	vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 	vkDestroyDevice(m_device, nullptr);
 	vkDestroySurfaceKHR(m_instance, m_surfaceKHR, nullptr);
     DestroyDebugReportCallbackEXT(m_instance, m_debugCallback, nullptr);
@@ -398,7 +415,8 @@ VulkanRenderer::CreateSwapchain()
 VkResult 
 VulkanRenderer::CreateImageViews() 
 {
-    VkResult result;
+    VkResult result = VK_SUCCESS;
+
     m_swapchainImageViews.resize(m_swapchainImages.size());
     for (auto i = 0; i < m_swapchainImageViews.size(); ++i) {
         VkImageViewCreateInfo imageViewCreateInfo = {};
@@ -471,6 +489,7 @@ VulkanRenderer::CreateRenderPass()
 	VkResult result = vkCreateRenderPass(m_device, &renderPassCreateInfo, nullptr, &m_renderPass);
 	if (result != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create render pass");
+		return result;
 	}
 
 	return result;
@@ -626,6 +645,7 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, nullptr, &m_pipelineLayout);
 	if (result != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create pipeline layout.");
+		return result;
 	}
 
 	// Finally, create our graphics pipeline here!
@@ -657,6 +677,7 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &m_graphicsPipeline);
 	if (result != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create graphics pipeline");
+		return result;
 	}
 
 	// We don't need the shader modules after the graphics pipeline creation. Destroy them now.
@@ -667,6 +688,122 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	return result;
 }
 
+VkResult 
+VulkanRenderer::CreateFramebuffers() 
+{
+	VkResult result = VK_SUCCESS;
+
+	m_swapchainFramebuffers.resize(m_swapchainImageViews.size());
+
+	// Attach image views to framebuffers
+	for (int i = 0; i < m_swapchainImageViews.size(); ++i)
+	{
+
+		VkFramebufferCreateInfo framebufferCreateInfo = {};
+		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferCreateInfo.renderPass = m_renderPass;
+		framebufferCreateInfo.attachmentCount = 1;
+		framebufferCreateInfo.pAttachments = &m_swapchainImageViews[i];
+		framebufferCreateInfo.width = m_swapchainExtent.width;
+		framebufferCreateInfo.height = m_swapchainExtent.height;
+		framebufferCreateInfo.layers = 1;
+
+		result = vkCreateFramebuffer(m_device, &framebufferCreateInfo, nullptr, &m_swapchainFramebuffers[i]);
+		if (result != VK_SUCCESS) {
+			throw std::runtime_error("Failed to create framebuffer");
+			return result;
+		}
+	}
+
+	return result;
+}
+
+VkResult 
+VulkanRenderer::CreateCommandPool() 
+{
+	VkResult result = VK_SUCCESS;
+
+	// Command pool for the graphics queue
+	VkCommandPoolCreateInfo graphicsCommandPoolCreateInfo = {};
+	graphicsCommandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	graphicsCommandPoolCreateInfo.queueFamilyIndex = m_queueFamilyIndices.graphicsFamily;
+
+	result = vkCreateCommandPool(m_device, &graphicsCommandPoolCreateInfo, nullptr, &m_graphicsCommandPool);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create command pool.");
+		return result;
+	}
+
+	return result;
+}
+
+VkResult 
+VulkanRenderer::CreateCommandBuffers()
+{
+	VkResult result = VK_SUCCESS;
+
+	m_commandBuffers.resize(m_swapchainFramebuffers.size());
+
+	// Allocate the command buffers
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandPool = m_graphicsCommandPool;
+	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size());
+
+	result = vkAllocateCommandBuffers(m_device, &allocInfo, m_commandBuffers.data());
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create command buffers.");
+		return result;
+	}
+
+	for (int i = 0; i < m_commandBuffers.size(); ++i)
+	{
+		// Begin command recording
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+		vkBeginCommandBuffer(m_commandBuffers[i], &beginInfo);
+
+		// Begin renderpass
+		VkRenderPassBeginInfo renderPassBeginInfo = {};
+		renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassBeginInfo.renderPass = m_renderPass;
+		renderPassBeginInfo.framebuffer = m_swapchainFramebuffers[i];
+
+		// The area where load and store takes place
+		renderPassBeginInfo.renderArea.offset = { 0, 0 };
+		renderPassBeginInfo.renderArea.extent = m_swapchainExtent;
+
+		VkClearValue clearValue = { 0.0f, 0.0f, 0.0f, 1.0f };
+		renderPassBeginInfo.clearValueCount = 1;
+		renderPassBeginInfo.pClearValues = &clearValue;
+
+		// Record begin renderpass
+		vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		// Record bindind the graphics pipeline
+		vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+		// Record draw command for the triangle!
+		vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
+
+		// Record end renderpass
+		vkCmdEndRenderPass(m_commandBuffers[i]);
+
+		// End command recording
+		result = vkEndCommandBuffer(m_commandBuffers[i]);
+		if (result != VK_SUCCESS) {
+			throw std::runtime_error("Failed to record command buffers");
+			return result;
+		}
+	}
+
+	return result;
+}
 
 VkResult
 VulkanRenderer::CreateShaderModule(
