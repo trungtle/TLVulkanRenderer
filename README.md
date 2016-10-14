@@ -5,6 +5,10 @@ The renderer will be a rasterizer the implements [phenomenological transparency]
 
 This project also documents my learning progress with Vulkan and GPU programming.
 
+### Third party
+
+ - [spdlog](https://github.com/gabime/spdlog) by [gabime](https://github.com/gabime/) (see LICENSE for details on LICENSE)
+
 ### References
   - [Vulkan Whitepaper](https://www.kdab.com/wp-content/uploads/stories/KDAB-whitepaper-Vulkan-2016-01-v4.pdf)
   - [Vulkan 1.0.28 - A Specification](https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/pdf/vkspec.pdf)
