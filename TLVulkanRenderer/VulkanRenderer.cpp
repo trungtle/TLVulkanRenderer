@@ -138,11 +138,18 @@ VulkanRenderer::VulkanRenderer(
 	result = CreateCommandBuffers();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created command buffers");
+
+	result = CreateSemaphores();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created semaphores");
+
 }
 
 
 VulkanRenderer::~VulkanRenderer()
 {
+	vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
+	vkDestroySemaphore(m_device, m_renderFinishedSemaphore, nullptr);
 	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, m_commandBuffers.size(), m_commandBuffers.data());
 	vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
 	for (auto& frameBuffer : m_swapchainFramebuffers) {
@@ -479,18 +486,34 @@ VulkanRenderer::CreateRenderPass()
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
 
+	// Subpass dependency
+	VkSubpassDependency subpassDependency = {};
+	subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	subpassDependency.dstSubpass = 0;
+	// Wait until the swapchain finishes before reading it
+	subpassDependency.srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	subpassDependency.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	// Read and write to color attachment
+	subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 	VkRenderPassCreateInfo renderPassCreateInfo = {};
 	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassCreateInfo.attachmentCount = 1;
 	renderPassCreateInfo.pAttachments = &colorAttachment;
 	renderPassCreateInfo.subpassCount = 1;
 	renderPassCreateInfo.pSubpasses = &subpass;
+	renderPassCreateInfo.dependencyCount = 1;
+	renderPassCreateInfo.pDependencies = &subpassDependency;
 
 	VkResult result = vkCreateRenderPass(m_device, &renderPassCreateInfo, nullptr, &m_renderPass);
 	if (result != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create render pass");
 		return result;
 	}
+
+
+
 
 	return result;
 }
@@ -649,7 +672,6 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	}
 
 	// Finally, create our graphics pipeline here!
-	int x[2] = { 1, 2 };
 	VkPipelineShaderStageCreateInfo createInfos[2] = { vertShaderStageCreateInfo, fragShaderStageCreateInfo };
 	VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {};
 	graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -805,6 +827,28 @@ VulkanRenderer::CreateCommandBuffers()
 	return result;
 }
 
+VkResult 
+VulkanRenderer::CreateSemaphores() 
+{
+	VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+	semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	VkResult result = vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_imageAvailableSemaphore);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create imageAvailable semaphore");
+		return result;
+	}
+
+	result = vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderFinishedSemaphore);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create renderFinished semaphore");
+		return result;
+	}
+
+	return result;
+}
+
 VkResult
 VulkanRenderer::CreateShaderModule(
 	const std::vector<char>& code
@@ -831,7 +875,55 @@ VulkanRenderer::CreateShaderModule(
 void 
 VulkanRenderer::Render() 
 {
+	// Acquire the swapchain
+	uint32_t imageIndex;
+	vkAcquireNextImageKHR(
+		m_device, 
+		m_swapchain, 
+		60 * 1000000, // Timeout
+		m_imageAvailableSemaphore, 
+		VK_NULL_HANDLE, 
+		&imageIndex
+		);
 
+	// Submit command buffers
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	// Semaphore to wait on
+	VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphore };
+	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = waitSemaphores; // The semaphore to wait on
+	submitInfo.pWaitDstStageMask = waitStages; // At which stage to wait on
+	
+	// The command buffer to submit
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &m_commandBuffers[imageIndex];
+
+	// Semaphore to signal
+	VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphore };
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = signalSemaphores;
+
+	// Submit to queue
+	VkResult result = vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to submit queue");
+	}
+
+	// Present swapchain image!
+	VkPresentInfoKHR presentInfo = {};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = signalSemaphores;
+
+	VkSwapchainKHR swapchains[] = { m_swapchain };
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = swapchains;
+	presentInfo.pImageIndices = &imageIndex;
+
+	vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
 }
 
 

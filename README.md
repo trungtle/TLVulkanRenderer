@@ -5,6 +5,11 @@ The renderer will be a rasterizer the implements [phenomenological transparency]
 
 This project also documents my learning progress with Vulkan and GPU programming.
 
+# Update Oct 14, 2016
+
+Finished base rasterizer code to render a triangle.
+![](images/Triangle.PNG)
+
 ### Third party
 
  - [spdlog](https://github.com/gabime/spdlog) by [gabime](https://github.com/gabime/) (see LICENSE for details on LICENSE)
