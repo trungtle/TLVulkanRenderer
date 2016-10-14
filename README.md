@@ -8,7 +8,8 @@ This project also documents my learning progress with Vulkan and GPU programming
 # Update Oct 14, 2016
 
 Finished base rasterizer code to render a triangle.
-![](images/Triangle.PNG)
+
+![](TLVulkanRenderer/images/Triangle.PNG)
 
 ### Third party
 
