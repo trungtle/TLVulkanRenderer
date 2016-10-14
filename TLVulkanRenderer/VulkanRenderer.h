@@ -54,7 +54,7 @@ public:
 
 private:
 	VkResult 
-	InitVulkan();
+	CreateInstance();
 	
 	VkResult 
 	SetupDebugCallback();
@@ -76,6 +76,12 @@ private:
 
 	VkResult
 	CreateRenderPass();
+
+	/**
+	 * \brief The graphics pipeline are often fixed. Create a new pipeline if we need a different pipeline settings
+	 * \return 
+	 */
+	VkResult
 	CreateGraphicsPipeline();
 
 	VkResult
@@ -174,9 +180,16 @@ private:
     std::vector<VkImageView> m_swapchainImageViews;
 
 	/**
+	 * \brief This describes the uniforms inside shaders
+	 */
+	VkPipelineLayout m_pipelineLayout;
+
+	/**
 	 * \brief Holds the renderpass object. This also represents the framebuffer attachments
 	 */
 	VkRenderPass m_renderPass;
+
+	VkPipeline m_graphicsPipeline;
 
     /**
      * \brief Logger

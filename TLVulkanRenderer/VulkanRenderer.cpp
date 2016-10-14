@@ -84,7 +84,7 @@ VulkanRenderer::VulkanRenderer(
 
     // -- Initialize Vulkan
 
-	VkResult result = InitVulkan();
+	VkResult result = CreateInstance();
 	assert(result == VK_SUCCESS);
     m_logger->info<std::string>("Initalizes Vulkan instance");
 
@@ -133,6 +133,7 @@ VulkanRenderer::VulkanRenderer(
 VulkanRenderer::~VulkanRenderer()
 {
 	vkDestroyRenderPass(m_device, m_renderPass, nullptr);
+	vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 	for (auto& imageView : m_swapchainImageViews) {
         vkDestroyImageView(m_device, imageView, nullptr);
     }
@@ -144,7 +145,7 @@ VulkanRenderer::~VulkanRenderer()
 }
 
 VkResult 
-VulkanRenderer::InitVulkan() 
+VulkanRenderer::CreateInstance() 
 {	
 	// Create application info struct
 	VkApplicationInfo appInfo = {};
@@ -498,13 +499,165 @@ VulkanRenderer::CreateGraphicsPipeline() {
 
 	VkShaderModule fragShader;
 	CreateShaderModule(
-		vertShaderBytecode,
+		fragShaderBytecode,
 		fragShader
 	);
 
-	// Create the pipeline by linking the shader modules to stages
-	VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+	// -- Setup the programmable stages for the pipeline. This links the shader modules with their corresponding stages.
+	// \ref https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineShaderStageCreateInfo
+	VkPipelineShaderStageCreateInfo vertShaderStageCreateInfo = {};
+	vertShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertShaderStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertShaderStageCreateInfo.module = vertShader;
+	vertShaderStageCreateInfo.pName = "main"; // Specify entry point. It's possible to combine multiple shaders into a single shader module
+	
+	// This can be used to set values for shader constants. The compiler can perform optimization for these constants vs. if they're created as variables in the shaders.
+	vertShaderStageCreateInfo.pSpecializationInfo = nullptr; 
+	
+	VkPipelineShaderStageCreateInfo fragShaderStageCreateInfo = {};
+	fragShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragShaderStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragShaderStageCreateInfo.module = fragShader;
+	fragShaderStageCreateInfo.pName = "main"; // Specify entry point. It's possible to combine multiple shaders into a single shader module
 
+	// This can be used to set values for shader constants. The compiler can perform optimization for these constants vs. if they're created as variables in the shaders.
+	fragShaderStageCreateInfo.pSpecializationInfo = nullptr;
+
+	// -- Setup the fixed functions stages for the pipeline.
+	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
+	// 1. Vertex input stage
+	VkPipelineVertexInputStateCreateInfo vertexInputStageCreateInfo = {};
+	vertexInputStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputStageCreateInfo.vertexAttributeDescriptionCount = 0;
+	vertexInputStageCreateInfo.pVertexAttributeDescriptions = nullptr;
+
+	// 2. Input assembly
+	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineInputAssemblyStateCreateInfo
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
+	inputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE; // If true, we can break up primitives like triangels and lines using a special index 0xFFFF
+
+	// 3. Skip tesselation 
+	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineTessellationStateCreateInfo
+
+
+	// 4. Viewports and scissors
+	// Viewport typically just covers the entire swapchain extent
+	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineViewportStateCreateInfo
+	VkViewport viewport;
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = static_cast<float>(m_swapchainExtent.width);
+	viewport.height = static_cast<float>(m_swapchainExtent.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor = {};
+	scissor.offset = {0, 0};
+	scissor.extent = m_swapchainExtent;
+
+	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
+	viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportStateCreateInfo.viewportCount = 1;
+	viewportStateCreateInfo.pViewports = &viewport;
+	viewportStateCreateInfo.scissorCount = 1;
+	viewportStateCreateInfo.pScissors = &scissor;
+
+	// 5. Rasterizer
+	// This stage converts primitives into fragments. It also performs depth/stencil testing, face culling, scissor test.
+	// Rasterization state can be affected by three things: 
+	// - VkPipelineRasterizationStateCreateInfo
+	// - VkPipelineMultisampleStateCreateInfo 
+	// - VkPipelineDepthStencilStateCreateInfo
+	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineRasterizationStateCreateInfo 
+
+	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
+	rasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	// If enabled, fragments beyond near and far planes are clamped instead of discarded
+	rasterizationStateCreateInfo.depthClampEnable = VK_FALSE; 
+	// If enabled, geometry won't pass through rasterization. This would be useful for transform feedbacks
+	// where we don't need to go through the fragment shader
+	rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+	rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL; // fill, line, or point
+	rasterizationStateCreateInfo.lineWidth = 1.0f;
+	rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;
+	rasterizationStateCreateInfo.depthBiasClamp = 0.0f;
+	rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
+	rasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
+
+	// 6. Multisampling state. We're not doing anything special here for now
+	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineMultisampleStateCreateInfo
+
+	VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = {};
+	multisampleStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampleStateCreateInfo.sampleShadingEnable = VK_FALSE;
+	multisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampleStateCreateInfo.minSampleShading = 1.0f;
+	multisampleStateCreateInfo.pSampleMask = nullptr;
+	multisampleStateCreateInfo.alphaToCoverageEnable = VK_FALSE;
+	multisampleStateCreateInfo.alphaToOneEnable = VK_FALSE;
+
+	// 6. Skip depth/stecil tests state
+	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineDepthStencilStateCreateInfo
+
+	// 7. Color blending state
+	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineColorBlendStateCreateInfo
+	
+	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
+	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	// Do minimal work for now, so no blending. This will be useful for later on when we want to do pixel blending (alpha blending).
+	// There are a lot of interesting blending we can do here.
+	colorBlendAttachmentState.blendEnable = VK_FALSE; 
+
+	VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
+	colorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
+	colorBlendStateCreateInfo.attachmentCount = 1;
+	colorBlendStateCreateInfo.pAttachments = &colorBlendAttachmentState;
+
+	// 8. Dynamic state. Some pipeline states can be updated dynamically. Skip for now.
+
+	// 9. Create pipeline layout to hold uniforms. This can be modified dynamically. 
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
+	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	result = vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, nullptr, &m_pipelineLayout);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create pipeline layout.");
+	}
+
+	// Finally, create our graphics pipeline here!
+	int x[2] = { 1, 2 };
+	VkPipelineShaderStageCreateInfo createInfos[2] = { vertShaderStageCreateInfo, fragShaderStageCreateInfo };
+	VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {};
+	graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	graphicsPipelineCreateInfo.stageCount = 2; // Number of shader stages
+	graphicsPipelineCreateInfo.pStages = createInfos;
+	graphicsPipelineCreateInfo.pVertexInputState = &vertexInputStageCreateInfo;
+	graphicsPipelineCreateInfo.pInputAssemblyState = &inputAssemblyStateCreateInfo;
+	graphicsPipelineCreateInfo.pTessellationState = nullptr; // Skipped
+	graphicsPipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
+	graphicsPipelineCreateInfo.pRasterizationState = &rasterizationStateCreateInfo;
+	graphicsPipelineCreateInfo.pColorBlendState = &colorBlendStateCreateInfo;
+	graphicsPipelineCreateInfo.pMultisampleState = &multisampleStateCreateInfo;
+	graphicsPipelineCreateInfo.pDepthStencilState = nullptr; // Skipped
+	graphicsPipelineCreateInfo.pDynamicState = nullptr; // Skipped
+	graphicsPipelineCreateInfo.layout = m_pipelineLayout;
+	graphicsPipelineCreateInfo.renderPass = m_renderPass;
+	graphicsPipelineCreateInfo.subpass = 0; // Index to the subpass we'll be using
+
+	// Since pipelins are expensive to create, potentially we could reuse a common parent pipeline.
+	// We just have one here so we don't need to specify these values.
+	graphicsPipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+	graphicsPipelineCreateInfo.basePipelineIndex = -1;
+
+	// We can also cache the pipeline object and store it in a file for resuse
+	result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &m_graphicsPipeline);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create graphics pipeline");
+	}
 
 	// We don't need the shader modules after the graphics pipeline creation. Destroy them now.
 	vkDestroyShaderModule(m_device, vertShader, nullptr);
