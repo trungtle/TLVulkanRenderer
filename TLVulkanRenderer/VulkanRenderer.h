@@ -104,6 +104,9 @@ private:
 	VkResult
 	CreateCommandBuffers();
 
+	VkResult
+	CreateSemaphores();
+
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
 	*		 There is no global state in Vulkan, and the instance represents per-application state.
@@ -221,6 +224,9 @@ private:
 	 * \brief Command buffers to record our commands
 	 */
 	std::vector<VkCommandBuffer> m_commandBuffers;
+
+	VkSemaphore m_imageAvailableSemaphore;
+	VkSemaphore m_renderFinishedSemaphore;
 
     /**
      * \brief Logger

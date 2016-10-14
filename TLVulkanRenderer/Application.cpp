@@ -18,7 +18,7 @@ Application::Application(
 	
 	// Create window
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	m_window = glfwCreateWindow(m_width, m_height, "Vulkan window", nullptr, nullptr);
+	m_window = glfwCreateWindow(m_width, m_height, "Trung's Vulkan rasterizer", nullptr, nullptr);
 
     switch(m_useGraphicsAPI) 
     {
@@ -45,5 +45,6 @@ void Application::Run() {
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
+		m_renderer->Render();
 	}
 }
