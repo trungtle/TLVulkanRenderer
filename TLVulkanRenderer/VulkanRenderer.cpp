@@ -15,9 +15,12 @@ const std::vector<Vertex> VERTICES =
 	{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
 	{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
 	{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
-	{ { -0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 0.0f, 0.0f } },
 	{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f } },
-	{ { 0.5f, 0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 0.0f, 1.0f } }
+};
+
+const std::vector<uint16_t> INDICES = 
+{
+	0, 1, 2, 0, 2, 3
 };
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallbackFn(
@@ -147,6 +150,10 @@ VulkanRenderer::VulkanRenderer(
 	result = CreateVertexBuffer();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created vertex buffer");
+	// @todo: combine vertex and index buffers for memory efficiency
+	result = CreateIndexBuffer();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created vertex index buffer");
 
 	result = CreateCommandBuffers();
 	assert(result == VK_SUCCESS);
@@ -164,7 +171,9 @@ VulkanRenderer::~VulkanRenderer()
 	vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
 	vkDestroySemaphore(m_device, m_renderFinishedSemaphore, nullptr);
 	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, m_commandBuffers.size(), m_commandBuffers.data());
+	vkFreeMemory(m_device, m_indexBufferMemory, nullptr);
 	vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
+	vkDestroyBuffer(m_device, m_indexBuffer, nullptr);
 	vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
 	vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
 	for (auto& frameBuffer : m_swapchainFramebuffers) {
@@ -784,6 +793,9 @@ VulkanRenderer::CreateVertexBuffer()
 	VkDeviceSize bufferSize = sizeof(Vertex) * VERTICES.size();
 	
 	// Stage buffer memory on host
+	// We want staging so that we can map the vertex data on the host but
+	// then transfer it to the device local memory for faster performance
+	// This is the recommended way to allocate buffer memory,
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 
@@ -811,6 +823,50 @@ VulkanRenderer::CreateVertexBuffer()
 	);
 
 	CopyBuffer(m_vertexBuffer, stagingBuffer, bufferSize);
+
+	// Cleanup staging buffer memory
+	vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+	vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+	return VK_SUCCESS;
+}
+
+VkResult
+VulkanRenderer::CreateIndexBuffer() 
+{
+	VkDeviceSize bufferSize = sizeof(uint16_t) * INDICES.size();
+
+	// Stage buffer memory on host
+	// We want staging so that we can map the vertex data on the host but
+	// then transfer it to the device local memory for faster performance
+	// This is the recommended way to allocate buffer memory,
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
+		stagingBufferMemory
+	);
+
+	// Filling the stage buffer with data
+	void* data;
+	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, INDICES.data(), (size_t)bufferSize);
+	vkUnmapMemory(m_device, stagingBufferMemory);
+
+	// Copy over to vertex buffer in device local memory
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_indexBuffer,
+		m_indexBufferMemory
+	);
+
+	CopyBuffer(m_indexBuffer, stagingBuffer, bufferSize);
 
 	// Cleanup staging buffer memory
 	vkDestroyBuffer(m_device, stagingBuffer, nullptr);
@@ -875,8 +931,11 @@ VulkanRenderer::CreateCommandBuffers()
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
+		// Bind index buffer
+		vkCmdBindIndexBuffer(m_commandBuffers[i], m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
 		// Record draw command for the triangle!
-		vkCmdDraw(m_commandBuffers[i], VERTICES.size(), 1, 0, 0);
+		vkCmdDrawIndexed(m_commandBuffers[i], INDICES.size(), 1, 0, 0, 0);
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_commandBuffers[i]);

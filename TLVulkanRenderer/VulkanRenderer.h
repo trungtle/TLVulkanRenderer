@@ -179,6 +179,9 @@ private:
 	CreateVertexBuffer();
 
 	VkResult
+	CreateIndexBuffer();
+
+	VkResult
 	CreateCommandBuffers();
 
 	VkResult
@@ -317,14 +320,16 @@ private:
 	VkRenderPass m_renderPass;
 
 	/**
-	 * \brief Handle to the vertex buffer
+	 * \brief Handle to the vertex buffers
 	 */
 	VkBuffer m_vertexBuffer;
+	VkBuffer m_indexBuffer;
 
 	/**
 	 * \brief Handle to the vertex buffer memory
 	 */
 	VkDeviceMemory m_vertexBufferMemory;
+	VkDeviceMemory m_indexBufferMemory;
 
 	/**
 	 * \brief Graphics pipeline
