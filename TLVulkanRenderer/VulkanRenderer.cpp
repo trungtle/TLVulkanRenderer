@@ -10,6 +10,12 @@ const std::vector<const char*> VALIDATION_LAYERS = {
 	"VK_LAYER_LUNARG_standard_validation"
 };
 
+const std::vector<Vertex> VERTICES =
+{
+	{ { 0.0f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
+	{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
+	{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } }
+};
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallbackFn(
 	VkDebugReportFlagsEXT       flags,
@@ -135,6 +141,10 @@ VulkanRenderer::VulkanRenderer(
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created command pool");
 
+	result = CreateVertexBuffer();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created vertex buffer");
+
 	result = CreateCommandBuffers();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created command buffers");
@@ -151,6 +161,8 @@ VulkanRenderer::~VulkanRenderer()
 	vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
 	vkDestroySemaphore(m_device, m_renderFinishedSemaphore, nullptr);
 	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, m_commandBuffers.size(), m_commandBuffers.data());
+	vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
+	vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
 	vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
 	for (auto& frameBuffer : m_swapchainFramebuffers) {
 		vkDestroyFramebuffer(m_device, frameBuffer, nullptr);
@@ -512,9 +524,6 @@ VulkanRenderer::CreateRenderPass()
 		return result;
 	}
 
-
-
-
 	return result;
 }
 
@@ -570,8 +579,16 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	// 1. Vertex input stage
 	VkPipelineVertexInputStateCreateInfo vertexInputStageCreateInfo = {};
 	vertexInputStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputStageCreateInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputStageCreateInfo.pVertexAttributeDescriptions = nullptr;
+	
+	// Input binding description
+	auto vertInputBindingDesc = TLVertex::GetVertexInputBindingDescription();
+	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 1;
+	vertexInputStageCreateInfo.pVertexBindingDescriptions = &vertInputBindingDesc;
+	
+	// Attribute description (position, normal, color etc.)
+	auto vertAttribDesc = TLVertex::GetAttributeDescriptions();
+	vertexInputStageCreateInfo.vertexAttributeDescriptionCount = vertAttribDesc.size();
+	vertexInputStageCreateInfo.pVertexAttributeDescriptions = vertAttribDesc.data();
 
 	// 2. Input assembly
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineInputAssemblyStateCreateInfo
@@ -653,7 +670,7 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	// Do minimal work for now, so no blending. This will be useful for later on when we want to do pixel blending (alpha blending).
 	// There are a lot of interesting blending we can do here.
 	colorBlendAttachmentState.blendEnable = VK_FALSE; 
-
+	
 	VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
 	colorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
@@ -705,7 +722,6 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	// We don't need the shader modules after the graphics pipeline creation. Destroy them now.
 	vkDestroyShaderModule(m_device, vertShader, nullptr);
 	vkDestroyShaderModule(m_device, fragShader, nullptr);
-
 
 	return result;
 }
@@ -760,6 +776,58 @@ VulkanRenderer::CreateCommandPool()
 }
 
 VkResult 
+VulkanRenderer::CreateVertexBuffer() 
+{
+	VkBufferCreateInfo bufferCreateInfo = {};
+	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCreateInfo.size = sizeof(Vertex) * VERTICES.size();
+
+	// For multipurpose buffers, or the VK_BUFFER_USAGE_ bits together
+	bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+	// Buffer is used exclusively by the graphics queue
+	bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	VkResult result = vkCreateBuffer(m_device, &bufferCreateInfo, nullptr, &m_vertexBuffer);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create vertex buffer");
+		return result;
+	}
+
+	// Allocate memory for the buffer
+	VkMemoryRequirements memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memoryRequirements);
+	
+	VkMemoryAllocateInfo memoryAllocInfo = {};
+	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memoryAllocInfo.allocationSize = memoryRequirements.size;
+	
+	// *N.B*
+	// VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT means memory allocated  can be mapped for host access using vkMapMemory
+	// VK_MEMORY_PROPERTY_HOST_COHERENT_BIT ensures mapped memory matches allocated memory. 
+	// Does not require flushing and invalidate cache before reading from mapped memory
+	memoryAllocInfo.memoryTypeIndex = 
+		GetMemoryType(memoryRequirements.memoryTypeBits, 
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	result = vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &m_vertexBufferMemory);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to allocate memory for vertex buffer");
+	}
+
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, 0);
+
+	// Filling the vertex buffer with data
+	void* data;
+	vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferCreateInfo.size, 0, &data);
+	memcpy(data, VERTICES.data(), (size_t)bufferCreateInfo.size);
+	vkUnmapMemory(m_device, m_vertexBufferMemory);
+
+	return result;
+}
+
+VkResult 
 VulkanRenderer::CreateCommandBuffers()
 {
 	VkResult result = VK_SUCCESS;
@@ -809,6 +877,11 @@ VulkanRenderer::CreateCommandBuffers()
 
 		// Record bindind the graphics pipeline
 		vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+		// Bind vertex buffer
+		VkBuffer vertexBuffers[] = { m_vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
 		// Record draw command for the triangle!
 		vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
@@ -924,6 +997,29 @@ VulkanRenderer::Render()
 	presentInfo.pImageIndices = &imageIndex;
 
 	vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
+}
+
+uint32_t
+VulkanRenderer::GetMemoryType(
+	uint32_t typeFilter
+	, VkMemoryPropertyFlags propertyFlags
+	) const 
+{
+	VkPhysicalDeviceMemoryProperties memProperties;
+	vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+
+	for (auto i = 0; i < memProperties.memoryTypeCount; ++i)
+	{
+		// Loop through each memory type and find a match
+		if (typeFilter & (1 << i)) 
+		{
+			if (memProperties.memoryTypes[i].propertyFlags & propertyFlags) {
+				return i;
+			}
+		}
+	}
+
+	throw std::runtime_error("Failed to find a suitable memory type");
 }
 
 

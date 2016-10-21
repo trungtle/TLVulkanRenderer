@@ -11,6 +11,14 @@ Finished base rasterizer code to render a triangle.
 
 ![](TLVulkanRenderer/images/Triangle.PNG)
 
+### Attributions
+
+Majority of this application was modified from:
+  - [Vulkan Tutorial](https://vulkan-tutorial.com/) by Alexander Overvoorde. [Github](https://github.com/Overv/VulkanTutorial). 
+  - WSI Tutorial by Chris Hebert
+  - [Vulkan Samples](https://github.com/SaschaWillems/Vulkan) by Sascha Willems
+
+
 ### Third party
 
  - [spdlog](https://github.com/gabime/spdlog) by [gabime](https://github.com/gabime/) (see LICENSE for details on LICENSE)
@@ -18,7 +26,4 @@ Finished base rasterizer code to render a triangle.
 ### References
   - [Vulkan Whitepaper](https://www.kdab.com/wp-content/uploads/stories/KDAB-whitepaper-Vulkan-2016-01-v4.pdf)
   - [Vulkan 1.0.28 - A Specification](https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/pdf/vkspec.pdf)
-  - [Vulkan Tutorial](https://vulkan-tutorial.com/) by Alexander Overvoorde
-  - WSI Tutorial by Chris Hebert
-  - [Vulkan Samples](https://github.com/SaschaWillems/Vulkan) by Sascha Willems
 
