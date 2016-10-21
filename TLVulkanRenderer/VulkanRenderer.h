@@ -196,6 +196,23 @@ private:
 		, VkMemoryPropertyFlags propertyFlags
 	) const;
 
+
+	void
+	CreateBuffer(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		VkMemoryPropertyFlags properties,
+		VkBuffer& buffer,
+		VkDeviceMemory& bufferMemory
+	);
+
+	void
+	CopyBuffer(
+		VkBuffer dstBuffer,
+		VkBuffer srcBuffer,
+		VkDeviceSize size
+	);
+
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
 	*		 There is no global state in Vulkan, and the instance represents per-application state.
@@ -443,4 +460,3 @@ SelectDesiredSwapchainExtent(
 	, unsigned int desiredWidth = 0 /* unused if useCurrentExtent is true */
 	, unsigned int desiredHeight = 0 /* unused if useCurrentExtent is true */
 );
-
