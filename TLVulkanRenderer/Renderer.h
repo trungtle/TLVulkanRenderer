@@ -30,6 +30,7 @@ public:
         GLFWwindow* window
     ) : m_window(window) {};
     virtual ~Renderer() {};
+	virtual void Update() = 0;
     virtual void Render() = 0;
 
 protected:

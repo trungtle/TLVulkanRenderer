@@ -45,6 +45,7 @@ void Application::Run() {
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
+		m_renderer->Update();
 		m_renderer->Render();
 	}
 }
