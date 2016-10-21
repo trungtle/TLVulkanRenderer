@@ -13,6 +13,10 @@
 #include "thirdparty/spdlog/spdlog.h"
 #include "Renderer.h"
 
+ // ===================
+ // QUEUE
+ // ===================
+
 /**
  * \brief A struct to store queue family indices
  */
@@ -24,6 +28,10 @@ typedef struct QueueFamilyIndicesTyp {
 		return graphicsFamily >= 0 && presentFamily >= 0;
 	}
 } QueueFamilyIndices;
+
+// ===================
+// SWAPCHAIN SUPPORT
+// ===================
 
 /**
  * \brief Struct to store available swapchain support
@@ -39,7 +47,7 @@ typedef struct SwapchainSupportTyp {
 } SwapchainSupport;
 
 // ===================
-// VERTEX TYPES
+// VERTEX
 // ===================
 
 typedef struct VertexTyp 
@@ -109,7 +117,19 @@ namespace TLVertex {
 	}
 };
 
+// ===================
+// UNIFORM
+// ===================
 
+typedef struct UniformBufferObjectTyp {
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+} UniformBufferObject;
+
+// ===================
+// VULKAN RENDERER
+// ===================
 
 /**
  * \brief 
@@ -122,6 +142,9 @@ public:
 		);
 	virtual 
     ~VulkanRenderer() final;
+
+	virtual void
+	Update() final;
 
     virtual void
     Render() final;
@@ -150,6 +173,9 @@ private:
 
 	VkResult
 	CreateRenderPass();
+
+	VkResult
+	CreateDescriptorSetLayout();
 
 	/**
 	 * \brief The graphics pipeline are often fixed. Create a new pipeline if we need a different pipeline settings
@@ -180,6 +206,15 @@ private:
 
 	VkResult
 	CreateIndexBuffer();
+
+	VkResult
+	CreateUniformBuffer();
+
+	VkResult
+	CreateDescriptorPool();
+
+	VkResult
+	CreateDescriptorSet();
 
 	VkResult
 	CreateCommandBuffers();
@@ -310,6 +345,21 @@ private:
 	QueueFamilyIndices m_queueFamilyIndices;
 
 	/**
+	 * \brief Descriptor set layout to decribe our resource binding (ex. UBO)
+	 */
+	VkDescriptorSetLayout m_descriptorSetLayout;
+
+	/**
+	 * \brief Descriptor pool for our resources
+	 */
+	VkDescriptorPool m_descriptorPool;
+
+	/**
+	 * \brief Descriptor set for our resources
+	 */
+	VkDescriptorSet m_descriptorSet;
+
+	/**
 	 * \brief This describes the uniforms inside shaders
 	 */
 	VkPipelineLayout m_pipelineLayout;
@@ -330,6 +380,11 @@ private:
 	 */
 	VkDeviceMemory m_vertexBufferMemory;
 	VkDeviceMemory m_indexBufferMemory;
+
+	VkBuffer m_uniformStagingBuffer;
+	VkBuffer m_uniformBuffer;
+	VkDeviceMemory m_uniformStagingBufferMemory;
+	VkDeviceMemory m_uniformBufferMemory;
 
 	/**
 	 * \brief Graphics pipeline
