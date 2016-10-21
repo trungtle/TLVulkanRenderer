@@ -12,9 +12,15 @@ const std::vector<const char*> VALIDATION_LAYERS = {
 
 const std::vector<Vertex> VERTICES =
 {
-	{ { 0.0f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-	{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
-	{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } }
+	{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
+	{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
+	{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
+	{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f } },
+};
+
+const std::vector<uint16_t> INDICES = 
+{
+	0, 1, 2, 0, 2, 3
 };
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallbackFn(
@@ -144,6 +150,10 @@ VulkanRenderer::VulkanRenderer(
 	result = CreateVertexBuffer();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created vertex buffer");
+	// @todo: combine vertex and index buffers for memory efficiency
+	result = CreateIndexBuffer();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created vertex index buffer");
 
 	result = CreateCommandBuffers();
 	assert(result == VK_SUCCESS);
@@ -161,7 +171,9 @@ VulkanRenderer::~VulkanRenderer()
 	vkDestroySemaphore(m_device, m_imageAvailableSemaphore, nullptr);
 	vkDestroySemaphore(m_device, m_renderFinishedSemaphore, nullptr);
 	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, m_commandBuffers.size(), m_commandBuffers.data());
+	vkFreeMemory(m_device, m_indexBufferMemory, nullptr);
 	vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
+	vkDestroyBuffer(m_device, m_indexBuffer, nullptr);
 	vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
 	vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
 	for (auto& frameBuffer : m_swapchainFramebuffers) {
@@ -778,53 +790,89 @@ VulkanRenderer::CreateCommandPool()
 VkResult 
 VulkanRenderer::CreateVertexBuffer() 
 {
-	VkBufferCreateInfo bufferCreateInfo = {};
-	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferCreateInfo.size = sizeof(Vertex) * VERTICES.size();
-
-	// For multipurpose buffers, or the VK_BUFFER_USAGE_ bits together
-	bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-	// Buffer is used exclusively by the graphics queue
-	bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	VkResult result = vkCreateBuffer(m_device, &bufferCreateInfo, nullptr, &m_vertexBuffer);
-	if (result != VK_SUCCESS) {
-		throw std::runtime_error("Failed to create vertex buffer");
-		return result;
-	}
-
-	// Allocate memory for the buffer
-	VkMemoryRequirements memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memoryRequirements);
+	VkDeviceSize bufferSize = sizeof(Vertex) * VERTICES.size();
 	
-	VkMemoryAllocateInfo memoryAllocInfo = {};
-	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memoryAllocInfo.allocationSize = memoryRequirements.size;
-	
-	// *N.B*
-	// VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT means memory allocated  can be mapped for host access using vkMapMemory
-	// VK_MEMORY_PROPERTY_HOST_COHERENT_BIT ensures mapped memory matches allocated memory. 
-	// Does not require flushing and invalidate cache before reading from mapped memory
-	memoryAllocInfo.memoryTypeIndex = 
-		GetMemoryType(memoryRequirements.memoryTypeBits, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	// Stage buffer memory on host
+	// We want staging so that we can map the vertex data on the host but
+	// then transfer it to the device local memory for faster performance
+	// This is the recommended way to allocate buffer memory,
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
 
-	result = vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &m_vertexBufferMemory);
-	if (result != VK_SUCCESS) {
-		throw std::runtime_error("Failed to allocate memory for vertex buffer");
-	}
+	CreateBuffer(
+		bufferSize, 
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+		stagingBuffer,
+		stagingBufferMemory
+		);
 
-	// Bind buffer with memory
-	vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, 0);
-
-	// Filling the vertex buffer with data
+	// Filling the stage buffer with data
 	void* data;
-	vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferCreateInfo.size, 0, &data);
-	memcpy(data, VERTICES.data(), (size_t)bufferCreateInfo.size);
-	vkUnmapMemory(m_device, m_vertexBufferMemory);
+	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, VERTICES.data(), (size_t)bufferSize);
+	vkUnmapMemory(m_device, stagingBufferMemory);
 
-	return result;
+	// Copy over to vertex buffer in device local memory
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_vertexBuffer,
+		m_vertexBufferMemory
+	);
+
+	CopyBuffer(m_vertexBuffer, stagingBuffer, bufferSize);
+
+	// Cleanup staging buffer memory
+	vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+	vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+	return VK_SUCCESS;
+}
+
+VkResult
+VulkanRenderer::CreateIndexBuffer() 
+{
+	VkDeviceSize bufferSize = sizeof(uint16_t) * INDICES.size();
+
+	// Stage buffer memory on host
+	// We want staging so that we can map the vertex data on the host but
+	// then transfer it to the device local memory for faster performance
+	// This is the recommended way to allocate buffer memory,
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
+		stagingBufferMemory
+	);
+
+	// Filling the stage buffer with data
+	void* data;
+	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, INDICES.data(), (size_t)bufferSize);
+	vkUnmapMemory(m_device, stagingBufferMemory);
+
+	// Copy over to vertex buffer in device local memory
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_indexBuffer,
+		m_indexBufferMemory
+	);
+
+	CopyBuffer(m_indexBuffer, stagingBuffer, bufferSize);
+
+	// Cleanup staging buffer memory
+	vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+	vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+	return VK_SUCCESS;
 }
 
 VkResult 
@@ -883,8 +931,11 @@ VulkanRenderer::CreateCommandBuffers()
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
+		// Bind index buffer
+		vkCmdBindIndexBuffer(m_commandBuffers[i], m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
 		// Record draw command for the triangle!
-		vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
+		vkCmdDrawIndexed(m_commandBuffers[i], INDICES.size(), 1, 0, 0, 0);
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1020,6 +1071,96 @@ VulkanRenderer::GetMemoryType(
 	}
 
 	throw std::runtime_error("Failed to find a suitable memory type");
+}
+
+void
+VulkanRenderer::CreateBuffer(
+	VkDeviceSize size,
+	VkBufferUsageFlags usage,
+	VkMemoryPropertyFlags memoryProperties,
+	VkBuffer& buffer,
+	VkDeviceMemory& bufferMemory
+)
+{
+	VkBufferCreateInfo bufferCreateInfo = {};
+	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCreateInfo.size = size;
+
+	// For multipurpose buffers, OR the VK_BUFFER_USAGE_ bits together
+	bufferCreateInfo.usage = usage;
+
+	// Buffer is used exclusively by the graphics queue
+	bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	VkResult result = vkCreateBuffer(m_device, &bufferCreateInfo, nullptr, &buffer);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create buffer");
+	}
+
+	// Allocate memory for the buffer
+	VkMemoryRequirements memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, buffer, &memoryRequirements);
+
+	VkMemoryAllocateInfo memoryAllocInfo = {};
+	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memoryAllocInfo.allocationSize = memoryRequirements.size;
+
+	// *N.B*
+	// VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT means memory allocated  can be mapped for host access using vkMapMemory
+	// VK_MEMORY_PROPERTY_HOST_COHERENT_BIT ensures mapped memory matches allocated memory. 
+	// Does not require flushing and invalidate cache before reading from mapped memory
+	memoryAllocInfo.memoryTypeIndex =
+		GetMemoryType(memoryRequirements.memoryTypeBits,
+			memoryProperties);
+
+	result = vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &bufferMemory);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to allocate memory for buffer");
+	}
+
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
+}
+
+void 
+VulkanRenderer::CopyBuffer(
+	VkBuffer dstBuffer, 
+	VkBuffer srcBuffer, 
+	VkDeviceSize size
+	) 
+{
+	VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
+	commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	commandBufferAllocInfo.commandPool = m_graphicsCommandPool;
+	commandBufferAllocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer copyCommandBuffer;
+	vkAllocateCommandBuffers(m_device, &commandBufferAllocInfo, &copyCommandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(copyCommandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion = {};
+	copyRegion.size = size;
+	vkCmdCopyBuffer(copyCommandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+	vkEndCommandBuffer(copyCommandBuffer);
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &copyCommandBuffer;
+
+	vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(m_graphicsQueue);
+
+	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &copyCommandBuffer);
 }
 
 

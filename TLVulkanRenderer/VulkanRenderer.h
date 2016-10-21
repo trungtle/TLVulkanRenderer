@@ -179,6 +179,9 @@ private:
 	CreateVertexBuffer();
 
 	VkResult
+	CreateIndexBuffer();
+
+	VkResult
 	CreateCommandBuffers();
 
 	VkResult
@@ -195,6 +198,23 @@ private:
 		uint32_t typeFilter
 		, VkMemoryPropertyFlags propertyFlags
 	) const;
+
+
+	void
+	CreateBuffer(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		VkMemoryPropertyFlags properties,
+		VkBuffer& buffer,
+		VkDeviceMemory& bufferMemory
+	);
+
+	void
+	CopyBuffer(
+		VkBuffer dstBuffer,
+		VkBuffer srcBuffer,
+		VkDeviceSize size
+	);
 
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
@@ -300,14 +320,16 @@ private:
 	VkRenderPass m_renderPass;
 
 	/**
-	 * \brief Handle to the vertex buffer
+	 * \brief Handle to the vertex buffers
 	 */
 	VkBuffer m_vertexBuffer;
+	VkBuffer m_indexBuffer;
 
 	/**
 	 * \brief Handle to the vertex buffer memory
 	 */
 	VkDeviceMemory m_vertexBufferMemory;
+	VkDeviceMemory m_indexBufferMemory;
 
 	/**
 	 * \brief Graphics pipeline
@@ -443,4 +465,3 @@ SelectDesiredSwapchainExtent(
 	, unsigned int desiredWidth = 0 /* unused if useCurrentExtent is true */
 	, unsigned int desiredHeight = 0 /* unused if useCurrentExtent is true */
 );
-
