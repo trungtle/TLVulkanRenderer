@@ -1,14 +1,15 @@
 /**
  * The basic of this is heavily referenced at:
- *  - https://vulkan-tutorial.com/ by Alexander Overvoorde
- *  - WSI Tutorial by Chris Hebert
- *  - https://github.com/SaschaWillems/Vulkan by Sascha Willems
+ *  - Majority of this application was modified from Vulkan Tutorial(https://vulkan-tutorial.com/) by Alexander Overvoorde. [Github](https://github.com/Overv/VulkanTutorial). 
+ *  - WSI Tutorial by Chris Hebert.
+ *  - https://github.com/SaschaWillems/Vulkan by Sascha Willems.
  */
 
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
+#include <array>
 #include "thirdparty/spdlog/spdlog.h"
 #include "Renderer.h"
 
@@ -36,6 +37,79 @@ typedef struct SwapchainSupportTyp {
 		return !surfaceFormats.empty() && !presentModes.empty();
 	}
 } SwapchainSupport;
+
+// ===================
+// VERTEX TYPES
+// ===================
+
+typedef struct VertexTyp 
+{
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec3 color;
+} Vertex;
+
+typedef struct VertexAttributeDescriptionsTyp {
+
+	VkVertexInputAttributeDescription position;
+	VkVertexInputAttributeDescription normal;
+	VkVertexInputAttributeDescription color;
+
+	std::array<VkVertexInputAttributeDescription, 3>
+	ToArray() const 
+	{
+		std::array<VkVertexInputAttributeDescription, 3> attribDesc = {
+			position,
+			normal,
+			color
+		};
+
+		return attribDesc;
+	}
+
+} VertexAttributeDescriptions;
+
+namespace TLVertex {
+	static
+		VkVertexInputBindingDescription
+		GetVertexInputBindingDescription()
+	{
+		VkVertexInputBindingDescription bindingDesc;
+		bindingDesc.binding = 0;
+		bindingDesc.stride = sizeof(Vertex);
+		bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		return bindingDesc;
+	}
+
+	static
+		std::array<VkVertexInputAttributeDescription, 3>
+		GetAttributeDescriptions() 
+	{
+		VertexAttributeDescriptions attributeDesc;
+		
+		// Position attribute
+		attributeDesc.position.binding = 0;
+		attributeDesc.position.location = 0;
+		attributeDesc.position.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDesc.position.offset = offsetof(Vertex, position);
+
+		// Normal attribute
+		attributeDesc.normal.binding = 0;
+		attributeDesc.normal.location = 1;
+		attributeDesc.normal.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDesc.normal.offset = offsetof(Vertex, normal);
+
+		// Color attribute
+		attributeDesc.color.binding = 0;
+		attributeDesc.color.location = 2;
+		attributeDesc.color.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDesc.color.offset = offsetof(Vertex, color);
+
+		return attributeDesc.ToArray();
+	}
+};
+
+
 
 /**
  * \brief 
@@ -102,10 +176,25 @@ private:
 	CreateCommandPool();
 
 	VkResult
+	CreateVertexBuffer();
+
+	VkResult
 	CreateCommandBuffers();
 
 	VkResult
 	CreateSemaphores();
+
+	/**
+	* \brief Helper to determine the memory type to allocate from our graphics card
+	* \param typeFilter
+	* \param propertyFlags
+	* \return
+	*/
+	uint32_t
+	GetMemoryType(
+		uint32_t typeFilter
+		, VkMemoryPropertyFlags propertyFlags
+	) const;
 
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
@@ -211,6 +300,16 @@ private:
 	VkRenderPass m_renderPass;
 
 	/**
+	 * \brief Handle to the vertex buffer
+	 */
+	VkBuffer m_vertexBuffer;
+
+	/**
+	 * \brief Handle to the vertex buffer memory
+	 */
+	VkDeviceMemory m_vertexBufferMemory;
+
+	/**
 	 * \brief Graphics pipeline
 	 */
 	VkPipeline m_graphicsPipeline;
@@ -225,6 +324,9 @@ private:
 	 */
 	std::vector<VkCommandBuffer> m_commandBuffers;
 
+	/**
+	 * \brief Semaphores to signal when to acquire and present swapchain images
+	 */
 	VkSemaphore m_imageAvailableSemaphore;
 	VkSemaphore m_renderFinishedSemaphore;
 
