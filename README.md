@@ -20,7 +20,7 @@ Majority of this application was modified from:
 
 
 ### Third party
-
+ - [tinygltfloader](https://github.com/syoyo/tinygltfloader) by [syoyo](https://github.com/syoyo/)
  - [spdlog](https://github.com/gabime/spdlog) by [gabime](https://github.com/gabime/) (see LICENSE for details on LICENSE)
 
 ### References
