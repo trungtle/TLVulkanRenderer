@@ -11,13 +11,15 @@ https://github.com/trungtle/TLVulkanRenderer/releases
 
 # Updates
 
-### Oct 21, 2016
+### Oct 21, 2016 - This time is for glTF!
 
-[Duck](TLVulkanRenderer/scenes/Duck) gltf loading (partially complete)! Right now I was able to load the index data and vertex data. I'm working on merging all the vertex buffers required for position, normal, texcoord attributes, indices, and uniforms, into a single buffer or memory allocation as recommended in the [Vulkan Memory Management](https://developer.nvidia.com/vulkan-memory-management) blog by Chris Hebert ([@chrisjebert1973](https://github.com/chrisjebert1973)) and Christoph Kubischhttps.
+[Duck](TLVulkanRenderer/scenes/Duck) mesh in glTF format (partially complete, shading hasn't been implemented properly)! 
+
+Right now I was able to load the index data and vertex data. I'm working on merging all the vertex buffers required for position, normal, texcoord attributes, indices, and uniforms, into a single buffer or memory allocation as recommended in the [Vulkan Memory Management](https://developer.nvidia.com/vulkan-memory-management) blog by Chris Hebert ([@chrisjebert1973](https://github.com/chrisjebert1973)) and Christoph Kubischhttps.
 
 ![](TLVulkanRenderer/images/duck_rotation.gif)
 
-### Oct 14, 2016
+### Oct 14, 2016 - Triangles!
 
 Finished base rasterizer code to render a triangle.
 
