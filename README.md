@@ -7,7 +7,7 @@ This project also documents my learning progress with Vulkan and GPU programming
 
 # Update Oct 21, 2016
 
-gltf loading (partially complete)!
+[Duck](TLVulkanRenderer/scenes/Duck) gltf loading (partially complete)!
 
 ![](TLVulkanRenderer/images/duck_rotation.gif)
 
