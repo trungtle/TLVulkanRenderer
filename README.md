@@ -5,6 +5,12 @@ The renderer will be a rasterizer the implements [phenomenological transparency]
 
 This project also documents my learning progress with Vulkan and GPU programming.
 
+# Update Oct 21, 2016
+
+gltf loading (partially complete)!
+
+![](TLVulkanRenderer/images/duck_rotation.gif)
+
 # Update Oct 14, 2016
 
 Finished base rasterizer code to render a triangle.
