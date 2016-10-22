@@ -63,13 +63,13 @@ typedef struct VertexAttributeDescriptionsTyp {
 	VkVertexInputAttributeDescription normal;
 	VkVertexInputAttributeDescription color;
 
-	std::array<VkVertexInputAttributeDescription, 3>
+	std::array<VkVertexInputAttributeDescription, 1>
 	ToArray() const 
 	{
-		std::array<VkVertexInputAttributeDescription, 3> attribDesc = {
+		std::array<VkVertexInputAttributeDescription, 1> attribDesc = {
 			position,
-			normal,
-			color
+			//normal,
+			//color
 		};
 
 		return attribDesc;
@@ -84,13 +84,13 @@ namespace TLVertex {
 	{
 		VkVertexInputBindingDescription bindingDesc;
 		bindingDesc.binding = 0;
-		bindingDesc.stride = sizeof(Vertex);
+		bindingDesc.stride = 12;// sizeof(Vertex);
 		bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		return bindingDesc;
 	}
 
 	static
-		std::array<VkVertexInputAttributeDescription, 3>
+		std::array<VkVertexInputAttributeDescription, 1>
 		GetAttributeDescriptions() 
 	{
 		VertexAttributeDescriptions attributeDesc;
@@ -98,19 +98,19 @@ namespace TLVertex {
 		// Position attribute
 		attributeDesc.position.binding = 0;
 		attributeDesc.position.location = 0;
-		attributeDesc.position.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDesc.position.format = VK_FORMAT_R32G32B32_SFLOAT;
 		attributeDesc.position.offset = offsetof(Vertex, position);
 
 		// Normal attribute
 		attributeDesc.normal.binding = 0;
 		attributeDesc.normal.location = 1;
-		attributeDesc.normal.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDesc.normal.format = VK_FORMAT_R32G32B32_SFLOAT;
 		attributeDesc.normal.offset = offsetof(Vertex, normal);
 
 		// Color attribute
 		attributeDesc.color.binding = 0;
 		attributeDesc.color.location = 2;
-		attributeDesc.color.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDesc.color.format = VK_FORMAT_R32G32B32_SFLOAT;
 		attributeDesc.color.offset = offsetof(Vertex, color);
 
 		return attributeDesc.ToArray();
@@ -139,6 +139,8 @@ class VulkanRenderer : public Renderer
 public:
 	VulkanRenderer(
 		GLFWwindow* window
+		, std::vector<unsigned char> indices
+		, std::vector<unsigned char> positions
 		);
 	virtual 
     ~VulkanRenderer() final;
@@ -406,6 +408,9 @@ private:
 	 */
 	VkSemaphore m_imageAvailableSemaphore;
 	VkSemaphore m_renderFinishedSemaphore;
+
+	std::vector<unsigned char> m_indices;
+	std::vector<unsigned char> m_positions;
 
     /**
      * \brief Logger
