@@ -5,6 +5,10 @@ The renderer will be a rasterizer the implements [phenomenological transparency]
 
 This project also documents my learning progress with Vulkan and GPU programming.
 
+# Releases
+
+https://github.com/trungtle/TLVulkanRenderer/releases
+
 # Updates
 
 ### Oct 21, 2016
