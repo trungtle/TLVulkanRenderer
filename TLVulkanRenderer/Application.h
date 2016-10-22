@@ -2,6 +2,7 @@
 
 #include "Renderer.h"
 #include "VulkanRenderer.h"
+#include "Scene.h"
 
 class Application
 {
@@ -24,6 +25,8 @@ private:
     
     EGraphicsAPI m_useGraphicsAPI;
 	GLFWwindow* m_window;
-    Renderer* m_renderer;
+	Scene* m_scene;
+	Renderer* m_renderer;
+
 };
 

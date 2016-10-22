@@ -16,17 +16,17 @@ const std::vector<const char*> VALIDATION_LAYERS = {
 	"VK_LAYER_LUNARG_standard_validation"
 };
 
-const std::vector<Vertex> VERTICES =
+static std::vector<Vertex> VERTICES =
 {
-	{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-	{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
-	{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
-	{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f } },
+	//{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
+	//{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
+	//{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
+	//{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f } },
 };
 
 const std::vector<uint16_t> INDICES = 
 {
-	0, 1, 2, 0, 2, 3
+	//0, 1, 2, 0, 2, 3
 };
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallbackFn(
@@ -77,6 +77,8 @@ DestroyDebugReportCallbackEXT(
 
 VulkanRenderer::VulkanRenderer(
 	GLFWwindow* window
+	, std::vector<unsigned char> indices
+	, std::vector<unsigned char> positions
 	)
 	:
 	Renderer(window)
@@ -89,6 +91,8 @@ VulkanRenderer::VulkanRenderer(
 	, m_presentQueue(VK_NULL_HANDLE)
 	, m_swapchain(VK_NULL_HANDLE)
 	, m_name("Vulkan Application")
+	, m_indices(indices)
+	, m_positions(positions)
 {
     // -- Initialize logger
 
@@ -858,7 +862,7 @@ VulkanRenderer::CreateCommandPool()
 VkResult 
 VulkanRenderer::CreateVertexBuffer() 
 {
-	VkDeviceSize bufferSize = sizeof(Vertex) * VERTICES.size();
+	VkDeviceSize bufferSize = sizeof(m_positions[0]) * m_positions.size();
 	
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -878,7 +882,7 @@ VulkanRenderer::CreateVertexBuffer()
 	// Filling the stage buffer with data
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, VERTICES.data(), (size_t)bufferSize);
+	memcpy(data, m_positions.data(), (size_t)bufferSize);
 	vkUnmapMemory(m_device, stagingBufferMemory);
 
 	// Copy over to vertex buffer in device local memory
@@ -902,7 +906,7 @@ VulkanRenderer::CreateVertexBuffer()
 VkResult
 VulkanRenderer::CreateIndexBuffer() 
 {
-	VkDeviceSize bufferSize = sizeof(uint16_t) * INDICES.size();
+	VkDeviceSize bufferSize = sizeof(m_indices[0]) * m_indices.size();
 
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -922,7 +926,7 @@ VulkanRenderer::CreateIndexBuffer()
 	// Filling the stage buffer with data
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, INDICES.data(), (size_t)bufferSize);
+	memcpy(data, m_indices.data(), (size_t)bufferSize);
 	vkUnmapMemory(m_device, stagingBufferMemory);
 
 	// Copy over to vertex buffer in device local memory
@@ -1089,7 +1093,7 @@ VulkanRenderer::CreateCommandBuffers()
 		vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
 		// Record draw command for the triangle!
-		vkCmdDrawIndexed(m_commandBuffers[i], INDICES.size(), 1, 0, 0, 0);
+		vkCmdDrawIndexed(m_commandBuffers[i], m_indices.size(), 1, 0, 0, 0);
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1160,7 +1164,7 @@ VulkanRenderer::Update()
 
 	UniformBufferObject ubo = {};
 	ubo.model = glm::rotate(glm::mat4(), timeSeconds * glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.view = glm::lookAt(glm::vec3(0.0f, 5.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_swapchainExtent.width / (float)m_swapchainExtent.height, 0.001f, 1000.0f);
 
 	// The Vulkan's Y coordinate is flipped from OpenGL (glm design), so we need to invert that
