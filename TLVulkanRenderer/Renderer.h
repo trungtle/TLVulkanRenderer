@@ -10,6 +10,8 @@
 #include <string>
 #include <set>
 
+#include "Scene.h"
+
 using namespace std;
 
 typedef enum
@@ -27,8 +29,9 @@ class Renderer
 {
 public:
     Renderer(
-        GLFWwindow* window
-    ) : m_window(window) {};
+        GLFWwindow* window,
+		Scene* scene
+    ) : m_window(window), m_scene(scene) {};
     virtual ~Renderer() {};
 	virtual void Update() = 0;
     virtual void Render() = 0;
@@ -38,5 +41,10 @@ protected:
     * \brief The window handle from glfw
     */
     GLFWwindow* m_window;
+
+	/**
+	 * \brief Handle to scene
+	 */
+	Scene* m_scene;
 };
 

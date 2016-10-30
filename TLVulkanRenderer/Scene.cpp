@@ -852,49 +852,62 @@ Scene::Scene()
 	tinygltf::Scene scene;
 	tinygltf::TinyGLTFLoader loader;
 	std::string err;
-	std::string fileName = "E:/CODES/Vulkan_proj/TLVulkanRenderer/TLVulkanRenderer/scenes/Duck/glTF/Duck.gltf";
+	std::string fileName = "E:/CODES/Vulkan_proj/TLVulkanRenderer/TLVulkanRenderer/scenes/Box/box.gltf";
 	// assume ascii glTF.
 	bool ret = loader.LoadASCIIFromFile(&scene, &err, fileName.c_str());
 	
-	std::map<std::string, tinygltf::Mesh>::const_iterator it(
+	std::map<std::string, tinygltf::Mesh>::const_iterator meshIt(
 		scene.meshes.begin());
-	std::map<std::string, tinygltf::Mesh>::const_iterator itEnd(
+	std::map<std::string, tinygltf::Mesh>::const_iterator meshEnd(
 		scene.meshes.end());
 	std::cout << "meshes(item=" << scene.meshes.size() << ")" << std::endl;
-	for (; it != itEnd; it++)
+	for (; meshIt != meshEnd; ++meshIt)
 	{
-		for (size_t i = 0; i < it->second.primitives.size(); i++)
+		for (size_t i = 0; i < meshIt->second.primitives.size(); i++)
 		{
-			auto primitive = it->second.primitives[i];
-			auto indicesAccessorName = primitive.indices;
+			auto primitive = meshIt->second.primitives[i];
+			
+			std::map<std::string, std::string>::const_iterator attributesIt(primitive.attributes.begin());
+			std::map<std::string, std::string>::const_iterator attributesEnd(primitive.attributes.end());
+			//for (TYPE collection : COLLECTION) {  }
+			
 			auto positionAccessorName = primitive.attributes.at("POSITION");
-			auto normalAccessorName = primitive.attributes.at("NORMAL");
-			auto texccordAccessorName = primitive.attributes.at("TEXCOORD_0");
-
-			auto indicesAccessor = scene.accessors.at(indicesAccessorName);
 			auto positionAccessor = scene.accessors.at(positionAccessorName);
+			m_vertexAttributes.positionByteOffset = positionAccessor.byteOffset;
+			m_vertexAttributes.positionByteStride = positionAccessor.byteStride;
+			m_vertexAttributes.positionCount = positionAccessor.count;
+
+			auto normalAccessorName = primitive.attributes.at("NORMAL");
 			auto normalAccessor = scene.accessors.at(normalAccessorName);
+			m_vertexAttributes.normalByteOffset = normalAccessor.byteOffset;
+			m_vertexAttributes.normalByteStride = normalAccessor.byteStride;
+			m_vertexAttributes.normalCount = normalAccessor.count;
 
+			auto texcoordAccessorName = primitive.attributes.at("TEXCOORD_0");
+			auto texcoordAccessor = scene.accessors.at(texcoordAccessorName);
+			m_vertexAttributes.texcoordByteOffset = texcoordAccessor.byteOffset;
+			m_vertexAttributes.texcoordByteStride = texcoordAccessor.byteStride;
+			m_vertexAttributes.texcoordCount = texcoordAccessor.count;
+
+			auto indicesAccessorName = primitive.indices;
+			auto indicesAccessor = scene.accessors.at(indicesAccessorName);
 			auto indicesBufferViewName = indicesAccessor.bufferView;
-			auto positionsBufferViewName = positionAccessor.bufferView;
-			auto normalBufferViewName = normalAccessor.bufferView;
-
 			auto indicesBufferView = scene.bufferViews.at(indicesBufferViewName);
-			auto positionBufferView = scene.bufferViews.at(positionsBufferViewName);
-
 			auto indicesBufferName = indicesBufferView.buffer;
-			auto positionBufferName = positionBufferView.buffer;
-
 			auto indicesBuffer = scene.buffers.at(indicesBufferName);
-			auto positionBuffer = scene.buffers.at(positionBufferName);
-
 			std::vector<unsigned char>::const_iterator first = indicesBuffer.data.begin() + indicesBufferView.byteOffset;
 			std::vector<unsigned char>::const_iterator last = indicesBuffer.data.begin() + indicesBufferView.byteOffset + indicesBufferView.byteLength;
-			m_indices = std::vector<unsigned char>(first, last);
+			m_indexData = std::vector<unsigned char>(first, last);
+			m_indexCount = indicesAccessor.count;
 
-			first = positionBuffer.data.begin() + positionBufferView.byteOffset;
-			last = positionBuffer.data.begin() + positionBufferView.byteOffset + positionBufferView.byteLength;
-			m_positions = std::vector<unsigned char>(first, last);
+			auto verticesBufferViewName = positionAccessor.bufferView;
+			auto verticesBufferView = scene.bufferViews.at(verticesBufferViewName);
+			auto verticesBufferName = verticesBufferView.buffer;
+			auto verticesBuffer = scene.buffers.at(verticesBufferName);
+			first = verticesBuffer.data.begin() + verticesBufferView.byteOffset;
+			last = verticesBuffer.data.begin() + verticesBufferView.byteOffset + verticesBufferView.byteLength;
+			m_vertexData = std::vector<unsigned char>(first, last);
+
 		}
 	}
 

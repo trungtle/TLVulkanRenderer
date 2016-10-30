@@ -26,7 +26,7 @@ Application::Application(
     {
         case EGraphicsAPI::Vulkan:
             // Init Vulkan
-            m_renderer = new VulkanRenderer(m_window, m_scene->m_indices, m_scene->m_positions);
+            m_renderer = new VulkanRenderer(m_window, m_scene);
             break;
         default:
             std::cout << "Graphics API not supported\n";

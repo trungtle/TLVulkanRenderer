@@ -1,5 +1,3 @@
-#define GLM_FORCE_RADIANS
-
 #include <assert.h>
 #include <iostream>
 #include <algorithm>
@@ -16,13 +14,13 @@ const std::vector<const char*> VALIDATION_LAYERS = {
 	"VK_LAYER_LUNARG_standard_validation"
 };
 
-static std::vector<Vertex> VERTICES =
-{
-	//{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-	//{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
-	//{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
-	//{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f } },
-};
+//static std::vcrector<Vertex> VERTICES =
+//{
+//	//{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
+//	//{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
+//	//{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
+//	//{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f } },
+//};
 
 const std::vector<uint16_t> INDICES = 
 {
@@ -76,12 +74,11 @@ DestroyDebugReportCallbackEXT(
 // ------------------
 
 VulkanRenderer::VulkanRenderer(
-	GLFWwindow* window
-	, std::vector<unsigned char> indices
-	, std::vector<unsigned char> positions
+	GLFWwindow* window,
+	Scene* scene
 	)
 	:
-	Renderer(window)
+	Renderer(window, scene)
 	, m_instance(VK_NULL_HANDLE) 
 	, m_debugCallback(VK_NULL_HANDLE)
 	, m_surfaceKHR(VK_NULL_HANDLE)
@@ -91,8 +88,6 @@ VulkanRenderer::VulkanRenderer(
 	, m_presentQueue(VK_NULL_HANDLE)
 	, m_swapchain(VK_NULL_HANDLE)
 	, m_name("Vulkan Application")
-	, m_indices(indices)
-	, m_positions(positions)
 {
     // -- Initialize logger
 
@@ -162,6 +157,7 @@ VulkanRenderer::VulkanRenderer(
 	m_logger->info<std::string>("Created command pool");
 
 	result = CreateVertexBuffer();
+	result = CreateVertexNormalBuffer();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created vertex buffer");
 	// @todo: combine vertex and index buffers for memory efficiency
@@ -663,12 +659,12 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	vertexInputStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	
 	// Input binding description
-	auto vertInputBindingDesc = TLVertex::GetVertexInputBindingDescription();
-	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 1;
-	vertexInputStageCreateInfo.pVertexBindingDescriptions = &vertInputBindingDesc;
+	auto vertInputBindingDesc = TLVertex::GetVertexInputBindingDescription(m_scene->m_vertexAttributes);
+	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 2;// vertInputBindingDesc.size();
+	vertexInputStageCreateInfo.pVertexBindingDescriptions = vertInputBindingDesc.data();
 	
-	// Attribute description (position, normal, color etc.)
-	auto vertAttribDesc = TLVertex::GetAttributeDescriptions();
+	// Attribute description (position, normal, texcoord etc.)
+	auto vertAttribDesc = TLVertex::GetAttributeDescriptions(m_scene->m_vertexAttributes);
 	vertexInputStageCreateInfo.vertexAttributeDescriptionCount = vertAttribDesc.size();
 	vertexInputStageCreateInfo.pVertexAttributeDescriptions = vertAttribDesc.data();
 
@@ -862,7 +858,7 @@ VulkanRenderer::CreateCommandPool()
 VkResult 
 VulkanRenderer::CreateVertexBuffer() 
 {
-	VkDeviceSize bufferSize = sizeof(m_positions[0]) * m_positions.size();
+	VkDeviceSize bufferSize = sizeof(m_scene->m_vertexData[0]) * m_scene->m_vertexData.size();
 	
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -874,26 +870,49 @@ VulkanRenderer::CreateVertexBuffer()
 	CreateBuffer(
 		bufferSize, 
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		stagingBuffer,
-		stagingBufferMemory
+		stagingBuffer
 		);
 
+	// Allocate memory for the buffer
+	VkMemoryRequirements memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, stagingBuffer, &memoryRequirements);
+
+	CreateMemory(
+		memoryRequirements,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBufferMemory
+	);
+
+	// Bind buffer with memory
+	VkDeviceSize memoryOffset = 0;
+	vkBindBufferMemory(m_device, stagingBuffer, stagingBufferMemory, memoryOffset);
+			
 	// Filling the stage buffer with data
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_positions.data(), (size_t)bufferSize);
+	memcpy(data, m_scene->m_vertexData.data(), static_cast<size_t>(bufferSize));
 	vkUnmapMemory(m_device, stagingBufferMemory);
 
-	// Copy over to vertex buffer in device local memory
 	CreateBuffer(
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		m_vertexBuffer
+	);
+
+	// Allocate memory for the buffer
+	memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memoryRequirements);
+
+	CreateMemory(
+		memoryRequirements,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_vertexBuffer,
 		m_vertexBufferMemory
 	);
 
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, memoryOffset);
+
+	// Copy over to vertex buffer in device local memory
 	CopyBuffer(m_vertexBuffer, stagingBuffer, bufferSize);
 
 	// Cleanup staging buffer memory
@@ -903,10 +922,10 @@ VulkanRenderer::CreateVertexBuffer()
 	return VK_SUCCESS;
 }
 
-VkResult
-VulkanRenderer::CreateIndexBuffer() 
+VkResult 
+VulkanRenderer::CreateVertexNormalBuffer() 
 {
-	VkDeviceSize bufferSize = sizeof(m_indices[0]) * m_indices.size();
+	VkDeviceSize bufferSize = sizeof(m_scene->m_vertexData[0]) * m_scene->m_vertexData.size();
 
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -918,25 +937,114 @@ VulkanRenderer::CreateIndexBuffer()
 	CreateBuffer(
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		stagingBuffer
+	);
+
+	// Allocate memory for the buffer
+	VkMemoryRequirements memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, stagingBuffer, &memoryRequirements);
+
+	CreateMemory(
+		memoryRequirements,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
 		stagingBufferMemory
 	);
+
+	// Bind buffer with memory
+	VkDeviceSize memoryOffset = 0;
+	vkBindBufferMemory(m_device, stagingBuffer, stagingBufferMemory, memoryOffset);
 
 	// Filling the stage buffer with data
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_indices.data(), (size_t)bufferSize);
+	memcpy(data, m_scene->m_vertexData.data(), static_cast<size_t>(bufferSize));
 	vkUnmapMemory(m_device, stagingBufferMemory);
 
-	// Copy over to vertex buffer in device local memory
 	CreateBuffer(
 		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		m_vertexNormalBuffer
+	);
+
+	// Allocate memory for the buffer
+	memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, m_vertexNormalBuffer, &memoryRequirements);
+
+	CreateMemory(
+		memoryRequirements,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_indexBuffer,
+		m_vertexNormalBufferMemory
+	);
+
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_vertexNormalBuffer, m_vertexNormalBufferMemory, memoryOffset);
+
+	// Copy over to vertex buffer in device local memory
+	CopyBuffer(m_vertexNormalBuffer, stagingBuffer, bufferSize);
+
+	// Cleanup staging buffer memory
+	vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+	vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+	return VK_SUCCESS;
+}
+
+VkResult
+VulkanRenderer::CreateIndexBuffer() 
+{
+	VkDeviceSize bufferSize = sizeof(m_scene->m_indexData[0]) * m_scene->m_indexData.size();
+
+	// Stage buffer memory on host
+	// We want staging so that we can map the vertex data on the host but
+	// then transfer it to the device local memory for faster performance
+	// This is the recommended way to allocate buffer memory,
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+
+	VkDeviceSize memoryOffset = 0;
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		stagingBuffer
+	);
+
+	// Allocate memory for the buffer
+	VkMemoryRequirements memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, stagingBuffer, &memoryRequirements);
+
+	CreateMemory(
+		memoryRequirements,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBufferMemory
+	);
+
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, stagingBuffer, stagingBufferMemory, memoryOffset);
+
+	// Filling the stage buffer with data
+	void* data;
+	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, m_scene->m_indexData.data(), static_cast<size_t>(bufferSize));
+	vkUnmapMemory(m_device, stagingBufferMemory);
+
+	CreateBuffer(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		m_indexBuffer
+	);
+
+	// Allocate memory for the buffer
+	memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, m_indexBuffer, &memoryRequirements);
+
+	CreateMemory(
+		memoryRequirements,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		m_indexBufferMemory
 	);
+
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_indexBuffer, m_indexBufferMemory, memoryOffset);
 
 	CopyBuffer(m_indexBuffer, stagingBuffer, bufferSize);
 
@@ -951,22 +1059,44 @@ VkResult
 VulkanRenderer::CreateUniformBuffer()
 {
 	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
+	VkDeviceSize memoryOffset = 0;
 	CreateBuffer(
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		m_uniformStagingBuffer
+	);
+
+	// Allocate memory for the buffer
+	VkMemoryRequirements memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, m_uniformStagingBuffer, &memoryRequirements);
+
+	CreateMemory(
+		memoryRequirements,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		m_uniformStagingBuffer,
 		m_uniformStagingBufferMemory
 	);
+
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_uniformStagingBuffer, m_uniformStagingBufferMemory, memoryOffset);
 
 	CreateBuffer(
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		m_uniformBuffer
+	);
+
+	// Allocate memory for the buffer
+	memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, m_uniformBuffer, &memoryRequirements);
+
+	CreateMemory(
+		memoryRequirements,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_uniformBuffer,
 		m_uniformBufferMemory
 	);
+
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_uniformBuffer, m_uniformBufferMemory, memoryOffset);
 
 	return VK_SUCCESS;
 }
@@ -1078,13 +1208,13 @@ VulkanRenderer::CreateCommandBuffers()
 		// Record begin renderpass
 		vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		// Record bindind the graphics pipeline
+		// Record binding the graphics pipeline
 		vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
 		// Bind vertex buffer
-		VkBuffer vertexBuffers[] = { m_vertexBuffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
+		VkBuffer vertexBuffers[] = { m_vertexBuffer, m_vertexNormalBuffer };
+		VkDeviceSize offsets[] = { m_scene->m_vertexAttributes.positionByteOffset, 0 };// m_scene->m_vertexAttributes.texcoordByteOffset
+		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 2, vertexBuffers, offsets);
 
 		// Bind index buffer
 		vkCmdBindIndexBuffer(m_commandBuffers[i], m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
@@ -1093,7 +1223,7 @@ VulkanRenderer::CreateCommandBuffers()
 		vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
 		// Record draw command for the triangle!
-		vkCmdDrawIndexed(m_commandBuffers[i], m_indices.size(), 1, 0, 0, 0);
+		vkCmdDrawIndexed(m_commandBuffers[i], m_scene->m_indexCount, 1, 0, 0, 0);
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1257,12 +1387,10 @@ VulkanRenderer::GetMemoryType(
 
 void
 VulkanRenderer::CreateBuffer(
-	VkDeviceSize size,
-	VkBufferUsageFlags usage,
-	VkMemoryPropertyFlags memoryProperties,
-	VkBuffer& buffer,
-	VkDeviceMemory& bufferMemory
-)
+	const VkDeviceSize size,
+	const VkBufferUsageFlags usage,
+	VkBuffer& buffer
+	) const
 {
 	VkBufferCreateInfo bufferCreateInfo = {};
 	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1279,11 +1407,15 @@ VulkanRenderer::CreateBuffer(
 	{
 		throw std::runtime_error("Failed to create buffer");
 	}
+}
 
-	// Allocate memory for the buffer
-	VkMemoryRequirements memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, buffer, &memoryRequirements);
-
+void 
+VulkanRenderer::CreateMemory(
+	const VkMemoryRequirements memoryRequirements,
+	const VkMemoryPropertyFlags memoryProperties,
+	VkDeviceMemory& memory
+) const 
+{
 	VkMemoryAllocateInfo memoryAllocInfo = {};
 	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memoryAllocInfo.allocationSize = memoryRequirements.size;
@@ -1297,14 +1429,11 @@ VulkanRenderer::CreateBuffer(
 		GetMemoryType(memoryRequirements.memoryTypeBits,
 			memoryProperties);
 
-	result = vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &bufferMemory);
+	VkResult result = vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &memory);
 	if (result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate memory for buffer");
 	}
-
-	// Bind buffer with memory
-	vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
 }
 
 void 
@@ -1312,7 +1441,7 @@ VulkanRenderer::CopyBuffer(
 	VkBuffer dstBuffer, 
 	VkBuffer srcBuffer, 
 	VkDeviceSize size
-	) 
+	) const 
 {
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
 	commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
