@@ -11,5 +11,6 @@ void main() {
 	// Lambertian term
 	float lambertian = clamp(dot(fragNormal, lightDirection), 0, 1);
 
-	outColor = vec4(abs(fragNormal), 1.0) * lambertian; 
+	outColor = vec4(abs(fragNormal), 1.0); 
+	//outColor = vec4(1, 0, 0, 1);
 }

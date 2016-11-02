@@ -863,38 +863,6 @@ static void Dump(const tinygltf::Scene &scene) {
 	}
 }
 
-void BufferCopy(
-	int bufferSize,
-	unsigned char* dstBuffer,
-	const unsigned char* srcBuffer,
-	int componentLength, /* 1 for scalar, 2 for vec2, 3 for vec3 and so on */
-	int componentTypeByteSize,
-	int byteStride,
-	int byteOffset
-	) 
-{
-	for (int i = 0; i < bufferSize; ++i) {
-		int count = i / componentLength;
-		int offset = i - count * componentLength;
-
-		for (int j = 0; j < componentTypeByteSize; ++j) {
-			dstBuffer[
-				count * componentTypeByteSize * componentLength +
-					offset * componentTypeByteSize +
-					j]
-				=
-			
-			srcBuffer[
-				byteOffset +
-				count * (byteStride == 0 ? componentTypeByteSize * componentLength : byteStride) +
-					offset * componentTypeByteSize +
-					j];
-
-		}
-
-	}
-}
-
 static std::string GetFilePathExtension(const std::string &FileName) {
 	if (FileName.find_last_of(".") != std::string::npos)
 		return FileName.substr(FileName.find_last_of(".") + 1);
@@ -967,7 +935,13 @@ Scene::Scene(
 					componentTypeByteSize
 				};
 				m_vertexAttributes.insert(std::make_pair(EVertexAttributeType::INDEX, attributeInfo));
-				m_vertexData.insert(std::make_pair(EVertexAttributeType::INDEX, data));
+				if (m_vertexData.find(EVertexAttributeType::INDEX) == m_vertexData.end()) {
+					m_vertexData.insert(std::make_pair(EVertexAttributeType::INDEX, data));
+				} else {
+					std::vector<Byte>& currentData = m_vertexData.at(EVertexAttributeType::INDEX);
+					currentData.reserve(currentData.size() + std::distance(data.begin(), data.end())); 
+					currentData.insert(currentData.end(), data.begin(), data.end());
+				}
 			}
 
 			// -------- Attributes -----------
@@ -1017,7 +991,16 @@ Scene::Scene(
 					componentTypeByteSize					
 				};
 				m_vertexAttributes.insert(std::make_pair(attributeType, attributeInfo));
-				m_vertexData.insert(std::make_pair(attributeType, data));
+				if (m_vertexData.find(attributeType) == m_vertexData.end())
+				{
+					m_vertexData.insert(std::make_pair(attributeType, data));
+				}
+				else
+				{
+					std::vector<Byte>& currentData = m_vertexData.at(attributeType);
+					currentData.reserve(currentData.size() + std::distance(data.begin(), data.end()));
+					currentData.insert(currentData.end(), data.begin(), data.end());
+				}
 			}
 		}
 	}

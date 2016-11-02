@@ -1,15 +1,15 @@
 {
     "accessors": {
-        "accessor_index": {
-            "bufferView": "bufferView_index",
+        "accessor_21": {
+            "bufferView": "bufferView_29",
             "byteOffset": 0,
             "byteStride": 0,
             "componentType": 5123,
             "count": 36,
             "type": "SCALAR"
         },
-        "accessor_position": {
-            "bufferView": "bufferView_vertex",
+        "accessor_23": {
+            "bufferView": "bufferView_30",
             "byteOffset": 0,
             "byteStride": 12,
             "componentType": 5126,
@@ -26,8 +26,8 @@
             ],
             "type": "VEC3"
         },
-        "accessor_normal": {
-            "bufferView": "bufferView_vertex",
+        "accessor_25": {
+            "bufferView": "bufferView_30",
             "byteOffset": 288,
             "byteStride": 12,
             "componentType": 5126,
@@ -44,8 +44,8 @@
             ],
             "type": "VEC3"
         },
-        "accessor_texcoord0": {
-            "bufferView": "bufferView_vertex",
+        "accessor_27": {
+            "bufferView": "bufferView_30",
             "byteOffset": 576,
             "byteStride": 8,
             "componentType": 5126,
@@ -72,13 +72,13 @@
         "version": 1
     },
     "bufferViews": {
-        "bufferView_index": {
+        "bufferView_29": {
             "buffer": "box",
             "byteLength": 72,
             "byteOffset": 0,
             "target": 34963
         },
-        "bufferView_vertex": {
+        "bufferView_30": {
             "buffer": "box",
             "byteLength": 768,
             "byteOffset": 72,
@@ -119,11 +119,11 @@
             "primitives": [
                 {
                     "attributes": {
-                        "NORMAL": "accessor_normal",
-                        "POSITION": "accessor_position",
-                        "TEXCOORD_0": "accessor_texcoord0"
+                        "NORMAL": "accessor_25",
+                        "POSITION": "accessor_23",
+                        "TEXCOORD_0": "accessor_27"
                     },
-                    "indices": "accessor_index",
+                    "indices": "accessor_21",
                     "material": "Effect-Red",
                     "mode": 4
                 }

@@ -200,9 +200,6 @@ private:
 	CreateVertexBuffer();
 
 	VkResult
-	CreateVertexNormalBuffer();
-
-	VkResult
 	CreateIndexBuffer();
 
 	VkResult
