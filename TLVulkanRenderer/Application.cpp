@@ -4,6 +4,8 @@
 #include "Application.h"
 
 Application::Application(
+	int argc, 
+	char **argv,
 	int width,
 	int height,
     EGraphicsAPI useAPI
@@ -20,7 +22,9 @@ Application::Application(
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	m_window = glfwCreateWindow(m_width, m_height, "Trung's Vulkan rasterizer", nullptr, nullptr);
 
-	m_scene = new Scene();
+	// Extra filename
+	std::string inputFilename(argv[1]);
+	m_scene = new Scene(inputFilename);
 
     switch(m_useGraphicsAPI) 
     {

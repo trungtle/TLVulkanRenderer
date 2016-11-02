@@ -659,9 +659,12 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	vertexInputStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	
 	// Input binding description
-	auto vertInputBindingDesc = TLVertex::GetVertexInputBindingDescription(m_scene->m_vertexAttributes);
-	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 2;// vertInputBindingDesc.size();
-	vertexInputStageCreateInfo.pVertexBindingDescriptions = vertInputBindingDesc.data();
+	VkVertexInputBindingDescription bindingDesc[2] = {
+		TLVertex::GetVertexInputBindingDescription(0, m_scene->m_vertexAttributes.at(POSITION)),
+		TLVertex::GetVertexInputBindingDescription(1, m_scene->m_vertexAttributes.at(POSITION))
+	};
+	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 2;
+	vertexInputStageCreateInfo.pVertexBindingDescriptions = bindingDesc;
 	
 	// Attribute description (position, normal, texcoord etc.)
 	auto vertAttribDesc = TLVertex::GetAttributeDescriptions(m_scene->m_vertexAttributes);
@@ -858,7 +861,10 @@ VulkanRenderer::CreateCommandPool()
 VkResult 
 VulkanRenderer::CreateVertexBuffer() 
 {
-	VkDeviceSize bufferSize = sizeof(m_scene->m_vertexData[0]) * m_scene->m_vertexData.size();
+	// ----------- Position buffer --------------
+
+	std::vector<Byte>& vertexData = m_scene->m_vertexData.at(POSITION);
+	VkDeviceSize bufferSize = sizeof(vertexData[0]) * vertexData.size();
 	
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -867,6 +873,7 @@ VulkanRenderer::CreateVertexBuffer()
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 
+	VkDeviceSize memoryOffset = 0;
 	CreateBuffer(
 		bufferSize, 
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
@@ -874,24 +881,22 @@ VulkanRenderer::CreateVertexBuffer()
 		);
 
 	// Allocate memory for the buffer
-	VkMemoryRequirements memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, stagingBuffer, &memoryRequirements);
-
 	CreateMemory(
-		memoryRequirements,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
 		stagingBufferMemory
 	);
 
 	// Bind buffer with memory
-	VkDeviceSize memoryOffset = 0;
 	vkBindBufferMemory(m_device, stagingBuffer, stagingBufferMemory, memoryOffset);
 			
 	// Filling the stage buffer with data
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_scene->m_vertexData.data(), static_cast<size_t>(bufferSize));
+	memcpy(data, vertexData.data(), static_cast<size_t>(bufferSize));
 	vkUnmapMemory(m_device, stagingBufferMemory);
+
+	// -----------------------------------------
 
 	CreateBuffer(
 		bufferSize,
@@ -900,12 +905,9 @@ VulkanRenderer::CreateVertexBuffer()
 	);
 
 	// Allocate memory for the buffer
-	memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memoryRequirements);
-
 	CreateMemory(
-		memoryRequirements,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_vertexBuffer,
 		m_vertexBufferMemory
 	);
 
@@ -923,9 +925,10 @@ VulkanRenderer::CreateVertexBuffer()
 }
 
 VkResult 
-VulkanRenderer::CreateVertexNormalBuffer() 
+VulkanRenderer::CreateVertexNormalBuffer()
 {
-	VkDeviceSize bufferSize = sizeof(m_scene->m_vertexData[0]) * m_scene->m_vertexData.size();
+	std::vector<Byte>& vertexData = m_scene->m_vertexData.at(NORMAL);
+	VkDeviceSize bufferSize = sizeof(vertexData[0]) * vertexData.size();
 
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -941,12 +944,9 @@ VulkanRenderer::CreateVertexNormalBuffer()
 	);
 
 	// Allocate memory for the buffer
-	VkMemoryRequirements memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, stagingBuffer, &memoryRequirements);
-
 	CreateMemory(
-		memoryRequirements,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
 		stagingBufferMemory
 	);
 
@@ -957,8 +957,10 @@ VulkanRenderer::CreateVertexNormalBuffer()
 	// Filling the stage buffer with data
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_scene->m_vertexData.data(), static_cast<size_t>(bufferSize));
+	memcpy(data, vertexData.data(), static_cast<size_t>(bufferSize));
 	vkUnmapMemory(m_device, stagingBufferMemory);
+
+	// ------------------------------------------
 
 	CreateBuffer(
 		bufferSize,
@@ -967,12 +969,9 @@ VulkanRenderer::CreateVertexNormalBuffer()
 	);
 
 	// Allocate memory for the buffer
-	memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, m_vertexNormalBuffer, &memoryRequirements);
-
 	CreateMemory(
-		memoryRequirements,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_vertexNormalBuffer,
 		m_vertexNormalBufferMemory
 	);
 
@@ -992,7 +991,8 @@ VulkanRenderer::CreateVertexNormalBuffer()
 VkResult
 VulkanRenderer::CreateIndexBuffer() 
 {
-	VkDeviceSize bufferSize = sizeof(m_scene->m_indexData[0]) * m_scene->m_indexData.size();
+	std::vector<Byte>& indexData = m_scene->m_vertexData.at(INDEX);
+	VkDeviceSize bufferSize = sizeof(indexData[0]) * indexData.size();
 
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -1009,12 +1009,9 @@ VulkanRenderer::CreateIndexBuffer()
 	);
 
 	// Allocate memory for the buffer
-	VkMemoryRequirements memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, stagingBuffer, &memoryRequirements);
-
 	CreateMemory(
-		memoryRequirements,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
 		stagingBufferMemory
 	);
 
@@ -1024,7 +1021,7 @@ VulkanRenderer::CreateIndexBuffer()
 	// Filling the stage buffer with data
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_scene->m_indexData.data(), static_cast<size_t>(bufferSize));
+	memcpy(data, indexData.data(), static_cast<size_t>(bufferSize));
 	vkUnmapMemory(m_device, stagingBufferMemory);
 
 	CreateBuffer(
@@ -1034,12 +1031,9 @@ VulkanRenderer::CreateIndexBuffer()
 	);
 
 	// Allocate memory for the buffer
-	memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, m_indexBuffer, &memoryRequirements);
-
 	CreateMemory(
-		memoryRequirements,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_indexBuffer,
 		m_indexBufferMemory
 	);
 
@@ -1067,12 +1061,9 @@ VulkanRenderer::CreateUniformBuffer()
 	);
 
 	// Allocate memory for the buffer
-	VkMemoryRequirements memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, m_uniformStagingBuffer, &memoryRequirements);
-
 	CreateMemory(
-		memoryRequirements,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		m_uniformStagingBuffer,
 		m_uniformStagingBufferMemory
 	);
 
@@ -1086,12 +1077,9 @@ VulkanRenderer::CreateUniformBuffer()
 	);
 
 	// Allocate memory for the buffer
-	memoryRequirements = {};
-	vkGetBufferMemoryRequirements(m_device, m_uniformBuffer, &memoryRequirements);
-
 	CreateMemory(
-		memoryRequirements,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_uniformBuffer,
 		m_uniformBufferMemory
 	);
 
@@ -1213,7 +1201,7 @@ VulkanRenderer::CreateCommandBuffers()
 
 		// Bind vertex buffer
 		VkBuffer vertexBuffers[] = { m_vertexBuffer, m_vertexNormalBuffer };
-		VkDeviceSize offsets[] = { m_scene->m_vertexAttributes.positionByteOffset, 0 };// m_scene->m_vertexAttributes.texcoordByteOffset
+		VkDeviceSize offsets[] = { 0, 0 };
 		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 2, vertexBuffers, offsets);
 
 		// Bind index buffer
@@ -1223,7 +1211,7 @@ VulkanRenderer::CreateCommandBuffers()
 		vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
 		// Record draw command for the triangle!
-		vkCmdDrawIndexed(m_commandBuffers[i], m_scene->m_indexCount, 1, 0, 0, 0);
+		vkCmdDrawIndexed(m_commandBuffers[i], m_scene->m_vertexAttributes.at(INDEX).count, 1, 0, 0, 0);
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1411,11 +1399,14 @@ VulkanRenderer::CreateBuffer(
 
 void 
 VulkanRenderer::CreateMemory(
-	const VkMemoryRequirements memoryRequirements,
 	const VkMemoryPropertyFlags memoryProperties,
+	const VkBuffer& buffer,
 	VkDeviceMemory& memory
 ) const 
 {
+	VkMemoryRequirements memoryRequirements = {};
+	vkGetBufferMemoryRequirements(m_device, buffer, &memoryRequirements);
+
 	VkMemoryAllocateInfo memoryAllocInfo = {};
 	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memoryAllocInfo.allocationSize = memoryRequirements.size;

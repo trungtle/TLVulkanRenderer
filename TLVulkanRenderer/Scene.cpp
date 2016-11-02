@@ -4,9 +4,25 @@
 
 #define TINYGLTF_LOADER_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
-#include "thirdparty/tinygltfloader/tiny_gltf_loader.h"
-
 #include "Scene.h"
+
+static std::map<int, int> GLTF_COMPONENT_LENGTH_LOOKUP = {
+	{ TINYGLTF_TYPE_SCALAR, 1 },
+	{ TINYGLTF_TYPE_VEC2, 2 },
+	{ TINYGLTF_TYPE_VEC3, 3 },
+	{ TINYGLTF_TYPE_VEC4, 4 },
+	{ TINYGLTF_TYPE_MAT2, 4 },
+	{ TINYGLTF_TYPE_MAT3, 9 },
+	{ TINYGLTF_TYPE_MAT4, 16 }
+};
+
+static std::map<int, int> GLTF_COMPONENT_BYTE_SIZE_LOOKUP = {
+	{ TINYGLTF_COMPONENT_TYPE_BYTE , 1 },
+	{ TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE, 1 },
+	{ TINYGLTF_COMPONENT_TYPE_SHORT, 2 },
+	{ TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT, 2 },
+	{ TINYGLTF_COMPONENT_TYPE_FLOAT, 4 }
+};
 
 static std::string PrintMode(int mode) {
 	if (mode == TINYGLTF_MODE_POINTS)
@@ -847,70 +863,164 @@ static void Dump(const tinygltf::Scene &scene) {
 	}
 }
 
-Scene::Scene()
+void BufferCopy(
+	int bufferSize,
+	unsigned char* dstBuffer,
+	const unsigned char* srcBuffer,
+	int componentLength, /* 1 for scalar, 2 for vec2, 3 for vec3 and so on */
+	int componentTypeByteSize,
+	int byteStride,
+	int byteOffset
+	) 
+{
+	for (int i = 0; i < bufferSize; ++i) {
+		int count = i / componentLength;
+		int offset = i - count * componentLength;
+
+		for (int j = 0; j < componentTypeByteSize; ++j) {
+			dstBuffer[
+				count * componentTypeByteSize * componentLength +
+					offset * componentTypeByteSize +
+					j]
+				=
+			
+			srcBuffer[
+				byteOffset +
+				count * (byteStride == 0 ? componentTypeByteSize * componentLength : byteStride) +
+					offset * componentTypeByteSize +
+					j];
+
+		}
+
+	}
+}
+
+static std::string GetFilePathExtension(const std::string &FileName) {
+	if (FileName.find_last_of(".") != std::string::npos)
+		return FileName.substr(FileName.find_last_of(".") + 1);
+	return "";
+}
+
+Scene::Scene(
+	std::string fileName
+	)
 {
 	tinygltf::Scene scene;
 	tinygltf::TinyGLTFLoader loader;
 	std::string err;
-	std::string fileName = "E:/CODES/Vulkan_proj/TLVulkanRenderer/TLVulkanRenderer/scenes/Box/box.gltf";
-	// assume ascii glTF.
-	bool ret = loader.LoadASCIIFromFile(&scene, &err, fileName.c_str());
-	
-	std::map<std::string, tinygltf::Mesh>::const_iterator meshIt(
-		scene.meshes.begin());
-	std::map<std::string, tinygltf::Mesh>::const_iterator meshEnd(
-		scene.meshes.end());
-	std::cout << "meshes(item=" << scene.meshes.size() << ")" << std::endl;
-	for (; meshIt != meshEnd; ++meshIt)
-	{
-		for (size_t i = 0; i < meshIt->second.primitives.size(); i++)
-		{
-			auto primitive = meshIt->second.primitives[i];
-			
-			std::map<std::string, std::string>::const_iterator attributesIt(primitive.attributes.begin());
-			std::map<std::string, std::string>::const_iterator attributesEnd(primitive.attributes.end());
-			//for (TYPE collection : COLLECTION) {  }
-			
-			auto positionAccessorName = primitive.attributes.at("POSITION");
-			auto positionAccessor = scene.accessors.at(positionAccessorName);
-			m_vertexAttributes.positionByteOffset = positionAccessor.byteOffset;
-			m_vertexAttributes.positionByteStride = positionAccessor.byteStride;
-			m_vertexAttributes.positionCount = positionAccessor.count;
+	std::string ext = GetFilePathExtension(fileName);
 
-			auto normalAccessorName = primitive.attributes.at("NORMAL");
-			auto normalAccessor = scene.accessors.at(normalAccessorName);
-			m_vertexAttributes.normalByteOffset = normalAccessor.byteOffset;
-			m_vertexAttributes.normalByteStride = normalAccessor.byteStride;
-			m_vertexAttributes.normalCount = normalAccessor.count;
-
-			auto texcoordAccessorName = primitive.attributes.at("TEXCOORD_0");
-			auto texcoordAccessor = scene.accessors.at(texcoordAccessorName);
-			m_vertexAttributes.texcoordByteOffset = texcoordAccessor.byteOffset;
-			m_vertexAttributes.texcoordByteStride = texcoordAccessor.byteStride;
-			m_vertexAttributes.texcoordCount = texcoordAccessor.count;
-
-			auto indicesAccessorName = primitive.indices;
-			auto indicesAccessor = scene.accessors.at(indicesAccessorName);
-			auto indicesBufferViewName = indicesAccessor.bufferView;
-			auto indicesBufferView = scene.bufferViews.at(indicesBufferViewName);
-			auto indicesBufferName = indicesBufferView.buffer;
-			auto indicesBuffer = scene.buffers.at(indicesBufferName);
-			std::vector<unsigned char>::const_iterator first = indicesBuffer.data.begin() + indicesBufferView.byteOffset;
-			std::vector<unsigned char>::const_iterator last = indicesBuffer.data.begin() + indicesBufferView.byteOffset + indicesBufferView.byteLength;
-			m_indexData = std::vector<unsigned char>(first, last);
-			m_indexCount = indicesAccessor.count;
-
-			auto verticesBufferViewName = positionAccessor.bufferView;
-			auto verticesBufferView = scene.bufferViews.at(verticesBufferViewName);
-			auto verticesBufferName = verticesBufferView.buffer;
-			auto verticesBuffer = scene.buffers.at(verticesBufferName);
-			first = verticesBuffer.data.begin() + verticesBufferView.byteOffset;
-			last = verticesBuffer.data.begin() + verticesBufferView.byteOffset + verticesBufferView.byteLength;
-			m_vertexData = std::vector<unsigned char>(first, last);
-
-		}
+	bool ret = false;
+	if (ext.compare("glb") == 0) {
+		// binary glTF.
+		ret = loader.LoadBinaryFromFile(&scene, &err, fileName.c_str());
+	} else {
+		// ascii glTF.
+		ret = loader.LoadASCIIFromFile(&scene, &err, fileName.c_str());
 	}
 
+	if (!err.empty())
+	{
+		printf("Err: %s\n", err.c_str());
+	}
+
+	if (!ret)
+	{
+		printf("Failed to parse glTF\n");
+		return;
+	}
+
+	// For each mesh
+	
+	for (auto& mesh : scene.meshes)
+	{
+		for (size_t i = 0; i < mesh.second.primitives.size(); i++)
+		{
+			auto primitive = mesh.second.primitives[i];
+			if (primitive.indices.empty()) {
+				return;
+			}
+			
+			// -------- Indices ----------
+			{
+				// Get accessor info
+				auto indexAccessor = scene.accessors.at(primitive.indices);
+				auto indexBufferView = scene.bufferViews.at(indexAccessor.bufferView);
+				auto indexBuffer = scene.buffers.at(indexBufferView.buffer);
+
+				int componentLength = GLTF_COMPONENT_LENGTH_LOOKUP.at(indexAccessor.type);
+				int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(indexAccessor.componentType);
+
+				// Extra index data
+				int bufferOffset = indexBufferView.byteOffset + indexAccessor.byteOffset;
+				int bufferLength = indexAccessor.count * componentLength * componentTypeByteSize;
+				auto first = indexBuffer.data.begin() + bufferOffset;
+				auto last = indexBuffer.data.begin() + bufferOffset + bufferLength;
+				std::vector<Byte> data = std::vector<Byte>(indexBuffer.data.begin() + indexBufferView.byteOffset,
+					indexBuffer.data.begin() + indexBufferView.byteOffset + indexBufferView.byteLength);
+				
+				VertexAttributeInfo attributeInfo = {
+					indexAccessor.byteOffset,
+					indexAccessor.byteStride,
+					indexAccessor.count,
+					componentLength,
+					componentTypeByteSize
+				};
+				m_vertexAttributes.insert(std::make_pair(EVertexAttributeType::INDEX, attributeInfo));
+				m_vertexData.insert(std::make_pair(EVertexAttributeType::INDEX, data));
+			}
+
+			// -------- Attributes -----------
+			
+			for (auto& attribute : primitive.attributes) {
+			
+				// Get accessor info
+				auto& accessor = scene.accessors.at(attribute.second);
+				auto& bufferView = scene.bufferViews.at(accessor.bufferView);
+				auto& buffer = scene.buffers.at(bufferView.buffer);
+				int componentLength = GLTF_COMPONENT_LENGTH_LOOKUP.at(accessor.type);
+				int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(accessor.componentType);
+
+				// Extra vertex data from buffer
+				int bufferOffset = bufferView.byteOffset + accessor.byteOffset;
+				int bufferLength = accessor.count * componentLength * componentTypeByteSize;
+				auto first = buffer.data.begin() + bufferOffset;
+				auto last = buffer.data.begin() + bufferOffset + bufferLength;
+				std::vector<Byte> data = std::vector<Byte>(first, last);
+
+				EVertexAttributeType attributeType;
+
+				// -------- Position attribute -----------
+
+				if (attribute.first.compare("POSITION") == 0) {
+					attributeType = EVertexAttributeType::POSITION;
+				}
+
+				// -------- Normal attribute -----------
+
+				else if(attribute.first.compare("NORMAL") == 0) {
+					attributeType = EVertexAttributeType::NORMAL;
+				}
+
+				// -------- Texcoord attribute -----------
+
+				else if (attribute.first.compare("TEXCOORD_0") == 0)
+				{
+					attributeType = EVertexAttributeType::TEXCOORD;
+				}
+
+				VertexAttributeInfo attributeInfo = { 
+					accessor.byteOffset, 
+					accessor.byteStride, 
+					accessor.count,
+					componentLength,
+					componentTypeByteSize					
+				};
+				m_vertexAttributes.insert(std::make_pair(attributeType, attributeInfo));
+				m_vertexData.insert(std::make_pair(attributeType, data));
+			}
+		}
+	}
 
 	Dump(scene);
 }

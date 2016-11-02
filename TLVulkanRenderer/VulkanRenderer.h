@@ -50,71 +50,42 @@ typedef struct SwapchainSupportTyp {
 // VERTEX
 // ===================
 
-typedef struct VertexInputBindingDescriptionsTyp
-{
-
-	VkVertexInputBindingDescription position;
-	VkVertexInputBindingDescription normal;
-	VkVertexInputBindingDescription texcoord;
-
-	std::array<VkVertexInputBindingDescription, 3>
-		ToArray() const
+namespace TLVertex {
+	static
+		VkVertexInputBindingDescription
+		GetVertexInputBindingDescription(uint32_t binding, const VertexAttributeInfo& vertexAttrib)
 	{
-		std::array<VkVertexInputBindingDescription, 3> bindingDesc = {
-			position,
-			normal,
-			texcoord
-		};
-
+		VkVertexInputBindingDescription bindingDesc;
+		bindingDesc.binding = binding; // Which index of the array of VkBuffer for vertices
+		bindingDesc.stride = vertexAttrib.byteStride;
+		bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		return bindingDesc;
 	}
 
-} VertexInputBindingDescriptions;
-
-typedef struct VertexAttributeDescriptionsTyp {
-
-	VkVertexInputAttributeDescription position;
-	VkVertexInputAttributeDescription normal;
-	VkVertexInputAttributeDescription texcoord;
-
-	std::array<VkVertexInputAttributeDescription, 3>
-	ToArray() const 
+	typedef struct VertexAttributeDescriptionsTyp
 	{
-		std::array<VkVertexInputAttributeDescription, 3> attribDesc = {
-			position,
-			normal,
-			texcoord
-		};
 
-		return attribDesc;
-	}
+		VkVertexInputAttributeDescription position;
+		VkVertexInputAttributeDescription normal;
+		VkVertexInputAttributeDescription texcoord;
 
-} VertexAttributeDescriptions;
+		std::array<VkVertexInputAttributeDescription, 2>
+			ToArray() const
+		{
+			std::array<VkVertexInputAttributeDescription, 2> attribDesc = {
+				position,
+				normal
+			};
 
-namespace TLVertex {
-	static
-		std::array<VkVertexInputBindingDescription, 3>
-		GetVertexInputBindingDescription(const VertexAttributes& vertexAttrib)
-	{
-		VertexInputBindingDescriptions bindingDesc;
-		bindingDesc.position.binding = 0; // Which index of the array of VkBuffer for vertices
-		bindingDesc.position.stride = vertexAttrib.positionByteStride;
-		bindingDesc.position.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+			return attribDesc;
+		}
 
-		bindingDesc.normal.binding = 1; // Which index of the array of VkBuffer for vertices
-		bindingDesc.normal.stride = vertexAttrib.normalByteStride;
-		bindingDesc.normal.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-		bindingDesc.texcoord.binding = 0; // Which index of the array of VkBuffer for vertices
-		bindingDesc.texcoord.stride = vertexAttrib.positionByteStride; vertexAttrib.texcoordByteStride;
-		bindingDesc.texcoord.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-		return bindingDesc.ToArray();
-	}
+	} VertexAttributeDescriptions;
 
 	static
-		std::array<VkVertexInputAttributeDescription, 3>
-		GetAttributeDescriptions(const VertexAttributes& vertexAttrib) 
+		std::array<VkVertexInputAttributeDescription, 2>
+		GetAttributeDescriptions(
+			const std::map<EVertexAttributeType, VertexAttributeInfo>& vertexAttrib) 
 	{
 		VertexAttributeDescriptions attributeDesc;
 		
@@ -122,19 +93,19 @@ namespace TLVertex {
 		attributeDesc.position.binding = 0;
 		attributeDesc.position.location = 0;
 		attributeDesc.position.format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDesc.position.offset = vertexAttrib.positionByteOffset;
+		attributeDesc.position.offset = 0;
 
 		// Normal attribute
 		attributeDesc.normal.binding = 1;
 		attributeDesc.normal.location = 1;
 		attributeDesc.normal.format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDesc.normal.offset = vertexAttrib.normalByteOffset;
+		attributeDesc.normal.offset = 0;
 
-		// Color attribute
-		attributeDesc.texcoord.binding = 0;
-		attributeDesc.texcoord.location = 2;
-		attributeDesc.texcoord.format = VK_FORMAT_R32G32_SFLOAT;
-		attributeDesc.texcoord.offset = vertexAttrib.texcoordByteOffset;
+		// Texcoord attribute
+		//attributeDesc.texcoord.binding = 0;
+		//attributeDesc.texcoord.location = 2;
+		//attributeDesc.texcoord.format = VK_FORMAT_R32G32_SFLOAT;
+		//attributeDesc.texcoord.offset = vertexAttrib.at(TEXCOORD).byteOffset;
 
 		return attributeDesc.ToArray();
 	}
@@ -271,8 +242,8 @@ private:
 
 	void
 	CreateMemory(
-		const VkMemoryRequirements memoryRequirements,
 		const VkMemoryPropertyFlags memoryProperties,
+		const VkBuffer& buffer,
 		VkDeviceMemory& memory
 	) const;
 

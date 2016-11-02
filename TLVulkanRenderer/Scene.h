@@ -1,31 +1,36 @@
 #pragma once
 
-typedef struct VertexAttributesTyp 
+#include <glm/glm.hpp>
+#include <map>
+#include "thirdparty/tinygltfloader/tiny_gltf_loader.h"
+
+typedef unsigned char Byte;
+
+typedef enum {
+	INDEX,
+	POSITION,
+	NORMAL,
+	TEXCOORD
+} EVertexAttributeType;
+
+
+typedef struct VertexAttributeInfoTyp
 {
-	size_t positionByteOffset;
-	size_t positionByteStride;
-	size_t positionCount;
+	size_t byteOffset;
+	size_t byteStride;
+	size_t count;
+	int componentLength;
+	int componentTypeByteSize;
 
-	size_t normalByteOffset;
-	size_t normalByteStride;
-	size_t normalCount;
-	
-	size_t texcoordByteOffset;
-	size_t texcoordByteStride;
-	size_t texcoordCount;
-
-} VertexAttributes;
+} VertexAttributeInfo;
 
 class Scene
 {
 public:
-	Scene();
+	Scene(std::string fileName);
 	~Scene();
 	
-	std::vector<unsigned char> m_indexData;
-	std::vector<unsigned char> m_vertexData;
-	int m_indexCount;
-
-	VertexAttributes m_vertexAttributes;
+	std::map<EVertexAttributeType, std::vector<Byte>> m_vertexData;
+	std::map<EVertexAttributeType, VertexAttributeInfo> m_vertexAttributes;
 };
 
