@@ -3,6 +3,11 @@
 
 #include "Application.h"
 
+static int frame;
+static int fpstracker;
+static double seconds;
+static int fps = 0;
+
 Application::Application(
 	int argc, 
 	char **argv,
@@ -37,6 +42,10 @@ Application::Application(
             break;
     }
 
+	frame = 0;
+	seconds = time(NULL);
+	fpstracker = 0;
+
 }
 
 
@@ -52,7 +61,24 @@ void Application::Run() {
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
+
+		static auto start = std::chrono::system_clock::now();
+		auto now = std::chrono::system_clock::now();
+		float timeElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+		if (timeElapsed >= 1000)
+		{
+			fps = fpstracker / (timeElapsed / 1000);
+			fpstracker = 0;
+			start = now;
+		}
+
+		string title = "Vulkan Rasterizer | " + std::to_string(fps) + " FPS | " + std::to_string(timeElapsed) + " ms";
+		glfwSetWindowTitle(m_window, title.c_str());
+
 		m_renderer->Update();
 		m_renderer->Render();
+
+		frame++;
+		fpstracker++;
 	}
 }

@@ -14,19 +14,6 @@ const std::vector<const char*> VALIDATION_LAYERS = {
 	"VK_LAYER_LUNARG_standard_validation"
 };
 
-//static std::vcrector<Vertex> VERTICES =
-//{
-//	//{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-//	//{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
-//	//{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
-//	//{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f } },
-//};
-
-const std::vector<uint16_t> INDICES = 
-{
-	//0, 1, 2, 0, 2, 3
-};
-
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallbackFn(
 	VkDebugReportFlagsEXT       flags,
 	VkDebugReportObjectTypeEXT  objectType,
@@ -1281,7 +1268,7 @@ VulkanRenderer::Update()
 	float timeSeconds = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 
 	UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(), timeSeconds * glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.model = glm::rotate(glm::mat4(), timeSeconds * glm::radians(20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	ubo.view = glm::lookAt(glm::vec3(0.0f, 5.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_swapchainExtent.width / (float)m_swapchainExtent.height, 0.001f, 1000.0f);
 
