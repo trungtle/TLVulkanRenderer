@@ -145,6 +145,28 @@ private:
 		VkDeviceSize size
 	) const;
 
+	void
+	CreateImage(
+		uint32_t width,
+		uint32_t height,
+		uint32_t depth,
+		VkImageType imageType,
+		VkFormat format,
+		VkImageTiling tiling,
+		VkImageUsageFlags usage,
+		VkMemoryPropertyFlags properties,
+		VkImage& image,
+		VkDeviceMemory& imageMemory
+	);
+
+	void
+	CreateImageView(
+		const VkImage& image,
+		VkImageViewType viewType,
+		VkFormat format,
+		VkImageView& imageView
+	);
+
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
 	*		 There is no global state in Vulkan, and the instance represents per-application state.

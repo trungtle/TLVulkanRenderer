@@ -186,12 +186,16 @@ VulkanRenderer::~VulkanRenderer()
 	
 	vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
 
+	vkDestroyImageView(m_device, m_depthImageView, nullptr);
+	vkDestroyImage(m_device, m_depthImage, nullptr);
+	vkFreeMemory(m_device, m_depthImageMemory, nullptr);
+
 	vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
-	vkFreeMemory(m_device, m_uniformStagingBufferMemory, nullptr);
-	vkFreeMemory(m_device, m_uniformBufferMemory, nullptr);
-	
 	vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
+
+	vkFreeMemory(m_device, m_uniformStagingBufferMemory, nullptr);
 	vkDestroyBuffer(m_device, m_uniformStagingBuffer, nullptr);
+	vkFreeMemory(m_device, m_uniformBufferMemory, nullptr);
 	vkDestroyBuffer(m_device, m_uniformBuffer, nullptr);
 	
 	vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
@@ -478,31 +482,12 @@ VulkanRenderer::CreateImageViews()
 
     m_swapchainImageViews.resize(m_swapchainImages.size());
     for (auto i = 0; i < m_swapchainImageViews.size(); ++i) {
-        VkImageViewCreateInfo imageViewCreateInfo = {};
-        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCreateInfo.image = m_swapchainImages[i];
-        imageViewCreateInfo.format = m_swapchainImageFormat;
-        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D; // 1D, 2D, 3D textures or cubemap
-        
-        // Use default mapping for swizzle
-        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-        // The subresourcerange field is used to specify the purpose of this image view
-        // https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkImageSubresourceRange
-        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // Use as color targets
-        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-        imageViewCreateInfo.subresourceRange.levelCount = 1;
-        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        imageViewCreateInfo.subresourceRange.layerCount = 1; // Could have more if we're doing stereoscopic rendering
-
-        result = vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_swapchainImageViews[i]);
-        if (result != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create VkImageView");
-            return result;
-        }
+		CreateImageView(
+			m_swapchainImages[i],
+			VK_IMAGE_VIEW_TYPE_2D,
+			m_swapchainImageFormat,
+			m_swapchainImageViews[i]
+		);
     }
     return result;
 }
@@ -1354,4 +1339,92 @@ VulkanRenderer::CopyBuffer(
 	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &copyCommandBuffer);
 }
 
+void 
+VulkanRenderer::CreateImage(
+	uint32_t width, 
+	uint32_t height, 
+	uint32_t depth,
+	VkImageType imageType,
+	VkFormat format, 
+	VkImageTiling tiling, 
+	VkImageUsageFlags usage, 
+	VkMemoryPropertyFlags memPropertyFlags, 
+	VkImage& image, 
+	VkDeviceMemory& imageMemory
+	) 
+{
+	VkImageCreateInfo imageInfo = {};
+	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	imageInfo.imageType = imageType;
+	imageInfo.extent.width = width;
+	imageInfo.extent.height = height;
+	imageInfo.extent.depth = depth;
+	imageInfo.mipLevels = 1;
+	imageInfo.arrayLayers = 1;
+	imageInfo.format = format;
+	imageInfo.tiling = tiling;
+	imageInfo.usage = usage;
+	imageInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT; // For multisampling
+	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // used only by one queue that supports transfer operations
+	imageInfo.flags = 0; // We might look into this for flags that support sparse image (if we need to do voxel 3D texture for volumetric)
 
+	VkResult result = vkCreateImage(m_device, &imageInfo, nullptr, &image);
+	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create image");
+	}
+
+	VkMemoryRequirements memRequirements;
+	vkGetImageMemoryRequirements(m_device, image, &memRequirements);
+
+	VkMemoryAllocateInfo memoryAllocInfo = {};
+	memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memoryAllocInfo.allocationSize = memRequirements.size;
+	memoryAllocInfo.memoryTypeIndex = GetMemoryType(
+		memRequirements.memoryTypeBits, 
+		memPropertyFlags
+		);
+
+	result = vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &imageMemory);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to allocate memory for image");
+	}
+
+	vkBindImageMemory(m_device, image, imageMemory, 0);
+}
+
+void 
+VulkanRenderer::CreateImageView(
+	const VkImage& image, 
+	VkImageViewType viewType,
+	VkFormat format, 
+	VkImageView& imageView
+	) 
+{
+	VkImageViewCreateInfo imageViewCreateInfo = {};
+	imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	imageViewCreateInfo.image = image;
+	imageViewCreateInfo.format = format;
+	imageViewCreateInfo.viewType = viewType; // 1D, 2D, 3D textures or cubemap
+
+														  // Use default mapping for swizzle
+	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+	imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+	// The subresourcerange field is used to specify the purpose of this image view
+	// https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkImageSubresourceRange
+	imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // Use as color targets
+	imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+	imageViewCreateInfo.subresourceRange.levelCount = 1;
+	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+	imageViewCreateInfo.subresourceRange.layerCount = 1; // Could have more if we're doing stereoscopic rendering
+
+	VkResult result = vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &imageView);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create VkImageView");
+	}
+}
