@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <iostream>
+#include <set>
 #include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -142,6 +143,10 @@ VulkanRenderer::VulkanRenderer(
 	result = CreateCommandPool();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created command pool");
+
+	result = CreateDepthResources();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Created depth image");
 
 	result = CreateVertexBuffer();
 	assert(result == VK_SUCCESS);
@@ -316,7 +321,7 @@ VulkanRenderer::SetupLogicalDevice()
 	// Create a set of unique queue families for the required queues
 	m_queueFamilyIndices = FindQueueFamilyIndices(m_physicalDevice, m_surfaceKHR);
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	std::set<int> uniqueQueueFamilies = { m_queueFamilyIndices.graphicsFamily, m_queueFamilyIndices.presentFamily };
+	set<int> uniqueQueueFamilies = { m_queueFamilyIndices.graphicsFamily, m_queueFamilyIndices.presentFamily };
 	for (auto i : uniqueQueueFamilies) {
 		VkDeviceQueueCreateInfo queueCreateInfo = {};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -640,14 +645,14 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	
 	// Input binding description
 	VkVertexInputBindingDescription bindingDesc[2] = {
-		TLVertex::GetVertexInputBindingDescription(0, m_scene->m_vertexAttributes.at(POSITION)),
-		TLVertex::GetVertexInputBindingDescription(1, m_scene->m_vertexAttributes.at(POSITION))
+		GetVertexInputBindingDescription(0, m_scene->m_vertexAttributes.at(POSITION)),
+		GetVertexInputBindingDescription(1, m_scene->m_vertexAttributes.at(POSITION))
 	};
 	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 2;
 	vertexInputStageCreateInfo.pVertexBindingDescriptions = bindingDesc;
 	
 	// Attribute description (position, normal, texcoord etc.)
-	auto vertAttribDesc = TLVertex::GetAttributeDescriptions(m_scene->m_vertexAttributes);
+	auto vertAttribDesc = GetAttributeDescriptions(m_scene->m_vertexAttributes);
 	vertexInputStageCreateInfo.vertexAttributeDescriptionCount = vertAttribDesc.size();
 	vertexInputStageCreateInfo.pVertexAttributeDescriptions = vertAttribDesc.data();
 
@@ -725,7 +730,8 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = {};
 	depthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
-	depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_GREATER;
+	depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencilStateCreateInfo.depthWriteEnable = VK_TRUE;
 
 	// 7. Color blending state
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineColorBlendStateCreateInfo
@@ -840,6 +846,14 @@ VulkanRenderer::CreateCommandPool()
 	}
 
 	return result;
+}
+
+VkResult 
+VulkanRenderer::CreateDepthResources() 
+{
+	VkFormat depthFormat = FindDepthFormat(m_physicalDevice);
+
+	return VK_SUCCESS;
 }
 
 VkResult 
@@ -1155,8 +1169,8 @@ VulkanRenderer::Update()
 	float timeSeconds = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 
 	UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(), timeSeconds * glm::radians(20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	ubo.view = glm::lookAt(glm::vec3(0.0f, 5.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.model = glm::rotate(glm::mat4(), timeSeconds * glm::radians(60.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_swapchainExtent.width / (float)m_swapchainExtent.height, 0.001f, 1000.0f);
 
 	// The Vulkan's Y coordinate is flipped from OpenGL (glm design), so we need to invert that
@@ -1328,7 +1342,7 @@ VulkanRenderer::CopyBuffer(
 	vkCmdCopyBuffer(copyCommandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
 	vkEndCommandBuffer(copyCommandBuffer);
-
+	
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
@@ -1340,278 +1354,4 @@ VulkanRenderer::CopyBuffer(
 	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &copyCommandBuffer);
 }
 
-
-// ----------------
-bool 
-CheckValidationLayerSupport(
-	const vector<const char*>& validationLayers
-	) 
-{
-
-	unsigned int layerCount = 0;
-	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-	std::vector<VkLayerProperties> availalbeLayers(layerCount);
-	vkEnumerateInstanceLayerProperties(&layerCount, availalbeLayers.data());
-
-	// Find the layer
-	for (auto layerName : validationLayers) {
-		bool foundLayer = false;
-		for (auto layerProperty : availalbeLayers) {
-			foundLayer = (strcmp(layerName, layerProperty.layerName) == 0);
-			if (foundLayer) {
-				break;
-			}
-		}
-
-		if (!foundLayer) {
-			return false;
-		}
-	}
-	return true;
-}
-
-std::vector<const char*> 
-GetInstanceRequiredExtensions(
-	bool enableValidationLayers
-	) 
-{
-	std::vector<const char*> extensions;
-
-	uint32_t extensionCount = 0;
-	const char** glfwExtensions;
-
-	glfwExtensions = glfwGetRequiredInstanceExtensions(&extensionCount);
-	
-	for (uint32_t i = 0; i < extensionCount; ++i) {
-		extensions.push_back(glfwExtensions[i]);
-	}
-
-	if (enableValidationLayers) {
-		extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-	}
-
-	return extensions;
-}
-
-std::vector<const char*> 
-GetDeviceRequiredExtensions(
-	const VkPhysicalDevice& physicalDevice
-	) 
-{
-	const std::vector<const char*> requiredExtensions = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME
-	};
-
-	uint32_t extensionCount = 0;
-	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-
-	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-	vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
-
-	for (auto& reqruiedExtension : requiredExtensions) {
-		if (std::find_if(availableExtensions.begin(), availableExtensions.end(), 
-		[&reqruiedExtension](const VkExtensionProperties& prop)
-		{
-			return strcmp(prop.extensionName, reqruiedExtension) == 0;
-		}) == availableExtensions.end()) {
-			// Couldn't find this extension, return an empty list
-			return {};
-		}
-	}
-
-	return requiredExtensions;
-}
-
-bool
-IsDeviceVulkanCompatible(
-	const VkPhysicalDevice& physicalDeivce
-	, const VkSurfaceKHR& surfaceKHR
-)
-{
-	// Can this physical device support all the extensions we'll need (ex. swap chain)
-	std::vector<const char*> requiredExtensions = GetDeviceRequiredExtensions(physicalDeivce);
-	bool hasAllRequiredExtensions = requiredExtensions.size() > 0;
-
-	// Check if we have the device properties desired
-	VkPhysicalDeviceProperties deviceProperties;
-	vkGetPhysicalDeviceProperties(physicalDeivce, &deviceProperties);
-	bool isDiscreteGPU = deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-
-	// Query queue indices
-	QueueFamilyIndices queueFamilyIndices = FindQueueFamilyIndices(physicalDeivce, surfaceKHR);
-
-	// Query swapchain support
-	SwapchainSupport swapchainSupport = QuerySwapchainSupport(physicalDeivce, surfaceKHR);
-
-	return hasAllRequiredExtensions &&
-        isDiscreteGPU &&
-		swapchainSupport.IsComplete() &&
-		queueFamilyIndices.IsComplete();
-}
-
-
-QueueFamilyIndices 
-FindQueueFamilyIndices(
-	const VkPhysicalDevice& physicalDeivce
-	, const VkSurfaceKHR& surfaceKHR
-	)
-{
-	QueueFamilyIndices queueFamilyIndices;
-
-	uint32_t queueFamilyPropertyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDeivce, &queueFamilyPropertyCount, nullptr);
-
-	std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDeivce, &queueFamilyPropertyCount, queueFamilyProperties.data());
-
-	int i = 0;
-	for (const auto& queueFamily : queueFamilyProperties) {
-		// We need at least one graphics queue
-		if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			queueFamilyIndices.graphicsFamily = i;
-		}
-
-		// We need at least one queue that can present image to the KHR surface.
-		// This could be a different queue from our graphics queue.
-		// @todo: enforce graphics queue and present queue to be the same?
-		VkBool32 presentationSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDeivce, i, surfaceKHR, &presentationSupport);
-
-		if (queueFamily.queueCount > 0 && presentationSupport) {
-			queueFamilyIndices.presentFamily = i;
-		}
-
-		if (queueFamilyIndices.IsComplete()) {
-			break;
-		}
-
-		++i;
-	}
-
-	return queueFamilyIndices;
-}
-
-SwapchainSupport 
-QuerySwapchainSupport(
-	const VkPhysicalDevice& physicalDevice
-	, const VkSurfaceKHR& surface
-	) 
-{
-	SwapchainSupport swapchainInfo;
-
-	// Query surface capabilities
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &swapchainInfo.capabilities);
-
-	// Query supported surface formats
-	uint32_t formatCount = 0;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
-
-	if (formatCount != 0) {
-		swapchainInfo.surfaceFormats.resize(formatCount);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, swapchainInfo.surfaceFormats.data());
-	}
-
-	// Query supported surface present modes
-	uint32_t presentModeCount = 0;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
-
-	if (presentModeCount != 0) {
-		swapchainInfo.presentModes.resize(presentModeCount);
-		vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, swapchainInfo.presentModes.data());
-	}
-
-	return swapchainInfo;
-}
-
-VkSurfaceFormatKHR 
-SelectDesiredSwapchainSurfaceFormat(
-	const std::vector<VkSurfaceFormatKHR> availableFormats
-	) 
-{
-	assert(availableFormats.empty() == false);
-
-	// List of some formats options we would like to choose from. Rank from most preferred down.
-	// @todo: move this to a configuration file so we could easily configure it in the future
-	std::vector<VkSurfaceFormatKHR> preferredFormats = {
-
-		// *N.B*
-		// We want to use sRGB to display to the screen, since that's the color space our eyes can perceive accurately.
-		// See http://stackoverflow.com/questions/12524623/what-are-the-practical-differences-when-working-with-colors-in-a-linear-vs-a-no
-		// for more details.
-		// For mannipulating colors, use a 32 bit unsigned normalized RGB since it's an easier format to do math with.
-
-		{ VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
-	};
-
-	// Just return the first reasonable format we found
-	for (const auto& format : availableFormats) {
-		for (const auto& preferred : preferredFormats) {
-			if (format.format == preferred.format && format.colorSpace == preferred.colorSpace) {
-				return format;
-			}
-		}
-	}
-
-	// Couldn't find one that satisfy our preferrence, so just return the first one we found
-	return availableFormats[0];
-}
-
-VkPresentModeKHR 
-SelectDesiredSwapchainPresentMode(
-	const std::vector<VkPresentModeKHR> availablePresentModes
-	) 
-{
-	assert(availablePresentModes.empty() == false);
-
-	// Maybe we should do tripple buffering here to avoid tearing & stuttering
-	// @todo: This SHOULD be a configuration passed from somewhere else in a global configuration state
-	bool enableTrippleBuffering = true;
-	if (enableTrippleBuffering) {
-		// Search for VK_PRESENT_MODE_MAILBOX_KHR. This is because we're interested in 
-		// using tripple buffering.
-		for (const auto& presentMode : availablePresentModes) {
-			if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-				return VK_PRESENT_MODE_MAILBOX_KHR;
-			}
-		}
-	}
-
-	// Couldn't find one that satisfy our preferrence, so just return
-	// VK_PRESENT_MODE_FIFO_KHR, since it is guaranteed to be supported by the Vulkan spec
-	return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-VkExtent2D 
-SelectDesiredSwapchainExtent(
-	const VkSurfaceCapabilitiesKHR surfaceCapabilities
-	, bool useCurrentExtent
-	, unsigned int desiredWidth
-	, unsigned int desiredHeight
-	) 
-{
-	// @ref From Vulkan 1.0.29 spec (with KHR extension) at
-	// https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceCapabilitiesKHR
-	// "currentExtent is the current width and height of the surface, or the special value (0xFFFFFFFF, 0xFFFFFFFF) 
-	// indicating that the surface size will be determined by the extent of a swapchain targeting the surface."
-	// So we first check if this special value is set. If it is, proceed with the desiredWidth and desiredHeight
-	if (surfaceCapabilities.currentExtent.width != 0xFFFFFFFF ||
-		surfaceCapabilities.currentExtent.height != 0xFFFFFFFF) 
-	{
-		return surfaceCapabilities.currentExtent;
-	}
-
-	// Pick the extent that user prefer here
-	VkExtent2D extent;
-	
-	// Properly select extent based on our surface capability's min and max of the extent
-	uint32_t minWidth = surfaceCapabilities.minImageExtent.width;
-	uint32_t maxWidth = surfaceCapabilities.maxImageExtent.width;
-	uint32_t minHeight = surfaceCapabilities.minImageExtent.height;
-	uint32_t maxHeight = surfaceCapabilities.maxImageExtent.height;
-	extent.width = std::max(minWidth, std::min(maxWidth, static_cast<uint32_t>(desiredWidth)));
-	extent.height = std::max(minHeight, std::min(maxHeight, static_cast<uint32_t>(desiredHeight)));
-
-	return extent;
-}
 

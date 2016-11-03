@@ -3,26 +3,7 @@
 #include <glm/glm.hpp>
 #include <map>
 #include "thirdparty/tinygltfloader/tiny_gltf_loader.h"
-
-typedef unsigned char Byte;
-
-typedef enum {
-	INDEX,
-	POSITION,
-	NORMAL,
-	TEXCOORD
-} EVertexAttributeType;
-
-
-typedef struct VertexAttributeInfoTyp
-{
-	size_t byteOffset;
-	size_t byteStride;
-	size_t count;
-	int componentLength;
-	int componentTypeByteSize;
-
-} VertexAttributeInfo;
+#include "SceneUtil.h"
 
 class Scene
 {
