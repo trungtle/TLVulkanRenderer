@@ -50,48 +50,43 @@ typedef struct SwapchainSupportTyp {
 // VERTEX
 // ===================
 
-typedef struct VertexTyp 
-{
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec3 color;
-} Vertex;
-
-typedef struct VertexAttributeDescriptionsTyp {
-
-	VkVertexInputAttributeDescription position;
-	VkVertexInputAttributeDescription normal;
-	VkVertexInputAttributeDescription color;
-
-	std::array<VkVertexInputAttributeDescription, 1>
-	ToArray() const 
-	{
-		std::array<VkVertexInputAttributeDescription, 1> attribDesc = {
-			position,
-			//normal,
-			//color
-		};
-
-		return attribDesc;
-	}
-
-} VertexAttributeDescriptions;
-
 namespace TLVertex {
+
 	static
 		VkVertexInputBindingDescription
-		GetVertexInputBindingDescription()
+		GetVertexInputBindingDescription(uint32_t binding, const VertexAttributeInfo& vertexAttrib)
 	{
 		VkVertexInputBindingDescription bindingDesc;
-		bindingDesc.binding = 0;
-		bindingDesc.stride = 12;// sizeof(Vertex);
+		bindingDesc.binding = binding; // Which index of the array of VkBuffer for vertices
+		bindingDesc.stride = vertexAttrib.byteStride;
 		bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		return bindingDesc;
 	}
 
+	typedef struct VertexAttributeDescriptionsTyp
+	{
+
+		VkVertexInputAttributeDescription position;
+		VkVertexInputAttributeDescription normal;
+		VkVertexInputAttributeDescription texcoord;
+
+		std::array<VkVertexInputAttributeDescription, 2>
+			ToArray() const
+		{
+			std::array<VkVertexInputAttributeDescription, 2> attribDesc = {
+				position,
+				normal
+			};
+
+			return attribDesc;
+		}
+
+	} VertexAttributeDescriptions;
+
 	static
-		std::array<VkVertexInputAttributeDescription, 1>
-		GetAttributeDescriptions() 
+		std::array<VkVertexInputAttributeDescription, 2>
+		GetAttributeDescriptions(
+			const std::map<EVertexAttributeType, VertexAttributeInfo>& vertexAttrib) 
 	{
 		VertexAttributeDescriptions attributeDesc;
 		
@@ -99,19 +94,19 @@ namespace TLVertex {
 		attributeDesc.position.binding = 0;
 		attributeDesc.position.location = 0;
 		attributeDesc.position.format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDesc.position.offset = offsetof(Vertex, position);
+		attributeDesc.position.offset = 0;
 
 		// Normal attribute
-		attributeDesc.normal.binding = 0;
+		attributeDesc.normal.binding = 1;
 		attributeDesc.normal.location = 1;
 		attributeDesc.normal.format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDesc.normal.offset = offsetof(Vertex, normal);
+		attributeDesc.normal.offset = 0;
 
-		// Color attribute
-		attributeDesc.color.binding = 0;
-		attributeDesc.color.location = 2;
-		attributeDesc.color.format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDesc.color.offset = offsetof(Vertex, color);
+		// Texcoord attribute
+		//attributeDesc.texcoord.binding = 0;
+		//attributeDesc.texcoord.location = 2;
+		//attributeDesc.texcoord.format = VK_FORMAT_R32G32_SFLOAT;
+		//attributeDesc.texcoord.offset = vertexAttrib.at(TEXCOORD).byteOffset;
 
 		return attributeDesc.ToArray();
 	}
@@ -128,6 +123,17 @@ typedef struct UniformBufferObjectTyp {
 } UniformBufferObject;
 
 // ===================
+// BUFFER
+// ===================
+
+typedef struct BufferLayoutTyp {
+	VkDeviceSize indexBufferOffset;
+	std::map<EVertexAttributeType, VkDeviceSize> vertexBufferOffsets;
+} BufferLayout;
+
+
+
+// ===================
 // VULKAN RENDERER
 // ===================
 
@@ -138,9 +144,8 @@ class VulkanRenderer : public Renderer
 {
 public:
 	VulkanRenderer(
-		GLFWwindow* window
-		, std::vector<unsigned char> indices
-		, std::vector<unsigned char> positions
+		GLFWwindow* window,
+		Scene* scene
 		);
 	virtual 
     ~VulkanRenderer() final;
@@ -207,9 +212,6 @@ private:
 	CreateVertexBuffer();
 
 	VkResult
-	CreateIndexBuffer();
-
-	VkResult
 	CreateUniformBuffer();
 
 	VkResult
@@ -239,19 +241,24 @@ private:
 
 	void
 	CreateBuffer(
-		VkDeviceSize size,
-		VkBufferUsageFlags usage,
-		VkMemoryPropertyFlags properties,
-		VkBuffer& buffer,
-		VkDeviceMemory& bufferMemory
-	);
+		const VkDeviceSize size,
+		const VkBufferUsageFlags usage,
+		VkBuffer& buffer
+	) const;
+
+	void
+	CreateMemory(
+		const VkMemoryPropertyFlags memoryProperties,
+		const VkBuffer& buffer,
+		VkDeviceMemory& memory
+	) const;
 
 	void
 	CopyBuffer(
 		VkBuffer dstBuffer,
 		VkBuffer srcBuffer,
 		VkDeviceSize size
-	);
+	) const;
 
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
@@ -375,14 +382,20 @@ private:
 	 * \brief Handle to the vertex buffers
 	 */
 	VkBuffer m_vertexBuffer;
-	VkBuffer m_indexBuffer;
 
 	/**
-	 * \brief Handle to the vertex buffer memory
+	 * \brief Byte offsets for vertex attributes and resource buffers into our unified buffer
+	 */
+	BufferLayout m_bufferLayout;
+
+	/**
+	 * \brief Handle to the device memory
 	 */
 	VkDeviceMemory m_vertexBufferMemory;
-	VkDeviceMemory m_indexBufferMemory;
 
+	/**
+	 * \brief Uniform buffers
+	 */
 	VkBuffer m_uniformStagingBuffer;
 	VkBuffer m_uniformBuffer;
 	VkDeviceMemory m_uniformStagingBufferMemory;
@@ -408,9 +421,6 @@ private:
 	 */
 	VkSemaphore m_imageAvailableSemaphore;
 	VkSemaphore m_renderFinishedSemaphore;
-
-	std::vector<unsigned char> m_indices;
-	std::vector<unsigned char> m_positions;
 
     /**
      * \brief Logger
@@ -457,7 +467,7 @@ QuerySwapchainSupport(
 	);
 
 /**
- * \brief The surface format specifies color channel and types, and the color space
+ * \brief The surface format specifies color channel and types, and the texcoord space
  * \param availableFormats 
  * \return the VkSurfaceFormatKHR that we desire.
  * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceFormatKHR

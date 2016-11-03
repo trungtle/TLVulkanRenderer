@@ -1,5 +1,3 @@
-#define GLM_FORCE_RADIANS
-
 #include <assert.h>
 #include <iostream>
 #include <algorithm>
@@ -14,19 +12,6 @@
 // This is the list of validation layers we want
 const std::vector<const char*> VALIDATION_LAYERS = {
 	"VK_LAYER_LUNARG_standard_validation"
-};
-
-static std::vector<Vertex> VERTICES =
-{
-	//{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-	//{ { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } },
-	//{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
-	//{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f } },
-};
-
-const std::vector<uint16_t> INDICES = 
-{
-	//0, 1, 2, 0, 2, 3
 };
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallbackFn(
@@ -76,12 +61,11 @@ DestroyDebugReportCallbackEXT(
 // ------------------
 
 VulkanRenderer::VulkanRenderer(
-	GLFWwindow* window
-	, std::vector<unsigned char> indices
-	, std::vector<unsigned char> positions
+	GLFWwindow* window,
+	Scene* scene
 	)
 	:
-	Renderer(window)
+	Renderer(window, scene)
 	, m_instance(VK_NULL_HANDLE) 
 	, m_debugCallback(VK_NULL_HANDLE)
 	, m_surfaceKHR(VK_NULL_HANDLE)
@@ -91,8 +75,6 @@ VulkanRenderer::VulkanRenderer(
 	, m_presentQueue(VK_NULL_HANDLE)
 	, m_swapchain(VK_NULL_HANDLE)
 	, m_name("Vulkan Application")
-	, m_indices(indices)
-	, m_positions(positions)
 {
     // -- Initialize logger
 
@@ -164,10 +146,6 @@ VulkanRenderer::VulkanRenderer(
 	result = CreateVertexBuffer();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created vertex buffer");
-	// @todo: combine vertex and index buffers for memory efficiency
-	result = CreateIndexBuffer();
-	assert(result == VK_SUCCESS);
-	m_logger->info<std::string>("Created vertex index buffer");
 
 	result = CreateUniformBuffer();
 	assert(result == VK_SUCCESS);
@@ -203,12 +181,10 @@ VulkanRenderer::~VulkanRenderer()
 	
 	vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
 
-	vkFreeMemory(m_device, m_indexBufferMemory, nullptr);
 	vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
 	vkFreeMemory(m_device, m_uniformStagingBufferMemory, nullptr);
 	vkFreeMemory(m_device, m_uniformBufferMemory, nullptr);
 	
-	vkDestroyBuffer(m_device, m_indexBuffer, nullptr);
 	vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
 	vkDestroyBuffer(m_device, m_uniformStagingBuffer, nullptr);
 	vkDestroyBuffer(m_device, m_uniformBuffer, nullptr);
@@ -663,12 +639,15 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	vertexInputStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	
 	// Input binding description
-	auto vertInputBindingDesc = TLVertex::GetVertexInputBindingDescription();
-	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 1;
-	vertexInputStageCreateInfo.pVertexBindingDescriptions = &vertInputBindingDesc;
+	VkVertexInputBindingDescription bindingDesc[2] = {
+		TLVertex::GetVertexInputBindingDescription(0, m_scene->m_vertexAttributes.at(POSITION)),
+		TLVertex::GetVertexInputBindingDescription(1, m_scene->m_vertexAttributes.at(POSITION))
+	};
+	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 2;
+	vertexInputStageCreateInfo.pVertexBindingDescriptions = bindingDesc;
 	
-	// Attribute description (position, normal, color etc.)
-	auto vertAttribDesc = TLVertex::GetAttributeDescriptions();
+	// Attribute description (position, normal, texcoord etc.)
+	auto vertAttribDesc = TLVertex::GetAttributeDescriptions(m_scene->m_vertexAttributes);
 	vertexInputStageCreateInfo.vertexAttributeDescriptionCount = vertAttribDesc.size();
 	vertexInputStageCreateInfo.pVertexAttributeDescriptions = vertAttribDesc.data();
 
@@ -741,8 +720,12 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	multisampleStateCreateInfo.alphaToCoverageEnable = VK_FALSE;
 	multisampleStateCreateInfo.alphaToOneEnable = VK_FALSE;
 
-	// 6. Skip depth/stecil tests state
+	// 6. Depth/stecil tests state
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineDepthStencilStateCreateInfo
+	VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = {};
+	depthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
+	depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_GREATER;
 
 	// 7. Color blending state
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineColorBlendStateCreateInfo
@@ -785,7 +768,7 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	graphicsPipelineCreateInfo.pRasterizationState = &rasterizationStateCreateInfo;
 	graphicsPipelineCreateInfo.pColorBlendState = &colorBlendStateCreateInfo;
 	graphicsPipelineCreateInfo.pMultisampleState = &multisampleStateCreateInfo;
-	graphicsPipelineCreateInfo.pDepthStencilState = nullptr; // Skipped
+	graphicsPipelineCreateInfo.pDepthStencilState = &depthStencilStateCreateInfo;
 	graphicsPipelineCreateInfo.pDynamicState = nullptr; // Skipped
 	graphicsPipelineCreateInfo.layout = m_pipelineLayout;
 	graphicsPipelineCreateInfo.renderPass = m_renderPass;
@@ -862,8 +845,23 @@ VulkanRenderer::CreateCommandPool()
 VkResult 
 VulkanRenderer::CreateVertexBuffer() 
 {
-	VkDeviceSize bufferSize = sizeof(m_positions[0]) * m_positions.size();
-	
+	// ----------- Vertex attributes --------------
+
+	std::vector<Byte>& indexData = m_scene->m_vertexData.at(INDEX);
+	VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
+	VkDeviceSize indexBufferOffset = 0;
+	std::vector<Byte>& positionData = m_scene->m_vertexData.at(POSITION);
+	VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
+	VkDeviceSize positionBufferOffset = indexBufferSize;
+	std::vector<Byte>& normalData = m_scene->m_vertexData.at(NORMAL);
+	VkDeviceSize normalBufferSize = sizeof(normalData[0]) * normalData.size();
+	VkDeviceSize normalBufferOffset = positionBufferOffset + positionBufferSize;
+
+	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize;
+	m_bufferLayout.indexBufferOffset = indexBufferOffset;
+	m_bufferLayout.vertexBufferOffsets.insert(std::make_pair(POSITION, positionBufferOffset));
+	m_bufferLayout.vertexBufferOffsets.insert(std::make_pair(NORMAL, normalBufferOffset));
+
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
 	// then transfer it to the device local memory for faster performance
@@ -874,26 +872,47 @@ VulkanRenderer::CreateVertexBuffer()
 	CreateBuffer(
 		bufferSize, 
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		stagingBuffer,
-		stagingBufferMemory
+		stagingBuffer
 		);
 
+	// Allocate memory for the buffer
+	CreateMemory(
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
+		stagingBufferMemory
+	);
+
+	// Bind buffer with memory
+	VkDeviceSize memoryOffset = 0;
+	vkBindBufferMemory(m_device, stagingBuffer, stagingBufferMemory, memoryOffset);
+			
 	// Filling the stage buffer with data
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_positions.data(), (size_t)bufferSize);
+	memcpy(data, indexData.data(), static_cast<size_t>(indexBufferSize));
+	memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
+	memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
 	vkUnmapMemory(m_device, stagingBufferMemory);
 
-	// Copy over to vertex buffer in device local memory
+	// -----------------------------------------
+
 	CreateBuffer(
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		m_vertexBuffer
+	);
+
+	// Allocate memory for the buffer
+	CreateMemory(
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		m_vertexBuffer,
 		m_vertexBufferMemory
 	);
 
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, memoryOffset);
+
+	// Copy over to vertex buffer in device local memory
 	CopyBuffer(m_vertexBuffer, stagingBuffer, bufferSize);
 
 	// Cleanup staging buffer memory
@@ -903,70 +922,43 @@ VulkanRenderer::CreateVertexBuffer()
 	return VK_SUCCESS;
 }
 
-VkResult
-VulkanRenderer::CreateIndexBuffer() 
-{
-	VkDeviceSize bufferSize = sizeof(m_indices[0]) * m_indices.size();
-
-	// Stage buffer memory on host
-	// We want staging so that we can map the vertex data on the host but
-	// then transfer it to the device local memory for faster performance
-	// This is the recommended way to allocate buffer memory,
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-
-	CreateBuffer(
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory
-	);
-
-	// Filling the stage buffer with data
-	void* data;
-	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_indices.data(), (size_t)bufferSize);
-	vkUnmapMemory(m_device, stagingBufferMemory);
-
-	// Copy over to vertex buffer in device local memory
-	CreateBuffer(
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_indexBuffer,
-		m_indexBufferMemory
-	);
-
-	CopyBuffer(m_indexBuffer, stagingBuffer, bufferSize);
-
-	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_device, stagingBuffer, nullptr);
-	vkFreeMemory(m_device, stagingBufferMemory, nullptr);
-
-	return VK_SUCCESS;
-}
 
 VkResult 
 VulkanRenderer::CreateUniformBuffer()
 {
 	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
+	VkDeviceSize memoryOffset = 0;
 	CreateBuffer(
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		m_uniformStagingBuffer
+	);
+
+	// Allocate memory for the buffer
+	CreateMemory(
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		m_uniformStagingBuffer,
 		m_uniformStagingBufferMemory
 	);
 
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_uniformStagingBuffer, m_uniformStagingBufferMemory, memoryOffset);
+
 	CreateBuffer(
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		m_uniformBuffer
+	);
+
+	// Allocate memory for the buffer
+	CreateMemory(
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		m_uniformBuffer,
 		m_uniformBufferMemory
 	);
+
+	// Bind buffer with memory
+	vkBindBufferMemory(m_device, m_uniformBuffer, m_uniformBufferMemory, memoryOffset);
 
 	return VK_SUCCESS;
 }
@@ -1078,22 +1070,22 @@ VulkanRenderer::CreateCommandBuffers()
 		// Record begin renderpass
 		vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		// Record bindind the graphics pipeline
+		// Record binding the graphics pipeline
 		vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
 		// Bind vertex buffer
-		VkBuffer vertexBuffers[] = { m_vertexBuffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
+		VkBuffer vertexBuffers[] = { m_vertexBuffer, m_vertexBuffer };
+		VkDeviceSize offsets[] = { m_bufferLayout.vertexBufferOffsets.at(POSITION), m_bufferLayout.vertexBufferOffsets.at(NORMAL) };
+		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 2, vertexBuffers, offsets);
 
 		// Bind index buffer
-		vkCmdBindIndexBuffer(m_commandBuffers[i], m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdBindIndexBuffer(m_commandBuffers[i], m_vertexBuffer, m_bufferLayout.indexBufferOffset, VK_INDEX_TYPE_UINT16);
 
 		// Bind uniform buffer
 		vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
 		// Record draw command for the triangle!
-		vkCmdDrawIndexed(m_commandBuffers[i], m_indices.size(), 1, 0, 0, 0);
+		vkCmdDrawIndexed(m_commandBuffers[i], m_scene->m_vertexAttributes.at(INDEX).count, 1, 0, 0, 0);
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1163,7 +1155,7 @@ VulkanRenderer::Update()
 	float timeSeconds = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 
 	UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(), timeSeconds * glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.model = glm::rotate(glm::mat4(), timeSeconds * glm::radians(20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	ubo.view = glm::lookAt(glm::vec3(0.0f, 5.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_swapchainExtent.width / (float)m_swapchainExtent.height, 0.001f, 1000.0f);
 
@@ -1257,12 +1249,10 @@ VulkanRenderer::GetMemoryType(
 
 void
 VulkanRenderer::CreateBuffer(
-	VkDeviceSize size,
-	VkBufferUsageFlags usage,
-	VkMemoryPropertyFlags memoryProperties,
-	VkBuffer& buffer,
-	VkDeviceMemory& bufferMemory
-)
+	const VkDeviceSize size,
+	const VkBufferUsageFlags usage,
+	VkBuffer& buffer
+	) const
 {
 	VkBufferCreateInfo bufferCreateInfo = {};
 	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1279,8 +1269,15 @@ VulkanRenderer::CreateBuffer(
 	{
 		throw std::runtime_error("Failed to create buffer");
 	}
+}
 
-	// Allocate memory for the buffer
+void 
+VulkanRenderer::CreateMemory(
+	const VkMemoryPropertyFlags memoryProperties,
+	const VkBuffer& buffer,
+	VkDeviceMemory& memory
+) const 
+{
 	VkMemoryRequirements memoryRequirements = {};
 	vkGetBufferMemoryRequirements(m_device, buffer, &memoryRequirements);
 
@@ -1297,14 +1294,11 @@ VulkanRenderer::CreateBuffer(
 		GetMemoryType(memoryRequirements.memoryTypeBits,
 			memoryProperties);
 
-	result = vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &bufferMemory);
+	VkResult result = vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &memory);
 	if (result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate memory for buffer");
 	}
-
-	// Bind buffer with memory
-	vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
 }
 
 void 
@@ -1312,7 +1306,7 @@ VulkanRenderer::CopyBuffer(
 	VkBuffer dstBuffer, 
 	VkBuffer srcBuffer, 
 	VkDeviceSize size
-	) 
+	) const 
 {
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
 	commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
