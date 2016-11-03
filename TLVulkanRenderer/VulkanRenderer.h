@@ -315,20 +315,7 @@ private:
 	VkImageView m_depthImageView;
 	VkDeviceMemory m_depthImageMemory;
 
-	/**
-	 * \brief Handle to the vertex buffers
-	 */
-	VkBuffer m_vertexBuffer;
-
-	/**
-	 * \brief Byte offsets for vertex attributes and resource buffers into our unified buffer
-	 */
-	BufferLayout m_bufferLayout;
-
-	/**
-	 * \brief Handle to the device memory
-	 */
-	VkDeviceMemory m_vertexBufferMemory;
+	std::vector<GeometryBuffer> m_geometryBuffers;
 
 	/**
 	 * \brief Uniform buffers

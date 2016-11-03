@@ -190,8 +190,10 @@ VulkanRenderer::~VulkanRenderer()
 	vkDestroyImage(m_device, m_depthImage, nullptr);
 	vkFreeMemory(m_device, m_depthImageMemory, nullptr);
 
-	vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
-	vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
+	for (GeometryBuffer& geomBuffer : m_geometryBuffers) {
+		vkFreeMemory(m_device, geomBuffer.vertexBufferMemory, nullptr);
+		vkDestroyBuffer(m_device, geomBuffer.vertexBuffer, nullptr);
+	}
 
 	vkFreeMemory(m_device, m_uniformStagingBufferMemory, nullptr);
 	vkDestroyBuffer(m_device, m_uniformStagingBuffer, nullptr);
@@ -654,14 +656,14 @@ VulkanRenderer::CreateGraphicsPipeline() {
 	
 	// Input binding description
 	VkVertexInputBindingDescription bindingDesc[2] = {
-		GetVertexInputBindingDescription(0, m_scene->m_vertexAttributes.at(POSITION)),
-		GetVertexInputBindingDescription(1, m_scene->m_vertexAttributes.at(POSITION))
+		GetVertexInputBindingDescription(0, m_scene->m_geometriesData[0]->vertexAttributes.at(POSITION)),
+		GetVertexInputBindingDescription(1, m_scene->m_geometriesData[0]->vertexAttributes.at(NORMAL))
 	};
 	vertexInputStageCreateInfo.vertexBindingDescriptionCount = 2;
 	vertexInputStageCreateInfo.pVertexBindingDescriptions = bindingDesc;
 	
 	// Attribute description (position, normal, texcoord etc.)
-	auto vertAttribDesc = GetAttributeDescriptions(m_scene->m_vertexAttributes);
+	auto vertAttribDesc = GetAttributeDescriptions();
 	vertexInputStageCreateInfo.vertexAttributeDescriptionCount = vertAttribDesc.size();
 	vertexInputStageCreateInfo.pVertexAttributeDescriptions = vertAttribDesc.data();
 
@@ -901,82 +903,88 @@ VulkanRenderer::CreateDepthResources()
 }
 
 VkResult 
-VulkanRenderer::CreateVertexBuffer() 
+VulkanRenderer::CreateVertexBuffer()
 {
-	// ----------- Vertex attributes --------------
+	for (GeometryData* geomData : m_scene->m_geometriesData)
+	{
+		GeometryBuffer geomBuffer;
 
-	std::vector<Byte>& indexData = m_scene->m_vertexData.at(INDEX);
-	VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
-	VkDeviceSize indexBufferOffset = 0;
-	std::vector<Byte>& positionData = m_scene->m_vertexData.at(POSITION);
-	VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
-	VkDeviceSize positionBufferOffset = indexBufferSize;
-	std::vector<Byte>& normalData = m_scene->m_vertexData.at(NORMAL);
-	VkDeviceSize normalBufferSize = sizeof(normalData[0]) * normalData.size();
-	VkDeviceSize normalBufferOffset = positionBufferOffset + positionBufferSize;
+		// ----------- Vertex attributes --------------
 
-	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize;
-	m_bufferLayout.indexBufferOffset = indexBufferOffset;
-	m_bufferLayout.vertexBufferOffsets.insert(std::make_pair(POSITION, positionBufferOffset));
-	m_bufferLayout.vertexBufferOffsets.insert(std::make_pair(NORMAL, normalBufferOffset));
+		std::vector<Byte>& indexData = geomData->vertexData.at(INDEX);
+		VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
+		VkDeviceSize indexBufferOffset = 0;
+		std::vector<Byte>& positionData = geomData->vertexData.at(POSITION);
+		VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
+		VkDeviceSize positionBufferOffset = indexBufferSize;
+		std::vector<Byte>& normalData = geomData->vertexData.at(NORMAL);
+		VkDeviceSize normalBufferSize = sizeof(normalData[0]) * normalData.size();
+		VkDeviceSize normalBufferOffset = positionBufferOffset + positionBufferSize;
 
-	// Stage buffer memory on host
-	// We want staging so that we can map the vertex data on the host but
-	// then transfer it to the device local memory for faster performance
-	// This is the recommended way to allocate buffer memory,
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
+		VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize;
+		geomBuffer.bufferLayout.indexBufferOffset = indexBufferOffset;
+		geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(POSITION, positionBufferOffset));
+		geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(NORMAL, normalBufferOffset));
 
-	CreateBuffer(
-		bufferSize, 
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		stagingBuffer
+		// Stage buffer memory on host
+		// We want staging so that we can map the vertex data on the host but
+		// then transfer it to the device local memory for faster performance
+		// This is the recommended way to allocate buffer memory,
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+
+		CreateBuffer(
+			bufferSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			stagingBuffer
 		);
 
-	// Allocate memory for the buffer
-	CreateMemory(
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory
-	);
+		// Allocate memory for the buffer
+		CreateMemory(
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			stagingBuffer,
+			stagingBufferMemory
+		);
 
-	// Bind buffer with memory
-	VkDeviceSize memoryOffset = 0;
-	vkBindBufferMemory(m_device, stagingBuffer, stagingBufferMemory, memoryOffset);
-			
-	// Filling the stage buffer with data
-	void* data;
-	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, indexData.data(), static_cast<size_t>(indexBufferSize));
-	memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
-	memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
-	vkUnmapMemory(m_device, stagingBufferMemory);
+		// Bind buffer with memory
+		VkDeviceSize memoryOffset = 0;
+		vkBindBufferMemory(m_device, stagingBuffer, stagingBufferMemory, memoryOffset);
 
-	// -----------------------------------------
+		// Filling the stage buffer with data
+		void* data;
+		vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+		memcpy(data, indexData.data(), static_cast<size_t>(indexBufferSize));
+		memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
+		memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
+		vkUnmapMemory(m_device, stagingBufferMemory);
 
-	CreateBuffer(
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		m_vertexBuffer
-	);
+		// -----------------------------------------
 
-	// Allocate memory for the buffer
-	CreateMemory(
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_vertexBuffer,
-		m_vertexBufferMemory
-	);
+		CreateBuffer(
+			bufferSize,
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			geomBuffer.vertexBuffer
+		);
 
-	// Bind buffer with memory
-	vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, memoryOffset);
+		// Allocate memory for the buffer
+		CreateMemory(
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			geomBuffer.vertexBuffer,
+			geomBuffer.vertexBufferMemory
+		);
 
-	// Copy over to vertex buffer in device local memory
-	CopyBuffer(m_vertexBuffer, stagingBuffer, bufferSize);
+		// Bind buffer with memory
+		vkBindBufferMemory(m_device, geomBuffer.vertexBuffer, geomBuffer.vertexBufferMemory, memoryOffset);
 
-	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_device, stagingBuffer, nullptr);
-	vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+		// Copy over to vertex buffer in device local memory
+		CopyBuffer(geomBuffer.vertexBuffer, stagingBuffer, bufferSize);
 
+		// Cleanup staging buffer memory
+		vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+		vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+		m_geometryBuffers.push_back(geomBuffer);
+	}
 	return VK_SUCCESS;
 }
 
@@ -1129,19 +1137,24 @@ VulkanRenderer::CreateCommandBuffers()
 		// Record binding the graphics pipeline
 		vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
-		// Bind vertex buffer
-		VkBuffer vertexBuffers[] = { m_vertexBuffer, m_vertexBuffer };
-		VkDeviceSize offsets[] = { m_bufferLayout.vertexBufferOffsets.at(POSITION), m_bufferLayout.vertexBufferOffsets.at(NORMAL) };
-		vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 2, vertexBuffers, offsets);
+		for (int b = 0; b < m_geometryBuffers.size(); ++b)
+		{
+			GeometryBuffer& geomBuffer = m_geometryBuffers[b];
 
-		// Bind index buffer
-		vkCmdBindIndexBuffer(m_commandBuffers[i], m_vertexBuffer, m_bufferLayout.indexBufferOffset, VK_INDEX_TYPE_UINT16);
+			// Bind vertex buffer
+			VkBuffer vertexBuffers[] = { geomBuffer.vertexBuffer, geomBuffer.vertexBuffer };
+			VkDeviceSize offsets[] = { geomBuffer.bufferLayout.vertexBufferOffsets.at(POSITION), geomBuffer.bufferLayout.vertexBufferOffsets.at(NORMAL) };
+			vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 2, vertexBuffers, offsets);
 
-		// Bind uniform buffer
-		vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
+			// Bind index buffer
+			vkCmdBindIndexBuffer(m_commandBuffers[i], geomBuffer.vertexBuffer, geomBuffer.bufferLayout.indexBufferOffset, VK_INDEX_TYPE_UINT16);
 
-		// Record draw command for the triangle!
-		vkCmdDrawIndexed(m_commandBuffers[i], m_scene->m_vertexAttributes.at(INDEX).count, 1, 0, 0, 0);
+			// Bind uniform buffer
+			vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
+
+			// Record draw command for the triangle!
+			vkCmdDrawIndexed(m_commandBuffers[i], m_scene->m_geometriesData[b]->vertexAttributes.at(INDEX).count, 1, 0, 0, 0);
+		}
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -1212,7 +1225,7 @@ VulkanRenderer::Update()
 
 	UniformBufferObject ubo = {};
 	ubo.model = glm::rotate(glm::mat4(), timeSeconds * glm::radians(60.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.view = glm::lookAt(glm::vec3(0.0f, 5.0f, 10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_swapchainExtent.width / (float)m_swapchainExtent.height, 0.001f, 1000.0f);
 
 	// The Vulkan's Y coordinate is flipped from OpenGL (glm design), so we need to invert that
