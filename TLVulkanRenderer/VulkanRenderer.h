@@ -164,8 +164,34 @@ private:
 		const VkImage& image,
 		VkImageViewType viewType,
 		VkFormat format,
+		VkImageAspectFlags aspectFlags,
 		VkImageView& imageView
 	);
+
+	void
+	TransitionImageLayout(
+		VkImage image,
+		VkFormat format,
+		VkImageAspectFlags aspectMask,
+		VkImageLayout oldLayout,
+		VkImageLayout newLayout
+		);
+
+	void
+	CopyImage(
+		VkImage dstImage,
+		VkImage srcImage,
+		uint32_t width,
+		uint32_t height
+		);
+
+	VkCommandBuffer 
+	BeginSingleTimeCommands() const;
+
+	void 
+	EndSingleTimeCommands(
+		VkCommandBuffer commandBuffer
+		) const;
 
 	/**
 	* \brief Handle to the per-application Vulkan instance. 
