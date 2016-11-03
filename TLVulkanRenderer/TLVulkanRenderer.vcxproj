@@ -155,10 +155,12 @@
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="Utilities.cpp" />
     <ClCompile Include="VulkanRenderer.cpp" />
+    <ClCompile Include="VulkanUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="GeometryBase.h" />
+    <ClInclude Include="SceneUtil.h" />
     <ClInclude Include="thirdparty\tinygltfloader\picojson.h" />
     <ClInclude Include="thirdparty\tinygltfloader\stb_image.h" />
     <ClInclude Include="thirdparty\tinygltfloader\tiny_gltf_loader.h" />
@@ -173,6 +175,7 @@
     <ClInclude Include="thirdparty\spdlog\include\spdlog\tweakme.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="VulkanRenderer.h" />
+    <ClInclude Include="VulkanUtil.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\fragShader.frag" />

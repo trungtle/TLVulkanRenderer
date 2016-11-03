@@ -908,6 +908,8 @@ Scene::Scene(
 			if (primitive.indices.empty()) {
 				return;
 			}
+
+			GeometryData* geom = new GeometryData();
 			
 			// -------- Indices ----------
 			{
@@ -924,24 +926,16 @@ Scene::Scene(
 				int bufferLength = indexAccessor.count * componentLength * componentTypeByteSize;
 				auto first = indexBuffer.data.begin() + bufferOffset;
 				auto last = indexBuffer.data.begin() + bufferOffset + bufferLength;
-				std::vector<Byte> data = std::vector<Byte>(indexBuffer.data.begin() + indexBufferView.byteOffset,
-					indexBuffer.data.begin() + indexBufferView.byteOffset + indexBufferView.byteLength);
-				
+				std::vector<Byte> data = std::vector<Byte>(first, last);
+
 				VertexAttributeInfo attributeInfo = {
-					indexAccessor.byteOffset,
 					indexAccessor.byteStride,
 					indexAccessor.count,
 					componentLength,
 					componentTypeByteSize
 				};
-				m_vertexAttributes.insert(std::make_pair(EVertexAttributeType::INDEX, attributeInfo));
-				if (m_vertexData.find(EVertexAttributeType::INDEX) == m_vertexData.end()) {
-					m_vertexData.insert(std::make_pair(EVertexAttributeType::INDEX, data));
-				} else {
-					std::vector<Byte>& currentData = m_vertexData.at(EVertexAttributeType::INDEX);
-					currentData.reserve(currentData.size() + std::distance(data.begin(), data.end())); 
-					currentData.insert(currentData.end(), data.begin(), data.end());
-				}
+				geom->vertexAttributes.insert(std::make_pair(EVertexAttributeType::INDEX, attributeInfo));
+				geom->vertexData.insert(std::make_pair(EVertexAttributeType::INDEX, data));
 			}
 
 			// -------- Attributes -----------
@@ -983,25 +977,17 @@ Scene::Scene(
 					attributeType = EVertexAttributeType::TEXCOORD;
 				}
 
-				VertexAttributeInfo attributeInfo = { 
-					accessor.byteOffset, 
-					accessor.byteStride, 
+				VertexAttributeInfo attributeInfo = {
+					accessor.byteStride,
 					accessor.count,
 					componentLength,
-					componentTypeByteSize					
+					componentTypeByteSize
 				};
-				m_vertexAttributes.insert(std::make_pair(attributeType, attributeInfo));
-				if (m_vertexData.find(attributeType) == m_vertexData.end())
-				{
-					m_vertexData.insert(std::make_pair(attributeType, data));
-				}
-				else
-				{
-					std::vector<Byte>& currentData = m_vertexData.at(attributeType);
-					currentData.reserve(currentData.size() + std::distance(data.begin(), data.end()));
-					currentData.insert(currentData.end(), data.begin(), data.end());
-				}
+				geom->vertexAttributes.insert(std::make_pair(attributeType, attributeInfo));
+				geom->vertexData.insert(std::make_pair(attributeType, data));
 			}
+
+			m_geometriesData.push_back(geom);
 		}
 	}
 
@@ -1011,4 +997,8 @@ Scene::Scene(
 
 Scene::~Scene()
 {
+	for (GeometryData* geom : m_geometriesData) {
+		delete geom;
+		geom = nullptr;
+	}
 }

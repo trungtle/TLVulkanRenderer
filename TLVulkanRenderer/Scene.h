@@ -3,26 +3,13 @@
 #include <glm/glm.hpp>
 #include <map>
 #include "thirdparty/tinygltfloader/tiny_gltf_loader.h"
+#include "SceneUtil.h"
 
-typedef unsigned char Byte;
-
-typedef enum {
-	INDEX,
-	POSITION,
-	NORMAL,
-	TEXCOORD
-} EVertexAttributeType;
-
-
-typedef struct VertexAttributeInfoTyp
+typedef struct GeometryDataTyp
 {
-	size_t byteOffset;
-	size_t byteStride;
-	size_t count;
-	int componentLength;
-	int componentTypeByteSize;
-
-} VertexAttributeInfo;
+	std::map<EVertexAttributeType, std::vector<Byte>> vertexData;
+	std::map<EVertexAttributeType, VertexAttributeInfo> vertexAttributes;
+} GeometryData;
 
 class Scene
 {
@@ -30,7 +17,6 @@ public:
 	Scene(std::string fileName);
 	~Scene();
 	
-	std::map<EVertexAttributeType, std::vector<Byte>> m_vertexData;
-	std::map<EVertexAttributeType, VertexAttributeInfo> m_vertexAttributes;
+	std::vector<GeometryData*> m_geometriesData;
 };
 
