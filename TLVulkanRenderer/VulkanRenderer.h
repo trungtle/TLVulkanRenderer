@@ -51,6 +51,7 @@ typedef struct SwapchainSupportTyp {
 // ===================
 
 namespace TLVertex {
+
 	static
 		VkVertexInputBindingDescription
 		GetVertexInputBindingDescription(uint32_t binding, const VertexAttributeInfo& vertexAttrib)
@@ -120,6 +121,17 @@ typedef struct UniformBufferObjectTyp {
 	glm::mat4 view;
 	glm::mat4 proj;
 } UniformBufferObject;
+
+// ===================
+// BUFFER
+// ===================
+
+typedef struct BufferLayoutTyp {
+	VkDeviceSize indexBufferOffset;
+	std::map<EVertexAttributeType, VkDeviceSize> vertexBufferOffsets;
+} BufferLayout;
+
+
 
 // ===================
 // VULKAN RENDERER
@@ -198,9 +210,6 @@ private:
 
 	VkResult
 	CreateVertexBuffer();
-
-	VkResult
-	CreateIndexBuffer();
 
 	VkResult
 	CreateUniformBuffer();
@@ -373,15 +382,16 @@ private:
 	 * \brief Handle to the vertex buffers
 	 */
 	VkBuffer m_vertexBuffer;
-	VkBuffer m_vertexNormalBuffer;
-	VkBuffer m_indexBuffer;
+
+	/**
+	 * \brief Byte offsets for vertex attributes and resource buffers into our unified buffer
+	 */
+	BufferLayout m_bufferLayout;
 
 	/**
 	 * \brief Handle to the device memory
 	 */
 	VkDeviceMemory m_vertexBufferMemory;
-	VkDeviceMemory m_vertexNormalBufferMemory;
-	VkDeviceMemory m_indexBufferMemory;
 
 	/**
 	 * \brief Uniform buffers
