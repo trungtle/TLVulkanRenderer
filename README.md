@@ -27,7 +27,7 @@ In this layout scheme, we still need to partition based on each mesh data becaus
 
 More details can be found at [Vulkan Memory Management](https://developer.nvidia.com/vulkan-memory-management) from NVIDIA.
 
-### Depth buffer
+#### Depth buffer
 
 ![](TLVulkanRenderer/images/head_depth.png)
 
