@@ -11,6 +11,28 @@ https://github.com/trungtle/TLVulkanRenderer/releases
 
 # Updates
 
+### Nov 4, 2016 - Memory & Depth Image
+
+| Normal | Depth | Lambert |
+|---|---|---|
+|![](TLVulkanRenderer/images/head_normal.png)|![](TLVulkanRenderer/images/head_depth.png)|![](TLVulkanRenderer/images/head_lambert.png)|
+
+#### Memory management
+
+In order to achieve cache ultilization and limit the amount of costly memory allocation, I packed the vertex indices and vertex attributes data for each mesh into the same `VkDeviceMemory` allocation and the same `VkBuffer`, and leaving the uniform buffer in its own `VkDeviceMemory` since it's being updated every frame. This helps reduce the initialization time to load each scene since we no longer have to create a new `VkBuffer` and allocate a new `VkDeviceMemoy` for each attribute.
+
+![](TLVulkanRenderer/images/charts/Vulkan_memory_layout.png)
+
+In this layout scheme, we still need to partition based on each mesh data because when the meshes are extracted from glTF, each of them have their unique buffer view that needs to be handled properly. It seems to me that it's possible that we can just directly copy this glTF's buffer view into `VkDeviceMemory` and offset the `VkBuffer` correctly from there. It's also possibl to resuse the same `VkDeviceMemory` for different `VkBuffer`, but it seems quite error-prone to me to go down that path.  
+
+More details can be found at [Vulkan Memory Management](https://developer.nvidia.com/vulkan-memory-management) from NVIDIA.
+
+### Depth buffer
+
+![](TLVulkanRenderer/images/head_depth.png)
+
+The depth buffer in Vulkan is represented using a [`VkImage`](https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-images). It's a type of resource that the framebuffer uses to store its data. Similarly to the images inside the swapchain, I allocated a screen size depth image and attached it to the graphics pipeline. The depth/stentil stage can be enabled by the setting [VkPipelineDepthStencilStateCreateInfo](https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineDepthStencilStateCreateInfo) struct.
+
 ### Oct 21, 2016 - This time is for glTF!
 
 [Duck](TLVulkanRenderer/scenes/Duck) mesh in glTF format (partially complete, shading hasn't been implemented properly)! 
