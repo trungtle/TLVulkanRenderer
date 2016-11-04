@@ -8,6 +8,18 @@ The contents of this repository are licensed as [CC BY-SA 4.0](https://creativec
 
 This application uses the following third-party codes.
 
+## tinygltfloader
+
+https://github.com/syoyo/tinygltfloader
+
+TinyGLTFLoader is licensed under MIT license.
+
+TinyGLTFLoader uses the following third party libraries.
+
+picojson.h : Copyright 2009-2010 Cybozu Labs, Inc. Copyright 2011-2014 Kazuho Oku
+base64 : Copyright (C) 2004-2008 René Nyffenegger
+stb_image.h : v2.08 - public domain image loader - http://nothings.org/stb_image.h
+
 ## spdlog
 
 https://github.com/gabime/spdlog

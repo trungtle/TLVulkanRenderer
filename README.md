@@ -5,20 +5,54 @@ The renderer will be a rasterizer the implements [phenomenological transparency]
 
 This project also documents my learning progress with Vulkan and GPU programming.
 
-# Update Oct 14, 2016
+# Releases
+
+https://github.com/trungtle/TLVulkanRenderer/releases
+
+# Updates
+
+### Oct 21, 2016 - This time is for glTF!
+
+[Duck](TLVulkanRenderer/scenes/Duck) mesh in glTF format (partially complete, shading hasn't been implemented properly)! 
+
+Right now I was able to load the index data and vertex data. I'm working on merging all the vertex buffers required for position, normal, texcoord attributes, indices, and uniforms, into a single buffer or memory allocation as recommended in the [Vulkan Memory Management](https://developer.nvidia.com/vulkan-memory-management) blog by Chris Hebert ([@chrisjebert1973](https://github.com/chrisjebert1973)) and Christoph Kubisch.
+
+![](TLVulkanRenderer/images/duck_rotation.gif)
+
+### Oct 14, 2016 - Triangles!
 
 Finished base rasterizer code to render a triangle.
-![](images/Triangle.PNG)
 
-### Attributions
+![](TLVulkanRenderer/images/Triangle.PNG)
 
-Majority of this application was modified from:
+# Requirements
+
+- Build using x64 Visual Studio 2015 on Windows with a [Vulkan](https://www.khronos.org/vulkan/) support graphics card (Most discrete GPU in the last couple years should have Vulkan support). You can also check [NVIDIA support](https://developer.nvidia.com/vulkan-driver).
+- [glfw 3.2.1](http://www.glfw.org/)
+- [glm](http://glm.g-truc.net/0.9.8/index.html) library by [G-Truc Creation](http://www.g-truc.net/)
+- [VulkanSDK](https://lunarg.com/vulkan-sdk/) by [LunarG](https://vulkan.lunarg.com/)
+- Addthe following paths in Visual Studio project settings (for All Configurations):
+ - C/C++ -> General -> Additional Include Directories:
+    - `PATH_TO_PROJECT\TLVulkanRenderer\thirdparty`
+    - `PATH_TO_GLFW\glfw\include`
+    - `PATH_TO_VULKAN_SDK\VulkanSDK\1.0.26.0\Include`
+    - `PATH_TO_GLM\glm`
+ - Linker -> General -> Additional Library Directories:
+    - `PATH_TO_VULKAN_SDK\VulkanSDK\1.0.26.0\Bin`
+    - `PATH_TO_GLM\glfw-3.2.1.bin.WIN64\lib-vc2015`
+ - Linker -> Input -> Additional Dependencies:
+    - `vulkan-1.lib`
+    - `glfw3.lib`
+
+# Third party
 
  - [tinygltfloader](https://github.com/syoyo/tinygltfloader) by [@soyoyo](https://github.com/syoyo)
  - [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF) by [AnalyticalGraphicsInc](https://github.com/AnalyticalGraphicsInc)
  - [spdlog](https://github.com/gabime/spdlog) by [gabime](https://github.com/gabime/) (see LICENSE for details on LICENSE)
 
 ### References
+
+Majority of this application was modified from:
 
   - [Vulkan Tutorial](https://vulkan-tutorial.com/) by Alexander Overvoorde. [Github](https://github.com/Overv/VulkanTutorial). 
   - WSI Tutorial by Chris Hebert

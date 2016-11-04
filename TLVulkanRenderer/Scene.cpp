@@ -1,9 +1,15 @@
-/* gltf loader example from https://github.com/syoyo/tinygltfloader/blob/master/loader_example.cc
+/* Parsing code adapted from glTF loader example from
+ * https://github.com/syoyo/tinygltfloader/blob/master/loader_example.cc
+ * 
+ * Parsing code adapted from GPU Programming, University of Pennsylvania 2016,
+ * https://github.com/CIS565-Fall-2016/Project4-CUDA-Rasterizer
  *
  */
 
 #define TINYGLTF_LOADER_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "Scene.h"
 
 static std::map<int, int> GLTF_COMPONENT_LENGTH_LOOKUP = {
@@ -863,6 +869,72 @@ static void Dump(const tinygltf::Scene &scene) {
 	}
 }
 
+glm::mat4 GetMatrixFromGLTFNode(const tinygltf::Node & node) {
+
+	glm::mat4 curMatrix(1.0);
+
+	const std::vector<double> &matrix = node.matrix;
+	if (matrix.size() > 0)
+	{
+		// matrix, copy it
+
+		for (int i = 0; i < 4; i++)
+		{
+			for (int j = 0; j < 4; j++)
+			{
+				curMatrix[i][j] = (float)matrix.at(4 * i + j);
+			}
+		}
+	}
+	else
+	{
+		// no matrix, use rotation, scale, translation
+
+		if (node.translation.size() > 0)
+		{
+			curMatrix[3][0] = node.translation[0];
+			curMatrix[3][1] = node.translation[1];
+			curMatrix[3][2] = node.translation[2];
+		}
+
+		if (node.rotation.size() > 0)
+		{
+			glm::mat4 R;
+			glm::quat q;
+			q[0] = node.rotation[0];
+			q[1] = node.rotation[1];
+			q[2] = node.rotation[2];
+
+			R = glm::mat4_cast(q);
+			curMatrix = curMatrix * R;
+		}
+
+		if (node.scale.size() > 0)
+		{
+			curMatrix = curMatrix * glm::scale(glm::mat4(1.0f), glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+		}
+	}
+
+	return curMatrix;
+}
+
+void TraverseGLTFNode(
+	std::map<std::string, glm::mat4> & n2m,
+	const tinygltf::Scene & scene,
+	const std::string & nodeString,
+	const glm::mat4 & parentMatrix
+)
+{
+	const tinygltf::Node & node = scene.nodes.at(nodeString);
+	glm::mat4 worldTransformationMatrix = parentMatrix * GetMatrixFromGLTFNode(node);
+	n2m.insert(std::pair<std::string, glm::mat4>(nodeString, worldTransformationMatrix));
+
+	for (auto& child : node.children)
+	{
+		TraverseGLTFNode(n2m, scene, child, worldTransformationMatrix);
+	}
+}
+
 static std::string GetFilePathExtension(const std::string &FileName) {
 	if (FileName.find_last_of(".") != std::string::npos)
 		return FileName.substr(FileName.find_last_of(".") + 1);
@@ -898,96 +970,198 @@ Scene::Scene(
 		return;
 	}
 
-	// For each mesh
-	
-	for (auto& mesh : scene.meshes)
+	// ----------- Transformation matrix --------- 
+	std::map<std::string, glm::mat4> nodeString2Matrix;
+	auto rootNodeNamesList = scene.scenes.at(scene.defaultScene);
+	for (auto& sceneNode : rootNodeNamesList)
 	{
-		for (size_t i = 0; i < mesh.second.primitives.size(); i++)
+		TraverseGLTFNode(nodeString2Matrix, scene, sceneNode, glm::mat4(1.0f));
+	}
+
+	// -------- For each mesh -----------
+	
+	for (auto& nodeString : nodeString2Matrix)
+	{
+
+		const tinygltf::Node& node = scene.nodes.at(nodeString.first);
+		const glm::mat4 & matrix = nodeString.second;
+		const glm::mat3 & matrixNormal = glm::transpose(glm::inverse(glm::mat3(matrix)));
+
+		for (auto& meshName : node.meshes)
 		{
-			auto primitive = mesh.second.primitives[i];
-			if (primitive.indices.empty()) {
-				return;
-			}
-
-			GeometryData* geom = new GeometryData();
-			
-			// -------- Indices ----------
+			auto& mesh = scene.meshes.at(meshName);
+			for (size_t i = 0; i < mesh.primitives.size(); i++)
 			{
-				// Get accessor info
-				auto indexAccessor = scene.accessors.at(primitive.indices);
-				auto indexBufferView = scene.bufferViews.at(indexAccessor.bufferView);
-				auto indexBuffer = scene.buffers.at(indexBufferView.buffer);
-
-				int componentLength = GLTF_COMPONENT_LENGTH_LOOKUP.at(indexAccessor.type);
-				int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(indexAccessor.componentType);
-
-				// Extra index data
-				int bufferOffset = indexBufferView.byteOffset + indexAccessor.byteOffset;
-				int bufferLength = indexAccessor.count * componentLength * componentTypeByteSize;
-				auto first = indexBuffer.data.begin() + bufferOffset;
-				auto last = indexBuffer.data.begin() + bufferOffset + bufferLength;
-				std::vector<Byte> data = std::vector<Byte>(first, last);
-
-				VertexAttributeInfo attributeInfo = {
-					indexAccessor.byteStride,
-					indexAccessor.count,
-					componentLength,
-					componentTypeByteSize
-				};
-				geom->vertexAttributes.insert(std::make_pair(EVertexAttributeType::INDEX, attributeInfo));
-				geom->vertexData.insert(std::make_pair(EVertexAttributeType::INDEX, data));
-			}
-
-			// -------- Attributes -----------
-			
-			for (auto& attribute : primitive.attributes) {
-			
-				// Get accessor info
-				auto& accessor = scene.accessors.at(attribute.second);
-				auto& bufferView = scene.bufferViews.at(accessor.bufferView);
-				auto& buffer = scene.buffers.at(bufferView.buffer);
-				int componentLength = GLTF_COMPONENT_LENGTH_LOOKUP.at(accessor.type);
-				int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(accessor.componentType);
-
-				// Extra vertex data from buffer
-				int bufferOffset = bufferView.byteOffset + accessor.byteOffset;
-				int bufferLength = accessor.count * componentLength * componentTypeByteSize;
-				auto first = buffer.data.begin() + bufferOffset;
-				auto last = buffer.data.begin() + bufferOffset + bufferLength;
-				std::vector<Byte> data = std::vector<Byte>(first, last);
-
-				EVertexAttributeType attributeType;
-
-				// -------- Position attribute -----------
-
-				if (attribute.first.compare("POSITION") == 0) {
-					attributeType = EVertexAttributeType::POSITION;
-				}
-
-				// -------- Normal attribute -----------
-
-				else if(attribute.first.compare("NORMAL") == 0) {
-					attributeType = EVertexAttributeType::NORMAL;
-				}
-
-				// -------- Texcoord attribute -----------
-
-				else if (attribute.first.compare("TEXCOORD_0") == 0)
+				auto primitive = mesh.primitives[i];
+				if (primitive.indices.empty())
 				{
-					attributeType = EVertexAttributeType::TEXCOORD;
+					return;
 				}
 
-				VertexAttributeInfo attributeInfo = {
-					accessor.byteStride,
-					accessor.count,
-					componentLength,
-					componentTypeByteSize
-				};
-				geom->vertexAttributes.insert(std::make_pair(attributeType, attributeInfo));
-				geom->vertexData.insert(std::make_pair(attributeType, data));
-			}
+				GeometryData* geom = new GeometryData();
 
-			m_geometriesData.push_back(geom);
+				// -------- Indices ----------
+				{
+					// Get accessor info
+					auto indexAccessor = scene.accessors.at(primitive.indices);
+					auto indexBufferView = scene.bufferViews.at(indexAccessor.bufferView);
+					auto indexBuffer = scene.buffers.at(indexBufferView.buffer);
+
+					int componentLength = GLTF_COMPONENT_LENGTH_LOOKUP.at(indexAccessor.type);
+					int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(indexAccessor.componentType);
+
+					// Extra index data
+					int bufferOffset = indexBufferView.byteOffset + indexAccessor.byteOffset;
+					int bufferLength = indexAccessor.count * componentLength * componentTypeByteSize;
+					auto first = indexBuffer.data.begin() + bufferOffset;
+					auto last = indexBuffer.data.begin() + bufferOffset + bufferLength;
+					std::vector<Byte> data = std::vector<Byte>(first, last);
+
+					VertexAttributeInfo attributeInfo = {
+						indexAccessor.byteStride,
+						indexAccessor.count,
+						componentLength,
+						componentTypeByteSize
+					};
+					geom->vertexAttributes.insert(std::make_pair(EVertexAttributeType::INDEX, attributeInfo));
+					geom->vertexData.insert(std::make_pair(EVertexAttributeType::INDEX, data));
+				}
+
+				// -------- Attributes -----------
+
+				for (auto& attribute : primitive.attributes)
+				{
+
+					// Get accessor info
+					auto& accessor = scene.accessors.at(attribute.second);
+					auto& bufferView = scene.bufferViews.at(accessor.bufferView);
+					auto& buffer = scene.buffers.at(bufferView.buffer);
+					int componentLength = GLTF_COMPONENT_LENGTH_LOOKUP.at(accessor.type);
+					int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(accessor.componentType);
+
+					// Extra vertex data from buffer
+					int bufferOffset = bufferView.byteOffset + accessor.byteOffset;
+					int bufferLength = accessor.count * componentLength * componentTypeByteSize;
+					auto first = buffer.data.begin() + bufferOffset;
+					auto last = buffer.data.begin() + bufferOffset + bufferLength;
+					std::vector<Byte> data = std::vector<Byte>(first, last);
+
+					EVertexAttributeType attributeType;
+
+					// -------- Position attribute -----------
+
+					if (attribute.first.compare("POSITION") == 0)
+					{
+						attributeType = EVertexAttributeType::POSITION;	
+						int positionCount = accessor.count;
+						glm::vec3* positions = reinterpret_cast<glm::vec3*>(data.data());
+						for (auto p = 0; p < positionCount; ++p)
+						{
+							positions[p] = matrix * glm::vec4(positions[p], 1.0f);
+						}
+					}
+
+					// -------- Normal attribute -----------
+
+					else if (attribute.first.compare("NORMAL") == 0)
+					{
+						attributeType = EVertexAttributeType::NORMAL;
+						int normalCount = accessor.count;
+						glm::vec3* normals = reinterpret_cast<glm::vec3*>(data.data());
+						for (auto p = 0; p < normalCount; ++p)
+						{
+							normals[p] = glm::normalize(matrixNormal * glm::vec4(normals[p], 1.0f));
+						}
+					}
+
+					// -------- Texcoord attribute -----------
+
+					else if (attribute.first.compare("TEXCOORD_0") == 0)
+					{
+						attributeType = EVertexAttributeType::TEXCOORD;
+					}
+
+					VertexAttributeInfo attributeInfo = {
+						accessor.byteStride,
+						accessor.count,
+						componentLength,
+						componentTypeByteSize
+					};
+					geom->vertexAttributes.insert(std::make_pair(attributeType, attributeInfo));
+					geom->vertexData.insert(std::make_pair(attributeType, data));
+
+					// ----------Materials-------------
+
+					//TextureData* dev_diffuseTex = NULL;
+					int diffuseTexWidth = 0;
+					int diffuseTexHeight = 0;
+					Material material;
+					if (!primitive.material.empty())
+					{
+						const tinygltf::Material &mat = scene.materials.at(primitive.material);
+						printf("material.name = %s\n", mat.name.c_str());
+
+						if (mat.values.find("diffuse") != mat.values.end())
+						{
+							std::string diffuseTexName = mat.values.at("diffuse").string_value;
+							if (scene.textures.find(diffuseTexName) != scene.textures.end())
+							{
+								const tinygltf::Texture &tex = scene.textures.at(diffuseTexName);
+								if (scene.images.find(tex.source) != scene.images.end())
+								{
+									const tinygltf::Image &image = scene.images.at(tex.source);
+
+									// Texture bytes
+									size_t s = image.image.size() * sizeof(Byte);
+									diffuseTexWidth = image.width;
+									diffuseTexHeight = image.height;
+								}
+							}
+							else
+							{
+								auto diff = mat.values.at("diffuse").number_array;
+								material.diffuse = glm::vec4(diff.at(0), diff.at(1), diff.at(2), diff.at(3));
+							}
+						}
+
+						if (mat.values.find("ambient") != mat.values.end())
+						{
+							auto amb = mat.values.at("ambient").number_array;
+							material.ambient = glm::vec4(amb.at(0), amb.at(1), amb.at(2), amb.at(3));
+						}
+						if (mat.values.find("emission") != mat.values.end())
+						{
+							auto em = mat.values.at("emission").number_array;
+							material.emission = glm::vec4(em.at(0), em.at(1), em.at(2), em.at(3));
+
+						}
+						if (mat.values.find("specular") != mat.values.end())
+						{
+							auto spec = mat.values.at("specular").number_array;
+							material.specular = glm::vec4(spec.at(0), spec.at(1), spec.at(2), spec.at(3));
+
+						}
+						if (mat.values.find("shininess") != mat.values.end())
+						{
+							material.shininess = mat.values.at("shininess").number_array.at(0);
+						}
+
+						if (mat.values.find("transparency") != mat.values.end())
+						{
+							material.transparency = mat.values.at("transparency").number_array.at(0);
+						}
+						else
+						{
+							material.transparency = 1.0f;
+						}
+
+						m_materials.push_back(material);
+						//++materialId;
+					}
+				}
+
+				m_geometriesData.push_back(geom);
+			}
 		}
 	}
 

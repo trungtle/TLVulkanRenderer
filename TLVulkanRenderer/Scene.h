@@ -18,5 +18,6 @@ public:
 	~Scene();
 	
 	std::vector<GeometryData*> m_geometriesData;
+	std::vector<Material> m_materials;
 };
 
