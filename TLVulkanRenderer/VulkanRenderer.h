@@ -1,9 +1,9 @@
 /**
- * The basic of this is heavily referenced at:
- *  - Majority of this application was modified from Vulkan Tutorial(https://vulkan-tutorial.com/) by Alexander Overvoorde. [Github](https://github.com/Overv/VulkanTutorial). 
- *  - WSI Tutorial by Chris Hebert.
- *  - https://github.com/SaschaWillems/Vulkan by Sascha Willems.
- */
+* The basic of this is heavily referenced at:
+*  - Majority of this application was modified from Vulkan Tutorial(https://vulkan-tutorial.com/) by Alexander Overvoorde. [Github](https://github.com/Overv/VulkanTutorial).
+*  - WSI Tutorial by Chris Hebert.
+*  - https://github.com/SaschaWillems/Vulkan by Sascha Willems.
+*/
 
 #pragma once
 
@@ -13,103 +13,106 @@
 #include "Renderer.h"
 #include "VulkanUtil.h"
 
-using namespace tlVulkanUtil;
+using namespace VulkanUtil;
 
 // ===================
 // VULKAN RENDERER
 // ===================
 
 /**
- * \brief 
- */
+* \brief
+*/
 class VulkanRenderer : public Renderer
 {
 public:
 	VulkanRenderer(
 		GLFWwindow* window,
 		Scene* scene
-		);
-	virtual 
-    ~VulkanRenderer() final;
+	);
+	virtual
+		~VulkanRenderer() final;
 
 	virtual void
-	Update() final;
+		Update() final;
 
-    virtual void
-    Render() final;
+	virtual void
+		Render() final;
 
 private:
-	VkResult 
-	CreateInstance();
-	
-	VkResult 
-	SetupDebugCallback();
-	
 	VkResult
-	CreateWindowSurface();
+		CreateInstance();
 
 	VkResult
-	SelectPhysicalDevice();
-	
-	VkResult
-	SetupLogicalDevice();
+		SetupDebugCallback();
 
 	VkResult
-	CreateSwapchain();
-
-    VkResult
-    CreateImageViews();
+		CreateWindowSurface();
 
 	VkResult
-	CreateRenderPass();
+		SelectPhysicalDevice();
 
 	VkResult
-	CreateDescriptorSetLayout();
+		SetupLogicalDevice();
+
+	VkResult
+		CreateSwapchain();
+
+	VkResult
+		CreateImageViews();
+
+	VkResult
+		CreateRenderPass();
+
+	VkResult
+		CreateDescriptorSetLayout();
 
 	/**
-	 * \brief The graphics pipeline are often fixed. Create a new pipeline if we need a different pipeline settings
-	 * \return 
-	 */
+	* \brief The graphics pipeline are often fixed. Create a new pipeline if we need a different pipeline settings
+	* \return
+	*/
 	VkResult
-	CreateGraphicsPipeline();
+		CreateGraphicsPipeline();
 
 	VkResult
-	CreateShaderModule(
-		const std::vector<char>& code
-		, VkShaderModule& shaderModule
+		CreateShaderModule(
+			const std::vector<char>& code
+			, VkShaderModule& shaderModule
 		);
 
 	VkResult
-	CreateFramebuffers();
+		CreateFramebuffers();
 
 	/**
-	 * \brief Vulkan commands are created in advance and submitted to the queue, 
-	 *        instead of using direct function calls.
-	 * \return 
-	 */
+	* \brief Vulkan commands are created in advance and submitted to the queue,
+	*        instead of using direct function calls.
+	* \return
+	*/
 	VkResult
-	CreateCommandPool();
+		CreateCommandPool();
 
 	VkResult
-	CreateDepthResources();
+		CreateRayTraceTextureResources();
 
 	VkResult
-	CreateVertexBuffer();
+		CreateDepthResources();
 
 	VkResult
-	CreateUniformBuffer();
+		CreateVertexBuffer();
 
 	VkResult
-	CreateDescriptorPool();
+		CreateUniformBuffer();
 
 	VkResult
-	CreateDescriptorSet();
+		CreateDescriptorPool();
 
 	VkResult
-	CreateCommandBuffers();
+		CreateDescriptorSet();
 
 	VkResult
-	CreateSemaphores();
+		CreateCommandBuffers();
+
+	VkResult
+		CreateSemaphores();
 
 	/**
 	* \brief Helper to determine the memory type to allocate from our graphics card
@@ -118,83 +121,83 @@ private:
 	* \return
 	*/
 	uint32_t
-	GetMemoryType(
-		uint32_t typeFilter
-		, VkMemoryPropertyFlags propertyFlags
-	) const;
+		GetMemoryType(
+			uint32_t typeFilter
+			, VkMemoryPropertyFlags propertyFlags
+		) const;
 
 
 	void
-	CreateBuffer(
-		const VkDeviceSize size,
-		const VkBufferUsageFlags usage,
-		VkBuffer& buffer
-	) const;
+		CreateBuffer(
+			const VkDeviceSize size,
+			const VkBufferUsageFlags usage,
+			VkBuffer& buffer
+		) const;
 
 	void
-	CreateMemory(
-		const VkMemoryPropertyFlags memoryProperties,
-		const VkBuffer& buffer,
-		VkDeviceMemory& memory
-	) const;
+		CreateMemory(
+			const VkMemoryPropertyFlags memoryProperties,
+			const VkBuffer& buffer,
+			VkDeviceMemory& memory
+		) const;
 
 	void
-	CopyBuffer(
-		VkBuffer dstBuffer,
-		VkBuffer srcBuffer,
-		VkDeviceSize size
-	) const;
+		CopyBuffer(
+			VkBuffer dstBuffer,
+			VkBuffer srcBuffer,
+			VkDeviceSize size
+		) const;
 
 	void
-	CreateImage(
-		uint32_t width,
-		uint32_t height,
-		uint32_t depth,
-		VkImageType imageType,
-		VkFormat format,
-		VkImageTiling tiling,
-		VkImageUsageFlags usage,
-		VkMemoryPropertyFlags properties,
-		VkImage& image,
-		VkDeviceMemory& imageMemory
-	);
-
-	void
-	CreateImageView(
-		const VkImage& image,
-		VkImageViewType viewType,
-		VkFormat format,
-		VkImageAspectFlags aspectFlags,
-		VkImageView& imageView
-	);
-
-	void
-	TransitionImageLayout(
-		VkImage image,
-		VkFormat format,
-		VkImageAspectFlags aspectMask,
-		VkImageLayout oldLayout,
-		VkImageLayout newLayout
+		CreateImage(
+			uint32_t width,
+			uint32_t height,
+			uint32_t depth,
+			VkImageType imageType,
+			VkFormat format,
+			VkImageTiling tiling,
+			VkImageUsageFlags usage,
+			VkMemoryPropertyFlags properties,
+			VkImage& image,
+			VkDeviceMemory& imageMemory
 		);
 
 	void
-	CopyImage(
-		VkImage dstImage,
-		VkImage srcImage,
-		uint32_t width,
-		uint32_t height
+		CreateImageView(
+			const VkImage& image,
+			VkImageViewType viewType,
+			VkFormat format,
+			VkImageAspectFlags aspectFlags,
+			VkImageView& imageView
 		);
 
-	VkCommandBuffer 
-	BeginSingleTimeCommands() const;
+	void
+		TransitionImageLayout(
+			VkImage image,
+			VkFormat format,
+			VkImageAspectFlags aspectMask,
+			VkImageLayout oldLayout,
+			VkImageLayout newLayout
+		);
 
-	void 
-	EndSingleTimeCommands(
-		VkCommandBuffer commandBuffer
+	void
+		CopyImage(
+			VkImage dstImage,
+			VkImage srcImage,
+			uint32_t width,
+			uint32_t height
+		);
+
+	VkCommandBuffer
+		BeginSingleTimeCommands() const;
+
+	void
+		EndSingleTimeCommands(
+			VkCommandBuffer commandBuffer
 		) const;
 
 	/**
-	* \brief Handle to the per-application Vulkan instance. 
+	* \brief Handle to the per-application Vulkan instance.
 	*		 There is no global state in Vulkan, and the instance represents per-application state.
 	*		 Creating an instance also initializes the Vulkan library.
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#initialization-instances
@@ -202,27 +205,27 @@ private:
 	VkInstance m_instance;
 
 	/**
-	 * \brief This is the callback for the debug report in the Vulkan validation extension
-	 */
+	* \brief This is the callback for the debug report in the Vulkan validation extension
+	*/
 	VkDebugReportCallbackEXT m_debugCallback;
-	
+
 	/**
-	 * \brief Abstract for native platform surface or window object
-	 * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#_wsi_surface
-	 */
+	* \brief Abstract for native platform surface or window object
+	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#_wsi_surface
+	*/
 	VkSurfaceKHR m_surfaceKHR;
 
 	/**
-	 * \brief Handle to the actual GPU, or physical device. It is used for informational purposes only and maynot affect the Vulkan state itself.
-	 * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-physical-device-enumeration
-	 */
+	* \brief Handle to the actual GPU, or physical device. It is used for informational purposes only and maynot affect the Vulkan state itself.
+	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-physical-device-enumeration
+	*/
 	VkPhysicalDevice m_physicalDevice;
 
 	/**
-	 * \brief In Vulkan, this is called a logical device. It represents the logical connection
-	 *		  to physical device and how the application sees it.
-	 * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-devices
-	 */
+	* \brief In Vulkan, this is called a logical device. It represents the logical connection
+	*		  to physical device and how the application sees it.
+	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-devices
+	*/
 	VkDevice m_device;
 
 	/**
@@ -237,39 +240,43 @@ private:
 	*/
 	VkQueue m_presentQueue;
 
-	/**
-	 * \brief Abstraction for an array of images (VkImage) to be presented to the screen surface. 
-	 *		  Typically, one image is presented at a time while multiple others can be queued.
-	 * \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#_wsi_swapchain
-	 * \seealso VkImage
-	 */
-	VkSwapchainKHR m_swapchain;
+	struct Swapchain
+	{
+		/**
+		* \brief Abstraction for an array of images (VkImage) to be presented to the screen surface.
+		*		  Typically, one image is presented at a time while multiple others can be queued.
+		* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#_wsi_swapchain
+		* \seealso VkImage
+		*/
 
-    /**
-     * \brief Array of images queued in the swapchain
-     */
-    std::vector<VkImage> m_swapchainImages;
+		VkSwapchainKHR swapchain;
 
-    /**
-     * \brief Image format inside swapchain
-     */
-    VkFormat m_swapchainImageFormat;
+		/**
+		* \brief Array of images queued in the swapchain
+		*/
+		std::vector<VkImage> images;
 
-    /**
-     * \brief Image extent inside swapchain
-     */
-    VkExtent2D m_swapchainExtent;
+		/**
+		* \brief Image format inside swapchain
+		*/
+		VkFormat imageFormat;
 
-	/**
-	* \brief This is a view into the Vulkan
-	* \ref https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-image-views
-	*/
-	std::vector<VkImageView> m_swapchainImageViews;
+		/**
+		* \brief Image extent inside swapchain
+		*/
+		VkExtent2D extent;
 
-	/**
-	* \brief Swapchain framebuffers for each image view
-	*/
-	std::vector<VkFramebuffer> m_swapchainFramebuffers;
+		/**
+		* \brief This is a view into the Vulkan
+		* \ref https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-image-views
+		*/
+		std::vector<VkImageView> imageViews;
+
+		/**
+		* \brief Swapchain framebuffers for each image view
+		*/
+		std::vector<VkFramebuffer> framebuffers;
+	} m_swapchain;
 
 	/**
 	* \brief Name of the Vulkan application. This is the name of our whole application in general.
@@ -282,74 +289,77 @@ private:
 	bool m_isEnableValidationLayers;
 
 	/**
-	 * \brief Store the queue family indices
-	 */
+	* \brief Store the queue family indices
+	*/
 	QueueFamilyIndices m_queueFamilyIndices;
 
 	/**
-	 * \brief Descriptor set layout to decribe our resource binding (ex. UBO)
-	 */
+	* \brief Descriptor set layout to decribe our resource binding (ex. UBO)
+	*/
 	VkDescriptorSetLayout m_descriptorSetLayout;
 
 	/**
-	 * \brief Descriptor pool for our resources
-	 */
+	* \brief Descriptor pool for our resources
+	*/
 	VkDescriptorPool m_descriptorPool;
 
 	/**
-	 * \brief Descriptor set for our resources
-	 */
+	* \brief Descriptor set for our resources
+	*/
 	VkDescriptorSet m_descriptorSet;
 
 	/**
-	 * \brief This describes the uniforms inside shaders
-	 */
+	* \brief This describes the uniforms inside shaders
+	*/
 	VkPipelineLayout m_pipelineLayout;
 
 	/**
-	 * \brief Holds the renderpass object. This also represents the framebuffer attachments
-	 */
+	* \brief Holds the renderpass object. This also represents the framebuffer attachments
+	*/
 	VkRenderPass m_renderPass;
 
-	VkImage m_depthImage;
-	VkImageView m_depthImageView;
-	VkDeviceMemory m_depthImageMemory;
+	Texture m_depthTexture;
+
+	/**
+	* \brief Output of the raytracing compute
+	*/
+	Texture m_rayTracedTexture;
 
 	std::vector<GeometryBuffer> m_geometryBuffers;
 
 	/**
-	 * \brief Uniform buffers
-	 */
+	* \brief Uniform buffers
+	*/
 	VkBuffer m_uniformStagingBuffer;
 	VkBuffer m_uniformBuffer;
 	VkDeviceMemory m_uniformStagingBufferMemory;
 	VkDeviceMemory m_uniformBufferMemory;
 
 	/**
-	 * \brief Graphics pipeline
-	 */
+	* \brief Graphics pipeline
+	*/
 	VkPipeline m_graphicsPipeline;
 
 	/**
-	 * \brief Command pool
-	 */
+	* \brief Command pool
+	*/
 	VkCommandPool m_graphicsCommandPool;
 
 	/**
-	 * \brief Command buffers to record our commands
-	 */
+	* \brief Command buffers to record our commands
+	*/
 	std::vector<VkCommandBuffer> m_commandBuffers;
 
 	/**
-	 * \brief Semaphores to signal when to acquire and present swapchain images
-	 */
+	* \brief Semaphores to signal when to acquire and present swapchain images
+	*/
 	VkSemaphore m_imageAvailableSemaphore;
 	VkSemaphore m_renderFinishedSemaphore;
 
-    /**
-     * \brief Logger
-     */
-    std::shared_ptr<spdlog::logger> m_logger;
+	/**
+	* \brief Logger
+	*/
+	std::shared_ptr<spdlog::logger> m_logger;
 };
 
 

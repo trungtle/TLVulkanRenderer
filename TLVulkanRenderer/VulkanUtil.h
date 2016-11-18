@@ -9,17 +9,28 @@
 
 using namespace glm;
 
-namespace tlVulkanUtil
+namespace VulkanUtil
 {
+	inline void CheckVulkanResult(
+		VkResult result,
+		std::string message
+	)
+	{
+		if (result != VK_SUCCESS)
+		{
+			throw std::runtime_error(message);
+		}
+	}
+
 	// ===================
 	// VERTEX
 	// ===================
 
 	static
-	VkVertexInputBindingDescription
-	GetVertexInputBindingDescription(
-		uint32_t binding,
-		const VertexAttributeInfo& vertexAttrib
+		VkVertexInputBindingDescription
+		GetVertexInputBindingDescription(
+			uint32_t binding,
+			const VertexAttributeInfo& vertexAttrib
 		)
 	{
 		VkVertexInputBindingDescription bindingDesc;
@@ -50,8 +61,8 @@ namespace tlVulkanUtil
 	} VertexAttributeDescriptions;
 
 	static
-	std::array<VkVertexInputAttributeDescription, 2>
-	GetAttributeDescriptions()
+		std::array<VkVertexInputAttributeDescription, 2>
+		GetAttributeDescriptions()
 	{
 		VertexAttributeDescriptions attributeDesc;
 
@@ -97,6 +108,15 @@ namespace tlVulkanUtil
 		std::map<EVertexAttributeType, VkDeviceSize> vertexBufferOffsets;
 	} BufferLayout;
 
+	// ===================
+	// TEXTURE
+	// ===================
+	typedef struct TextureTyp
+	{
+		VkImage image;
+		VkImageView imageView;
+		VkDeviceMemory imageMemory;
+	} Texture;
 
 	// ===================
 	// QUEUE
@@ -136,7 +156,8 @@ namespace tlVulkanUtil
 	// ===================
 	// GEOMETRIES
 	// ===================
-	typedef struct GeometryBufferTyp {
+	typedef struct GeometryBufferTyp
+	{
 		/**
 		* \brief Byte offsets for vertex attributes and resource buffers into our unified buffer
 		*/
@@ -154,47 +175,58 @@ namespace tlVulkanUtil
 	} GeometryBuffer;
 
 	// ===================
-	// FUNCTIONS
+	// EXTENSIONS
 	// ===================
 
 	bool
-	CheckValidationLayerSupport(
-		const std::vector<const char*>& validationLayers
-	);
+		CheckValidationLayerSupport(
+			const std::vector<const char*>& validationLayers
+		);
 
 	std::vector<const char*>
-	GetInstanceRequiredExtensions(
-		bool enableValidationLayers
-	);
+		GetInstanceRequiredExtensions(
+			bool enableValidationLayers
+		);
 
 	std::vector<const char*>
-	GetDeviceRequiredExtensions(
-		const VkPhysicalDevice& physicalDevice
-	);
+		GetDeviceRequiredExtensions(
+			const VkPhysicalDevice& physicalDevice
+		);
 
+	// ===================
+	// DEVICE
+	// ===================
 
 	/**
 	* \brief Check if this GPU is Vulkan compatible
 	* \param VkPhysicalDevice to inspect
 	* \return true if the GPU supports Vulkan
 	*/
-	bool 
-	IsDeviceVulkanCompatible(
-		const VkPhysicalDevice& physicalDeivce
-		, const VkSurfaceKHR& surfaceKHR // For finding queue that can present image to our surface
-	);
+	bool
+		IsDeviceVulkanCompatible(
+			const VkPhysicalDevice& physicalDeivce
+			, const VkSurfaceKHR& surfaceKHR // For finding queue that can present image to our surface
+		);
+
+	// ===================
+	// QUEUE
+	// ===================
 
 	QueueFamilyIndices
-	FindQueueFamilyIndices(
-		const VkPhysicalDevice& physicalDevicece
-		, const VkSurfaceKHR& surfaceKHR // For finding queue that can present image to our surface
-	);
+		FindQueueFamilyIndices(
+			const VkPhysicalDevice& physicalDevicece
+			, const VkSurfaceKHR& surfaceKHR // For finding queue that can present image to our surface
+		);
+
+	// ===================
+	// SWAPCHAIN
+	// ===================
 
 	SwapchainSupport
-	QuerySwapchainSupport(
-		const VkPhysicalDevice& physicalDevice
-		, const VkSurfaceKHR& surface
-	);
+		QuerySwapchainSupport(
+			const VkPhysicalDevice& physicalDevice
+			, const VkSurfaceKHR& surface
+		);
 
 	/**
 	* \brief The surface format specifies color channel and types, and the texcoord space
@@ -204,9 +236,9 @@ namespace tlVulkanUtil
 
 	*/
 	VkSurfaceFormatKHR
-	SelectDesiredSwapchainSurfaceFormat(
-		const std::vector<VkSurfaceFormatKHR> availableFormats
-	);
+		SelectDesiredSwapchainSurfaceFormat(
+			const std::vector<VkSurfaceFormatKHR> availableFormats
+		);
 
 	/**
 	* \brief This is the most important setting for the swap chain. This is how we select
@@ -245,9 +277,9 @@ namespace tlVulkanUtil
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPresentModeKHR
 	*/
 	VkPresentModeKHR
-	SelectDesiredSwapchainPresentMode(
-		const std::vector<VkPresentModeKHR> availablePresentModes
-	);
+		SelectDesiredSwapchainPresentMode(
+			const std::vector<VkPresentModeKHR> availablePresentModes
+		);
 
 	/**
 	* \brief
@@ -259,46 +291,50 @@ namespace tlVulkanUtil
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceCapabilitiesKHR
 	*/
 	VkExtent2D
-	SelectDesiredSwapchainExtent(
-		const VkSurfaceCapabilitiesKHR surfaceCapabilities
-		, bool useCurrentExtent = true
-		, unsigned int desiredWidth = 0 /* unused if useCurrentExtent is true */
-		, unsigned int desiredHeight = 0 /* unused if useCurrentExtent is true */
-	);
+		SelectDesiredSwapchainExtent(
+			const VkSurfaceCapabilitiesKHR surfaceCapabilities
+			, bool useCurrentExtent = true
+			, unsigned int desiredWidth = 0 /* unused if useCurrentExtent is true */
+			, unsigned int desiredHeight = 0 /* unused if useCurrentExtent is true */
+		);
+
+	// ===================
+	// IMAGE
+	// ===================
 
 	/**
-	 * \brief Find a supported format from a list of candidates
-	 * \param physicalDevice 
-	 * \param candidates 
-	 * \param tiling 
-	 * \param features 
-	 * \return 
-	 */
-	VkFormat 
-	FindSupportedFormat(
-		const VkPhysicalDevice& physicalDevice,
-		const std::vector<VkFormat>& candidates,
-		VkImageTiling tiling,
-		VkFormatFeatureFlags features
-	);
+	* \brief Find a supported format from a list of candidates
+	* \param physicalDevice
+	* \param candidates
+	* \param tiling
+	* \param features
+	* \return
+	*/
+	VkFormat
+		FindSupportedFormat(
+			const VkPhysicalDevice& physicalDevice,
+			const std::vector<VkFormat>& candidates,
+			VkImageTiling tiling,
+			VkFormatFeatureFlags features
+		);
 
 	/**
-	 * \brief Find a supported depth format for a given physical device
-	 * \param physicalDevice 
-	 * \return 
-	 */
-	VkFormat 
-	FindDepthFormat(
-		const VkPhysicalDevice& physicalDevice
-	);
+	* \brief Find a supported depth format for a given physical device
+	* \param physicalDevice
+	* \return
+	*/
+	VkFormat
+		FindDepthFormat(
+			const VkPhysicalDevice& physicalDevice
+		);
 
 	/**
-	 * \brief Return true if the VkFormat contains a stencil component
-	 * \param format 
-	 * \return 
-	 */
+	* \brief Return true if the VkFormat contains a stencil component
+	* \param format
+	* \return
+	*/
 	bool
-	DepthFormatHasStencilComponent(
-		VkFormat format
-	);
+		DepthFormatHasStencilComponent(
+			VkFormat format
+		);
 }
