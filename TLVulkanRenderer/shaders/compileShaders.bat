@@ -1,3 +1,3 @@
-E:\PROGRAMS\VulkanSDK\1.0.26.0\Bin\glslangValidator.exe -H -t vertShader.vert
-E:\PROGRAMS\VulkanSDK\1.0.26.0\Bin\glslangValidator.exe -H -t fragShader.frag
+glslangvalidator -V fragShader.frag -o fragShader.spv
+glslangvalidator -V vertShader.vert -o vertShader.spv
 pause
