@@ -33,7 +33,14 @@ Complete Vulkan forward rasterizer as default renderer when the application star
 
 #### 3. Optional Vulkan raytracing mode
 
-_Can be toggle on and off with `ERenderingMode renderindMode::RAYTRACING` flag when passing the `renderingMode` argument to [`class Application`](https://github.com/trungtle/TLVulkanRenderer/blob/master/TLVulkanRenderer/src/Application.h)_
+To enable raytracing rendering mode, you'll have to change the rendering mode flag in [Application.h](https://github.com/trungtle/TLVulkanRenderer/blob/master/TLVulkanRenderer/src/Application.h) then rebuild the project.
+
+`ERenderingMode renderindMode = ERenderingMode::FORWARD` to
+`ERenderingMode renderindMode = ERenderingMode::RAYTRACING`
+
+I'm planning on passing this as a command argument instead, but haven't had time to get around doing it yet.
+
+Since my camera's position is initialized manually in code (should really be reading from glTF instead), the scene that works for raytracing mode is `scenes/gltfs/cornell/cornell.glb`. See [Quick start](https://github.com/trungtle/TLVulkanRenderer/blob/master/README.md#quickstart) below for instruction on how to pass in a glTF scene file as an argument.
 
 ![](TLVulkanRenderer/renders/raytraced_cornell.gif)
 
