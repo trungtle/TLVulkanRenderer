@@ -15,7 +15,7 @@ https://github.com/trungtle/TLVulkanRenderer/releases
 
 | Normal | Depth | Lambert |
 |---|---|---|
-|![](TLVulkanRenderer/images/head_normal.png)|![](TLVulkanRenderer/images/head_depth.png)|![](TLVulkanRenderer/images/head_lambert.png)|
+|![](TLVulkanRenderer/renders/head_normal.png)|![](TLVulkanRenderer/renders/head_depth.png)|![](TLVulkanRenderer/renders/head_lambert.png)|
 
 #### Memory management
 
@@ -23,7 +23,7 @@ In order to achieve cache ultilization and limit the amount of costly memory all
 
 Instead of directly map memory from the host, I create a temporary buffer for staging and transfer the data onto device memory this way.
 
-![](TLVulkanRenderer/images/charts/Vulkan_memory_layout.png)
+![](TLVulkanRenderer/renders/charts/Vulkan_memory_layout.png)
 
 In this layout scheme, we still need to partition based on each mesh data because when the meshes are extracted from glTF, each of them have their unique buffer view that needs to be handled properly. It seems to me that it's possible that we can just directly copy this glTF's buffer view into `VkDeviceMemory` and offset the `VkBuffer` correctly from there. It's also possibl to resuse the same `VkDeviceMemory` for different `VkBuffer`, but it seems quite error-prone to me to go down that path.  
 
@@ -31,7 +31,7 @@ More details can be found at [Vulkan Memory Management](https://developer.nvidia
 
 #### Depth buffer
 
-![](TLVulkanRenderer/images/head_depth.png)
+![](TLVulkanRenderer/renders/head_depth.png)
 
 The depth buffer in Vulkan is represented using a [`VkImage`](https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-images). It's a type of resource that the framebuffer uses to store its data. Similarly to the [`VkImage`](https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#resources-images)s inside the swapchain, a depth image is just another attachment to the renderpass. However, depth image still has to be created as an additional resource that we need to manage. I allocated a screen size depth resource for populating the depth data in, and then attache the depth image to the renderpass's subpass (I only use one subpass). 
 
@@ -43,32 +43,25 @@ After that, the graphics pipeline creation needs to be modified to enable the de
 
 Right now I was able to load the index data and vertex data. I'm working on merging all the vertex buffers required for position, normal, texcoord attributes, indices, and uniforms, into a single buffer or memory allocation as recommended in the [Vulkan Memory Management](https://developer.nvidia.com/vulkan-memory-management) blog by Chris Hebert ([@chrisjebert1973](https://github.com/chrisjebert1973)) and Christoph Kubisch.
 
-![](TLVulkanRenderer/images/duck_rotation.gif)
+![](TLVulkanRenderer/renders/duck_rotation.gif)
 
 ### Oct 14, 2016 - Triangles!
 
 Finished base rasterizer code to render a triangle.
 
-![](TLVulkanRenderer/images/Triangle.PNG)
+![](TLVulkanRenderer/renders/Triangle.PNG)
 
-# Requirements
+# Quickstart
 
-- Build using x64 Visual Studio 2015 on Windows with a [Vulkan](https://www.khronos.org/vulkan/) support graphics card (Most discrete GPU in the last couple years should have Vulkan support). You can also check [NVIDIA support](https://developer.nvidia.com/vulkan-driver).
-- [glfw 3.2.1](http://www.glfw.org/)
-- [glm](http://glm.g-truc.net/0.9.8/index.html) library by [G-Truc Creation](http://www.g-truc.net/)
-- [VulkanSDK](https://lunarg.com/vulkan-sdk/) by [LunarG](https://vulkan.lunarg.com/)
-- Addthe following paths in Visual Studio project settings (for All Configurations):
- - C/C++ -> General -> Additional Include Directories:
-    - `PATH_TO_PROJECT\TLVulkanRenderer\thirdparty`
-    - `PATH_TO_GLFW\glfw\include`
-    - `PATH_TO_VULKAN_SDK\VulkanSDK\1.0.26.0\Include`
-    - `PATH_TO_GLM\glm`
- - Linker -> General -> Additional Library Directories:
-    - `PATH_TO_VULKAN_SDK\VulkanSDK\1.0.26.0\Bin`
-    - `PATH_TO_GLM\glfw-3.2.1.bin.WIN64\lib-vc2015`
- - Linker -> Input -> Additional Dependencies:
-    - `vulkan-1.lib`
-    - `glfw3.lib`
+### Build 
+
+Build with Visual Studio 2015 on Windows and target x64. Your machine must support at least one [Vulkan](https://www.khronos.org/vulkan/)-capable graphics card (Most discrete GPU in the last couple years should have Vulkan support). You can also check [NVIDIA support](https://developer.nvidia.com/vulkan-driver). The project should run out of the box with a [duck](TLVulkanRenderer/scenes/Duck) default scene.
+
+
+### Usage
+```
+./TLVulkanRenderer.exe [glTF file]                              Default scene is glTF rubber duck
+```
 
 # Third party
 
@@ -76,17 +69,17 @@ Finished base rasterizer code to render a triangle.
  - [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF) by [AnalyticalGraphicsInc](https://github.com/AnalyticalGraphicsInc)
  - [spdlog](https://github.com/gabime/spdlog) by [gabime](https://github.com/gabime/) (see LICENSE for details on LICENSE)
 
-### References
+# Vulkan References
 
-Majority of this application was modified from:
+Great credit goes to [Vulkan Tutorial](https://vulkan-tutorial.com/) by Alexander Overvoorde. [Github](https://github.com/Overv/VulkanTutorial) and [Vulkan Samples](https://github.com/SaschaWillems/Vulkan) by Sascha Willems. Additionally, I used references from:
 
-  - [Vulkan Tutorial](https://vulkan-tutorial.com/) by Alexander Overvoorde. [Github](https://github.com/Overv/VulkanTutorial). 
   - WSI Tutorial by Chris Hebert
-  - [Vulkan Samples](https://github.com/SaschaWillems/Vulkan) by Sascha Willems
-  - [Vulkan Whitepaper](https://www.kdab.com/wp-content/uploads/stories/KDAB-whitepaper-Vulkan-2016-01-v4.pdf)
   - [Vulkan 1.0.28 - A Specification](https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/pdf/vkspec.pdf)
+  - [Vulkan Whitepaper](https://www.kdab.com/wp-content/uploads/stories/KDAB-whitepaper-Vulkan-2016-01-v4.pdf)
 
- ### Models
+ # Models
+
+Listing of glTF models and scenes used in this project for testing and demos:
 
 * [glTF Sample Models](https://github.com/KhronosGroup/glTF/blob/master/sampleModels/README.md)
 * [octocat]() by [Sally Kong](https://sketchfab.com/models/cad2ffa5d8a24423ab246ee0916a7f3e). Model is converted using [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF).
