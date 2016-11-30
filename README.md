@@ -107,9 +107,23 @@ Build with Visual Studio 2015 on Windows and target x64. Your machine must suppo
 
 
 ### Usage
+
+From Visual Studio, you can pass in glTF scene as: 
+
 ```
-./TLVulkanRenderer.exe [glTF file]                              Default scene is glTF rubber duck
+Properties -> Debugging -> Command Arguments -> scenes/gltfs/duck/duck.gltf
 ```
+
+Or from command prompt after `git clone`
+
+```
+cd TLVulkanRenderer/TLVulkanRenderer
+ ./../build/Debug/VulkanRenderer.exe scenes/gltfs/duck/duck.gltf
+```
+
+# Known issues
+
+Since my camera isn't initialized from glTF file but manually hard-coded, some scene might not work correctly.
 
 # Third party
 
