@@ -227,9 +227,9 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
 	VkShaderModule vertShader;
-	PrepareShaderModule("shaders/vert.spv", vertShader);
+	PrepareShaderModule("../../TLVulkanRenderer/shaders/vert.spv", vertShader);
 	VkShaderModule fragShader;
-	PrepareShaderModule("shaders/frag.spv", fragShader);
+	PrepareShaderModule("../../TLVulkanRenderer/shaders/frag.spv", fragShader);
 
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// 1. Vertex input stage

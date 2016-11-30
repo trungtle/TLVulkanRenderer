@@ -336,9 +336,9 @@ VulkanRaytracer::PrepareGraphicsPipeline()
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
 	VkShaderModule vertShader;
-	PrepareShaderModule("shaders/raytracing/raytrace.vert.spv", vertShader);
+	PrepareShaderModule("../../shaders/raytracing/raytrace.vert.spv", vertShader);
 	VkShaderModule fragShader;
-	PrepareShaderModule("shaders/raytracing/raytrace.frag.spv", fragShader);
+	PrepareShaderModule("../../shaders/raytracing/raytrace.frag.spv", fragShader);
 
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// 1. Vertex input stage
@@ -1100,10 +1100,10 @@ VulkanRaytracer::PrepareComputePipeline()
 	// Create shader modules from bytecodes
 	VkShaderModule raytraceShader;
 	PrepareShaderModule(
-		"shaders/raytracing/raytrace.comp.spv",
+		"../../shaders/raytracing/raytrace.comp.spv",
 		raytraceShader
 	);
-	m_logger->info("Loaded {} comp shader", "shaders/raytracing/raytrace.comp.spv");
+	m_logger->info("Loaded {} comp shader", "../../shaders/raytracing/raytrace.comp.spv");
 
 
 	computePipelineCreateInfo.stage = MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_COMPUTE_BIT, raytraceShader);
