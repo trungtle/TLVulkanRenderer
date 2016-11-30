@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include "VulkanSDK/1.0.33.0/Include/vulkan.h"
 #include "SceneUtil.h"
 #include <map>
 

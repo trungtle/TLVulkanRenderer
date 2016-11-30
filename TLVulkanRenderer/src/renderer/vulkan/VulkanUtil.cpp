@@ -1,7 +1,7 @@
 #include "VulkanUtil.h"
 #include <algorithm>
 #include <cassert>
-#include <GLFW/glfw3.h>
+#include <glfw3.h>
 #include "VulkanSwapchain.h"
 
 namespace VulkanUtil {

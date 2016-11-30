@@ -1,11 +1,10 @@
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
-#include <vulkan/vulkan.h>
 #include <vector>
+#include <glfw3.h>
 #include "VulkanSwapchain.h"
 #include "VulkanUtil.h"
-#include <GLFW/glfw3.h>
 #include <spdlog/logger.h>
 #include "VulkanImage.h"
 

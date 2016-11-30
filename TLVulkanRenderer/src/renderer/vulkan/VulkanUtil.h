@@ -1,11 +1,11 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include <vector>
 #include <array>
 #include <map>
+#include <vulkan.h>
 #include <glm/mat4x4.hpp>
-#include "../../SceneUtil.h"
+#include "SceneUtil.h"
 
 using namespace glm;
 
