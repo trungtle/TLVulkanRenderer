@@ -53,8 +53,10 @@ Away with the annoying absolute path configurations! This new release v1.1 now l
 
 Added a command line argument to specify glTF input file:
 
+After build, the output executable will be in the build folder. Make sure to have your working directory at `TLVulkanRender/TLVulkanRender`, then for example, you can run:
+
 ```
-./TLVulkanRenderer.exe [glTF file]                              Default scene is glTF rubber duck
+ ./../build/Debug/VulkanRenderer.exe scenes/gltfs/duck/duck.gltf                              Default scene is glTF rubber duck
 ```
 
 ### Nov 4, 2016 - Memory & Depth Image
