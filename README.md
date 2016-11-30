@@ -11,6 +11,51 @@ https://github.com/trungtle/TLVulkanRenderer/releases
 
 # Updates
 
+### Nov 30, 2016 - Release v1.1: Optional raytracing mode, and a large software overhaul
+
+This release has several large improvements:
+
+# Changelist
+
+### 1. Large code refactoring for Vulkan interface 
+Specifically:
+
+- Abstracted Vulkan devices, queues, and swapchain into its own class
+- Added more Vulkan convenience methods to intialize and populate Vulkan structs with default values
+- Added resource creation methods for `VkBuffer and `VkImage` with automatic binding for `VkDeviceMemory`
+- Separated graphics VkPipeline and compute `VkPipeline` workflow with prefixes "`PrepareGraphics_`" and "`PrepareCompute_`", respectively. 
+- **Nice to have**: Previously, the `vulkan-1.lib` and `glfw3.lib` had to be linked externally. I have moved them inside the project for convenient new build. A new clone project should work out of the box now!
+
+### 2. Vulkan forward rasterizer
+
+Complete Vulkan forward rasterizer as default renderer when the application starts.
+
+### 3. Optinal Vulkan raytracing mode
+
+_Can be toggle on and off with `ERenderingMode renderindMode::RAYTRACING` flag when passing the `renderingMode` argument to [`class Application`](https://github.com/trungtle/TLVulkanRenderer/blob/master/TLVulkanRenderer/src/Application.h)_
+
+![](TLVulkanRenderer/renders/raytraced_cornell.gif)
+
+This is a migration from my GPU Programming final project in CIS565, Penn. This Vulkan raytracing isn't performant and still a work in progress, but this allows for comparison between rasterizer and raytracer performance.
+
+### 4. Misc
+
+- Better ms/frame measurement
+- VS project filters for solution navigation
+- Project wide code reformating for reading consistency
+
+### 5. New build
+
+Away with the annoying absolute path configurations! This new release v1.1 now links all the dependencies into the same project so that a new clone can work out of the box. Do make sure you're using Visual Studion 2015 with target x64.
+
+### 6. Usage
+
+Added a command line argument to specify glTF input file:
+
+```
+./TLVulkanRenderer.exe [glTF file]                              Default scene is glTF rubber duck
+```
+
 ### Nov 4, 2016 - Memory & Depth Image
 
 | Normal | Depth | Lambert |
@@ -43,7 +88,7 @@ After that, the graphics pipeline creation needs to be modified to enable the de
 
 Right now I was able to load the index data and vertex data. I'm working on merging all the vertex buffers required for position, normal, texcoord attributes, indices, and uniforms, into a single buffer or memory allocation as recommended in the [Vulkan Memory Management](https://developer.nvidia.com/vulkan-memory-management) blog by Chris Hebert ([@chrisjebert1973](https://github.com/chrisjebert1973)) and Christoph Kubisch.
 
-![](TLVulkanRenderer/renders/duck_rotation.gif)
+![](TLVulkanRenderer/renders/duck_point.gif)
 
 ### Oct 14, 2016 - Triangles!
 
