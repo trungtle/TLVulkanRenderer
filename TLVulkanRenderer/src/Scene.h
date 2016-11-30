@@ -5,12 +5,12 @@
 #include "SceneUtil.h"
 
 class Camera;
-class Scene
-{
+
+class Scene {
 public:
 	Scene(std::string fileName);
 	~Scene();
-	
+
 	Camera* camera;
 	std::vector<MeshData*> meshesData;
 	std::vector<Material> materials;
@@ -18,4 +18,3 @@ public:
 	std::vector<glm::vec4> verticePositions;
 	std::vector<glm::vec4> verticeNormals;
 };
-

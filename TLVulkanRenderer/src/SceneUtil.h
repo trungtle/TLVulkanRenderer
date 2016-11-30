@@ -6,16 +6,14 @@
 // VERTEX
 // ----------
 
-typedef enum
-{
+typedef enum {
 	INDEX,
 	POSITION,
 	NORMAL,
 	TEXCOORD
 } EVertexAttributeType;
 
-typedef struct VertexAttributeInfoTyp
-{
+typedef struct VertexAttributeInfoTyp {
 	size_t byteStride;
 	size_t count;
 	int componentLength;
@@ -27,8 +25,7 @@ typedef struct VertexAttributeInfoTyp
 // GEOMETRY
 // ----------
 
-struct MeshData
-{
+struct MeshData {
 	std::map<EVertexAttributeType, std::vector<Byte>> vertexData;
 	std::map<EVertexAttributeType, VertexAttributeInfo> vertexAttributes;
 };
@@ -37,8 +34,7 @@ struct MeshData
 // MATERIAL
 // ----------
 
-typedef struct MaterialTyp
-{
+typedef struct MaterialTyp {
 	glm::vec4 diffuse;
 	glm::vec4 ambient;
 	glm::vec4 emission;
@@ -47,6 +43,3 @@ typedef struct MaterialTyp
 	float transparency;
 	glm::ivec2 _pad;
 } Material;
-
-
-

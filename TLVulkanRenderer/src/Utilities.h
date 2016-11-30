@@ -14,7 +14,7 @@ NormalizeColor(int r, int g, int b, int alpha);
 std::vector<Byte>
 ReadBinaryFile(
 	const std::string& fileName
-	);
+);
 
 
 /**
@@ -22,8 +22,8 @@ ReadBinaryFile(
  * \param vertShaderFilePath 
  * \param fragShaderFilePath 
  */
-void 
+void
 LoadSPIR_V(
-	const char* filepath, 
+	const char* filepath,
 	std::vector<Byte>& outShader
 );

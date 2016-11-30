@@ -1,17 +1,15 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include "VulkanSDK/1.0.33.0/Include/vulkan.h"
 #include "SceneUtil.h"
 #include <map>
 
-namespace VulkanBuffer 
-{
+namespace VulkanBuffer {
 	// ===================
 	// BUFFER
 	// ===================
 
-	struct StorageBuffer
-	{
+	struct StorageBuffer {
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 		VkDescriptorBufferInfo descriptor;
@@ -20,13 +18,11 @@ namespace VulkanBuffer
 	// ===================
 	// GEOMETRIES
 	// ===================
-	struct GeometryBufferOffset
-	{
+	struct GeometryBufferOffset {
 		std::map<EVertexAttributeType, VkDeviceSize> vertexBufferOffsets;
 	};
 
-	struct GeometryBuffer
-	{
+	struct GeometryBuffer {
 		/**
 		* \brief Byte offsets for vertex attributes and resource buffers into our unified buffer
 		*/

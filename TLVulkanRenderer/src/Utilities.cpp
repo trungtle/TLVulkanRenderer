@@ -3,17 +3,15 @@
 
 #include "Utilities.h"
 
-glm::vec4 
-NormalizeColor(int r, int g, int b, int alpha) 
-{
+glm::vec4
+NormalizeColor(int r, int g, int b, int alpha) {
 	return glm::vec4(r, g, b, alpha) / 255.0f;
 }
 
-std::vector<Byte> 
+std::vector<Byte>
 ReadBinaryFile(
-	const std::string& fileName	
-	) 
-{
+	const std::string& fileName
+) {
 	// Read from the end (ate flag) to determine the file size
 	std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 
@@ -34,9 +32,8 @@ ReadBinaryFile(
 
 void
 LoadSPIR_V(
-	const char* filePath, 
+	const char* filePath,
 	std::vector<Byte>& outShader
-	)
-{
+) {
 	outShader = ReadBinaryFile(filePath);
 }

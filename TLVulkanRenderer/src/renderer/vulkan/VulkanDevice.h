@@ -1,11 +1,10 @@
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
-#include <vulkan/vulkan.h>
 #include <vector>
+#include <glfw3.h>
 #include "VulkanSwapchain.h"
 #include "VulkanUtil.h"
-#include <GLFW/glfw3.h>
 #include <spdlog/logger.h>
 #include "VulkanImage.h"
 
@@ -15,23 +14,21 @@ public:
 
 	VulkanDevice(
 		GLFWwindow* window,
-		std::string name, 
+		std::string name,
 		std::shared_ptr<spdlog::logger> logger
-			) :
+	) :
 		isEnableValidationLayers(true),
 		debugCallback(nullptr),
-		instance(nullptr), 
-		surfaceKHR(nullptr), 
-		physicalDevice(nullptr), 
-		device(nullptr), 
-		m_name(name), 
-		m_logger(logger) 
-	{
+		instance(nullptr),
+		surfaceKHR(nullptr),
+		physicalDevice(nullptr),
+		device(nullptr),
+		m_name(name),
+		m_logger(logger) {
 		Initialize(window);
 	};
 
-	~VulkanDevice() 
-	{
+	~VulkanDevice() {
 		Destroy();
 	}
 
@@ -39,7 +36,7 @@ public:
 	* \brief If true, will include the validation layer
 	*/
 	bool isEnableValidationLayers;
-	
+
 	/**
 	* \brief This is the callback for the debug report in the Vulkan validation extension
 	*/
@@ -79,8 +76,7 @@ public:
 	/**
 	* \brief A struct to store queue family indices
 	*/
-	struct QueueFamilyIndices
-	{
+	struct QueueFamilyIndices {
 		int graphicsFamily = -1;
 		int presentFamily = -1;
 		int computeFamily = -1;
@@ -101,12 +97,12 @@ public:
 	// Member functions
 	// ================================================
 
-	void 
+	void
 	Initialize(
 		GLFWwindow* window
-		);
+	);
 
-	void 
+	void
 	Destroy();
 
 	VkResult

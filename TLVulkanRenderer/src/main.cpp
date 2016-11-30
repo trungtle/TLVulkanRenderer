@@ -1,14 +1,17 @@
 #include <iostream>
 #include "Application.h"
 
-int main(int argc, char **argv) {
-	if (argc != 2)
-	{
-		cout << "Usage: [gltf file]" << endl;
-		return 0;
+int main(int argc, char** argv) {
+
+	// Default scenefile
+	std::string sceneFile = "scenes/gltfs/duck/duck.gltf";
+	if (argc != 2) {
+		cout << "Missing scene file input! Loading default scene..." << endl;
+	} else {
+		sceneFile = argv[1];
 	}
 
-    // Launch our application using the Vulkan API
-	Application app(argc, argv, 800, 600, EGraphicsAPI::Vulkan);
+	// Launch our application using the Vulkan API
+	Application app(sceneFile, 800, 600, EGraphicsAPI::Vulkan);
 	app.Run();
 }

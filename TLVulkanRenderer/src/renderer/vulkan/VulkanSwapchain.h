@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include <vulkan.h>
 #include <vector>
 
 /**
@@ -8,8 +8,7 @@
 */
 
 
-struct Swapchain
-{
+struct Swapchain {
 	/**
 	* \brief Abstraction for an array of images (VkImage) to be presented to the screen surface.
 	*		  Typically, one image is presented at a time while multiple others can be queued.
@@ -51,8 +50,7 @@ struct Swapchain
 	std::vector<VkFramebuffer> framebuffers;
 
 
-	struct SwapchainSupport
-	{
+	struct SwapchainSupport {
 		VkSurfaceCapabilitiesKHR capabilities;
 		std::vector<VkSurfaceFormatKHR> surfaceFormats;
 		std::vector<VkPresentModeKHR> presentModes;
@@ -76,7 +74,7 @@ struct Swapchain
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceFormatKHR
 
 	*/
-	static 
+	static
 	VkSurfaceFormatKHR
 	SelectDesiredSwapchainSurfaceFormat(
 		const std::vector<VkSurfaceFormatKHR> availableFormats
@@ -118,7 +116,7 @@ struct Swapchain
 	* \return the VkPresentModeKHR that we desire
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPresentModeKHR
 	*/
-	static 
+	static
 	VkPresentModeKHR
 	SelectDesiredSwapchainPresentMode(
 		const std::vector<VkPresentModeKHR> availablePresentModes
@@ -133,7 +131,7 @@ struct Swapchain
 	* \return
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceCapabilitiesKHR
 	*/
-	static 
+	static
 	VkExtent2D
 	SelectDesiredSwapchainExtent(
 		const VkSurfaceCapabilitiesKHR surfaceCapabilities
@@ -142,5 +140,3 @@ struct Swapchain
 		, unsigned int desiredHeight = 0 /* unused if useCurrentExtent is true */
 	);
 };
-
-

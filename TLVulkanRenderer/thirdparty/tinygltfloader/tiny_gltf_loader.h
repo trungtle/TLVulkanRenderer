@@ -1,4 +1,4 @@
-//
+﻿//
 // Tiny glTF loader.
 //
 //
@@ -77,7 +77,7 @@ namespace tinygltf {
 #define TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE (33071)
 #define TINYGLTF_TEXTURE_WRAP_MIRRORED_REPEAT (33648)
 
-// Redeclarations of the above for technique.parameters.
+	// Redeclarations of the above for technique.parameters.
 #define TINYGLTF_PARAMETER_TYPE_BYTE (5120)
 #define TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE (5121)
 #define TINYGLTF_PARAMETER_TYPE_SHORT (5122)
@@ -105,7 +105,7 @@ namespace tinygltf {
 
 #define TINYGLTF_PARAMETER_TYPE_SAMPLER_2D (35678)
 
-// End parameter types
+	// End parameter types
 
 #define TINYGLTF_TYPE_VEC2 (2)
 #define TINYGLTF_TYPE_VEC3 (3)
@@ -137,121 +137,126 @@ namespace tinygltf {
 #define TINYGLTF_SHADER_TYPE_VERTEX_SHADER (35633)
 #define TINYGLTF_SHADER_TYPE_FRAGMENT_SHADER (35632)
 
-typedef enum {
-  NULL_TYPE = 0,
-  NUMBER_TYPE = 1,
-  INT_TYPE = 2,
-  BOOL_TYPE = 3,
-  STRING_TYPE = 4,
-  ARRAY_TYPE = 5,
-  BINARY_TYPE = 6,
-  OBJECT_TYPE = 7
-} Type;
+	typedef enum {
+		NULL_TYPE = 0,
+		NUMBER_TYPE = 1,
+		INT_TYPE = 2,
+		BOOL_TYPE = 3,
+		STRING_TYPE = 4,
+		ARRAY_TYPE = 5,
+		BINARY_TYPE = 6,
+		OBJECT_TYPE = 7
+	} Type;
 
-// Simple class to represent JSON object
-class Value {
- public:
-  typedef std::vector<Value> Array;
-  typedef std::map<std::string, Value> Object;
+	// Simple class to represent JSON object
+	class Value {
+	public:
+		typedef std::vector<Value> Array;
+		typedef std::map<std::string, Value> Object;
 
-  Value() : type_(NULL_TYPE) {}
+		Value() : type_(NULL_TYPE) {
+		}
 
-  explicit Value(bool b) : type_(BOOL_TYPE) { boolean_value_ = b; }
-  explicit Value(int i) : type_(INT_TYPE) { int_value_ = i; }
-  explicit Value(double n) : type_(NUMBER_TYPE) { number_value_ = n; }
-  explicit Value(const std::string &s) : type_(STRING_TYPE) {
-    string_value_ = s;
-  }
-  explicit Value(const unsigned char *p, size_t n) : type_(BINARY_TYPE) {
-    binary_value_.resize(n);
-    memcpy(binary_value_.data(), p, n);
-  }
-  explicit Value(const Array &a) : type_(ARRAY_TYPE) {
-    array_value_ = Array(a);
-  }
-  explicit Value(const Object &o) : type_(OBJECT_TYPE) {
-    object_value_ = Object(o);
-  }
+		explicit Value(bool b) : type_(BOOL_TYPE) { boolean_value_ = b; }
+		explicit Value(int i) : type_(INT_TYPE) { int_value_ = i; }
+		explicit Value(double n) : type_(NUMBER_TYPE) { number_value_ = n; }
 
-  char Type() const { return static_cast<const char>(type_); }
+		explicit Value(const std::string& s) : type_(STRING_TYPE) {
+			string_value_ = s;
+		}
 
-  bool IsBool() const { return (type_ == BOOL_TYPE); }
+		explicit Value(const unsigned char* p, size_t n) : type_(BINARY_TYPE) {
+			binary_value_.resize(n);
+			memcpy(binary_value_.data(), p, n);
+		}
 
-  bool IsInt() const { return (type_ == INT_TYPE); }
+		explicit Value(const Array& a) : type_(ARRAY_TYPE) {
+			array_value_ = Array(a);
+		}
 
-  bool IsNumber() const { return (type_ == NUMBER_TYPE); }
+		explicit Value(const Object& o) : type_(OBJECT_TYPE) {
+			object_value_ = Object(o);
+		}
 
-  bool IsString() const { return (type_ == STRING_TYPE); }
+		char Type() const { return static_cast<const char>(type_); }
 
-  bool IsBinary() const { return (type_ == BINARY_TYPE); }
+		bool IsBool() const { return (type_ == BOOL_TYPE); }
 
-  bool IsArray() const { return (type_ == ARRAY_TYPE); }
+		bool IsInt() const { return (type_ == INT_TYPE); }
 
-  bool IsObject() const { return (type_ == OBJECT_TYPE); }
+		bool IsNumber() const { return (type_ == NUMBER_TYPE); }
 
-  // Accessor
-  template <typename T>
-  const T &Get() const;
-  template <typename T>
-  T &Get();
+		bool IsString() const { return (type_ == STRING_TYPE); }
 
-  // Lookup value from an array
-  const Value &Get(int idx) const {
-    static Value &null_value = *(new Value());
-    assert(IsArray());
-    assert(idx >= 0);
-    return (static_cast<size_t>(idx) < array_value_.size())
-               ? array_value_[static_cast<size_t>(idx)]
-               : null_value;
-  }
+		bool IsBinary() const { return (type_ == BINARY_TYPE); }
 
-  // Lookup value from a key-value pair
-  const Value &Get(const std::string &key) const {
-    static Value &null_value = *(new Value());
-    assert(IsObject());
-    Object::const_iterator it = object_value_.find(key);
-    return (it != object_value_.end()) ? it->second : null_value;
-  }
+		bool IsArray() const { return (type_ == ARRAY_TYPE); }
 
-  size_t ArrayLen() const {
-    if (!IsArray()) return 0;
-    return array_value_.size();
-  }
+		bool IsObject() const { return (type_ == OBJECT_TYPE); }
 
-  // Valid only for object type.
-  bool Has(const std::string &key) const {
-    if (!IsObject()) return false;
-    Object::const_iterator it = object_value_.find(key);
-    return (it != object_value_.end()) ? true : false;
-  }
+		// Accessor
+		template <typename T>
+		const T& Get() const;
+		template <typename T>
+		T& Get();
 
-  // List keys
-  std::vector<std::string> Keys() const {
-    std::vector<std::string> keys;
-    if (!IsObject()) return keys;  // empty
+		// Lookup value from an array
+		const Value& Get(int idx) const {
+			static Value& null_value = *(new Value());
+			assert(IsArray());
+			assert(idx >= 0);
+			return (static_cast<size_t>(idx) < array_value_.size())
+				       ? array_value_[static_cast<size_t>(idx)]
+				       : null_value;
+		}
 
-    for (Object::const_iterator it = object_value_.begin();
-         it != object_value_.end(); ++it) {
-      keys.push_back(it->first);
-    }
+		// Lookup value from a key-value pair
+		const Value& Get(const std::string& key) const {
+			static Value& null_value = *(new Value());
+			assert(IsObject());
+			Object::const_iterator it = object_value_.find(key);
+			return (it != object_value_.end()) ? it->second : null_value;
+		}
 
-    return keys;
-  }
+		size_t ArrayLen() const {
+			if (!IsArray()) return 0;
+			return array_value_.size();
+		}
 
- protected:
-  int type_;
+		// Valid only for object type.
+		bool Has(const std::string& key) const {
+			if (!IsObject()) return false;
+			Object::const_iterator it = object_value_.find(key);
+			return (it != object_value_.end()) ? true : false;
+		}
 
-  int int_value_;
-  double number_value_;
-  std::string string_value_;
-  std::vector<unsigned char> binary_value_;
-  Array array_value_;
-  Object object_value_;
-  bool boolean_value_;
-  char pad[3];
+		// List keys
+		std::vector<std::string> Keys() const {
+			std::vector<std::string> keys;
+			if (!IsObject()) return keys; // empty
 
-  int pad0;
-};
+			for (Object::const_iterator it = object_value_.begin();
+			     it != object_value_.end(); ++it) {
+				keys.push_back(it->first);
+			}
+
+			return keys;
+		}
+
+	protected:
+		int type_;
+
+		int int_value_;
+		double number_value_;
+		std::string string_value_;
+		std::vector<unsigned char> binary_value_;
+		Array array_value_;
+		Object object_value_;
+		bool boolean_value_;
+		char pad[3];
+
+		int pad0;
+	};
 
 #define TINYGLTF_VALUE_GET(ctype, var)            \
   template <>                                     \
@@ -262,309 +267,320 @@ class Value {
   inline ctype &Value::Get<ctype>() {             \
     return var;                                   \
   }
-TINYGLTF_VALUE_GET(bool, boolean_value_)
-TINYGLTF_VALUE_GET(double, number_value_)
-TINYGLTF_VALUE_GET(int, int_value_)
-TINYGLTF_VALUE_GET(std::string, string_value_)
-TINYGLTF_VALUE_GET(std::vector<unsigned char>, binary_value_)
-TINYGLTF_VALUE_GET(Value::Array, array_value_)
-TINYGLTF_VALUE_GET(Value::Object, object_value_)
+	TINYGLTF_VALUE_GET(bool, boolean_value_)
+	TINYGLTF_VALUE_GET(double, number_value_)
+	TINYGLTF_VALUE_GET(int, int_value_)
+	TINYGLTF_VALUE_GET(std::string, string_value_)
+	TINYGLTF_VALUE_GET(std::vector<unsigned char>, binary_value_)
+	TINYGLTF_VALUE_GET(Value::Array, array_value_)
+	TINYGLTF_VALUE_GET(Value::Object, object_value_)
 #undef TINYGLTF_VALUE_GET
 
-typedef struct {
-  std::string string_value;
-  std::vector<double> number_array;
-} Parameter;
+	typedef struct {
+		std::string string_value;
+		std::vector<double> number_array;
+	} Parameter;
 
-typedef std::map<std::string, Parameter> ParameterMap;
+	typedef std::map<std::string, Parameter> ParameterMap;
 
-typedef struct {
-  std::string sampler;
-  std::string target_id;
-  std::string target_path;
-  Value extras;
-} AnimationChannel;
+	typedef struct {
+		std::string sampler;
+		std::string target_id;
+		std::string target_path;
+		Value extras;
+	} AnimationChannel;
 
-typedef struct {
-  std::string input;
-  std::string interpolation;
-  std::string output;
-  Value extras;
-} AnimationSampler;
+	typedef struct {
+		std::string input;
+		std::string interpolation;
+		std::string output;
+		Value extras;
+	} AnimationSampler;
 
-typedef struct {
-  std::string name;
-  std::vector<AnimationChannel> channels;
-  std::map<std::string, AnimationSampler> samplers;
-  ParameterMap parameters;
-  Value extras;
-} Animation;
+	typedef struct {
+		std::string name;
+		std::vector<AnimationChannel> channels;
+		std::map<std::string, AnimationSampler> samplers;
+		ParameterMap parameters;
+		Value extras;
+	} Animation;
 
-typedef struct {
-  std::string name;
-  int minFilter;
-  int magFilter;
-  int wrapS;
-  int wrapT;
-  int wrapR;  // TinyGLTF extension
-  int pad0;
-  Value extras;
-} Sampler;
+	typedef struct {
+		std::string name;
+		int minFilter;
+		int magFilter;
+		int wrapS;
+		int wrapT;
+		int wrapR; // TinyGLTF extension
+		int pad0;
+		Value extras;
+	} Sampler;
 
-typedef struct {
-  std::string name;
-  int width;
-  int height;
-  int component;
-  int pad0;
-  std::vector<unsigned char> image;
+	typedef struct {
+		std::string name;
+		int width;
+		int height;
+		int component;
+		int pad0;
+		std::vector<unsigned char> image;
 
-  std::string bufferView;  // KHR_binary_glTF extenstion.
-  std::string mimeType;    // KHR_binary_glTF extenstion.
+		std::string bufferView; // KHR_binary_glTF extenstion.
+		std::string mimeType; // KHR_binary_glTF extenstion.
 
-  Value extras;
-} Image;
+		Value extras;
+	} Image;
 
-typedef struct {
-  int format;
-  int internalFormat;
-  std::string sampler;  // Required
-  std::string source;   // Required
-  int target;
-  int type;
-  std::string name;
-  Value extras;
-} Texture;
+	typedef struct {
+		int format;
+		int internalFormat;
+		std::string sampler; // Required
+		std::string source; // Required
+		int target;
+		int type;
+		std::string name;
+		Value extras;
+	} Texture;
 
-typedef struct {
-  std::string name;
-  std::string technique;
-  ParameterMap values;
+	typedef struct {
+		std::string name;
+		std::string technique;
+		ParameterMap values;
 
-  Value extras;
-} Material;
+		Value extras;
+	} Material;
 
-typedef struct {
-  std::string name;
-  std::string buffer;  // Required
-  size_t byteOffset;   // Required
-  size_t byteLength;   // default: 0
-  int target;
-  int pad0;
-  Value extras;
-} BufferView;
+	typedef struct {
+		std::string name;
+		std::string buffer; // Required
+		size_t byteOffset; // Required
+		size_t byteLength; // default: 0
+		int target;
+		int pad0;
+		Value extras;
+	} BufferView;
 
-typedef struct {
-  std::string bufferView;
-  std::string name;
-  size_t byteOffset;
-  size_t byteStride;
-  int componentType;  // One of TINYGLTF_COMPONENT_TYPE_***
-  int pad0;
-  size_t count;
-  int type;  // One of TINYGLTF_TYPE_***
-  int pad1;
-  std::vector<double> minValues;  // Optional
-  std::vector<double> maxValues;  // Optional
-  Value extras;
-} Accessor;
+	typedef struct {
+		std::string bufferView;
+		std::string name;
+		size_t byteOffset;
+		size_t byteStride;
+		int componentType; // One of TINYGLTF_COMPONENT_TYPE_***
+		int pad0;
+		size_t count;
+		int type; // One of TINYGLTF_TYPE_***
+		int pad1;
+		std::vector<double> minValues; // Optional
+		std::vector<double> maxValues; // Optional
+		Value extras;
+	} Accessor;
 
-class Camera {
- public:
-  Camera() {}
-  ~Camera() {}
+	class Camera {
+	public:
+		Camera() {
+		}
 
-  std::string name;
-  bool isOrthographic;  // false = perspective.
+		~Camera() {
+		}
 
-  // Some common properties.
-  float aspectRatio;
-  float yFov;
-  float zFar;
-  float zNear;
-};
+		std::string name;
+		bool isOrthographic; // false = perspective.
 
-typedef struct {
-  std::map<std::string, std::string> attributes;  // A dictionary object of
-                                                  // strings, where each string
-                                                  // is the ID of the accessor
-                                                  // containing an attribute.
-  std::string material;  // The ID of the material to apply to this primitive
-                         // when rendering.
-  std::string indices;   // The ID of the accessor that contains the indices.
-  int mode;              // one of TINYGLTF_MODE_***
-  int pad0;
+		// Some common properties.
+		float aspectRatio;
+		float yFov;
+		float zFar;
+		float zNear;
+	};
 
-  Value extras;  // "extra" property
-} Primitive;
+	typedef struct {
+		std::map<std::string, std::string> attributes; // A dictionary object of
+		// strings, where each string
+		// is the ID of the accessor
+		// containing an attribute.
+		std::string material; // The ID of the material to apply to this primitive
+		// when rendering.
+		std::string indices; // The ID of the accessor that contains the indices.
+		int mode; // one of TINYGLTF_MODE_***
+		int pad0;
 
-typedef struct {
-  std::string name;
-  std::vector<Primitive> primitives;
-  Value extras;
-} Mesh;
+		Value extras; // "extra" property
+	} Primitive;
 
-class Node {
- public:
-  Node() {}
-  ~Node() {}
+	typedef struct {
+		std::string name;
+		std::vector<Primitive> primitives;
+		Value extras;
+	} Mesh;
 
-  std::string camera;  // camera object referenced by this node.
+	class Node {
+	public:
+		Node() {
+		}
 
-  std::string name;
-  std::vector<std::string> children;
-  std::vector<double> rotation;     // length must be 0 or 4
-  std::vector<double> scale;        // length must be 0 or 3
-  std::vector<double> translation;  // length must be 0 or 3
-  std::vector<double> matrix;       // length must be 0 or 16
-  std::vector<std::string> meshes;
+		~Node() {
+		}
 
-  Value extras;
-};
+		std::string camera; // camera object referenced by this node.
 
-typedef struct {
-  std::string name;
-  std::vector<unsigned char> data;
-  Value extras;
-} Buffer;
+		std::string name;
+		std::vector<std::string> children;
+		std::vector<double> rotation; // length must be 0 or 4
+		std::vector<double> scale; // length must be 0 or 3
+		std::vector<double> translation; // length must be 0 or 3
+		std::vector<double> matrix; // length must be 0 or 16
+		std::vector<std::string> meshes;
 
-typedef struct {
-  std::string name;
-  int type;
-  int pad0;
-  std::vector<unsigned char> source;
+		Value extras;
+	};
 
-  Value extras;
-} Shader;
+	typedef struct {
+		std::string name;
+		std::vector<unsigned char> data;
+		Value extras;
+	} Buffer;
 
-typedef struct {
-  std::string name;
-  std::string vertexShader;
-  std::string fragmentShader;
-  std::vector<std::string> attributes;
+	typedef struct {
+		std::string name;
+		int type;
+		int pad0;
+		std::vector<unsigned char> source;
 
-  Value extras;
-} Program;
+		Value extras;
+	} Shader;
 
-typedef struct {
-  int count;
-  int pad0;
-  std::string node;
-  std::string semantic;
-  int type;
-  int pad1;
-  Parameter value;
-} TechniqueParameter;
+	typedef struct {
+		std::string name;
+		std::string vertexShader;
+		std::string fragmentShader;
+		std::vector<std::string> attributes;
 
-typedef struct {
-  std::string name;
-  std::string program;
-  std::map<std::string, TechniqueParameter> parameters;
-  std::map<std::string, std::string> attributes;
-  std::map<std::string, std::string> uniforms;
+		Value extras;
+	} Program;
 
-  Value extras;
-} Technique;
+	typedef struct {
+		int count;
+		int pad0;
+		std::string node;
+		std::string semantic;
+		int type;
+		int pad1;
+		Parameter value;
+	} TechniqueParameter;
 
-typedef struct {
-  std::string generator;
-  std::string version;
-  std::string profile_api;
-  std::string profile_version;
-  bool premultipliedAlpha;
-  char pad[7];
-  Value extras;
-} Asset;
+	typedef struct {
+		std::string name;
+		std::string program;
+		std::map<std::string, TechniqueParameter> parameters;
+		std::map<std::string, std::string> attributes;
+		std::map<std::string, std::string> uniforms;
 
-class Scene {
- public:
-  Scene() {}
-  ~Scene() {}
+		Value extras;
+	} Technique;
 
-  std::map<std::string, Accessor> accessors;
-  std::map<std::string, Animation> animations;
-  std::map<std::string, Buffer> buffers;
-  std::map<std::string, BufferView> bufferViews;
-  std::map<std::string, Material> materials;
-  std::map<std::string, Mesh> meshes;
-  std::map<std::string, Node> nodes;
-  std::map<std::string, Texture> textures;
-  std::map<std::string, Image> images;
-  std::map<std::string, Shader> shaders;
-  std::map<std::string, Program> programs;
-  std::map<std::string, Technique> techniques;
-  std::map<std::string, Sampler> samplers;
-  std::map<std::string, std::vector<std::string> > scenes;  // list of nodes
+	typedef struct {
+		std::string generator;
+		std::string version;
+		std::string profile_api;
+		std::string profile_version;
+		bool premultipliedAlpha;
+		char pad[7];
+		Value extras;
+	} Asset;
 
-  std::string defaultScene;
+	class Scene {
+	public:
+		Scene() {
+		}
 
-  Asset asset;
+		~Scene() {
+		}
 
-  Value extras;
-};
+		std::map<std::string, Accessor> accessors;
+		std::map<std::string, Animation> animations;
+		std::map<std::string, Buffer> buffers;
+		std::map<std::string, BufferView> bufferViews;
+		std::map<std::string, Material> materials;
+		std::map<std::string, Mesh> meshes;
+		std::map<std::string, Node> nodes;
+		std::map<std::string, Texture> textures;
+		std::map<std::string, Image> images;
+		std::map<std::string, Shader> shaders;
+		std::map<std::string, Program> programs;
+		std::map<std::string, Technique> techniques;
+		std::map<std::string, Sampler> samplers;
+		std::map<std::string, std::vector<std::string>> scenes; // list of nodes
 
-enum SectionCheck {
-  NO_REQUIRE = 0x00,
-  REQUIRE_SCENE = 0x01,
-  REQUIRE_SCENES = 0x02,
-  REQUIRE_NODES = 0x04,
-  REQUIRE_ACCESSORS = 0x08,
-  REQUIRE_BUFFERS = 0x10,
-  REQUIRE_BUFFER_VIEWS = 0x20,
-  REQUIRE_ALL = 0x3f
-};
+		std::string defaultScene;
 
-class TinyGLTFLoader {
- public:
-  TinyGLTFLoader() : bin_data_(NULL), bin_size_(0), is_binary_(false) {
-    pad[0] = pad[1] = pad[2] = pad[3] = pad[4] = pad[5] = pad[6] = 0;
-  }
-  ~TinyGLTFLoader() {}
+		Asset asset;
 
-  /// Loads glTF ASCII asset from a file.
-  /// Returns false and set error string to `err` if there's an error.
-  bool LoadASCIIFromFile(Scene *scene, std::string *err,
-                         const std::string &filename,
-                         unsigned int check_sections = REQUIRE_ALL);
+		Value extras;
+	};
 
-  /// Loads glTF ASCII asset from string(memory).
-  /// `length` = strlen(str);
-  /// Returns false and set error string to `err` if there's an error.
-  bool LoadASCIIFromString(Scene *scene, std::string *err, const char *str,
-                           const unsigned int length,
-                           const std::string &base_dir,
-                           unsigned int check_sections = REQUIRE_ALL);
+	enum SectionCheck {
+		NO_REQUIRE = 0x00,
+		REQUIRE_SCENE = 0x01,
+		REQUIRE_SCENES = 0x02,
+		REQUIRE_NODES = 0x04,
+		REQUIRE_ACCESSORS = 0x08,
+		REQUIRE_BUFFERS = 0x10,
+		REQUIRE_BUFFER_VIEWS = 0x20,
+		REQUIRE_ALL = 0x3f
+	};
 
-  /// Loads glTF binary asset from a file.
-  /// Returns false and set error string to `err` if there's an error.
-  bool LoadBinaryFromFile(Scene *scene, std::string *err,
-                          const std::string &filename,
-                          unsigned int check_sections = REQUIRE_ALL);
+	class TinyGLTFLoader {
+	public:
+		TinyGLTFLoader() : bin_data_(NULL), bin_size_(0), is_binary_(false) {
+			pad[0] = pad[1] = pad[2] = pad[3] = pad[4] = pad[5] = pad[6] = 0;
+		}
 
-  /// Loads glTF binary asset from memory.
-  /// `length` = strlen(str);
-  /// Returns false and set error string to `err` if there's an error.
-  bool LoadBinaryFromMemory(Scene *scene, std::string *err,
-                            const unsigned char *bytes,
-                            const unsigned int length,
-                            const std::string &base_dir = "",
-                            unsigned int check_sections = REQUIRE_ALL);
+		~TinyGLTFLoader() {
+		}
 
- private:
-  /// Loads glTF asset from string(memory).
-  /// `length` = strlen(str);
-  /// Returns false and set error string to `err` if there's an error.
-  bool LoadFromString(Scene *scene, std::string *err, const char *str,
-                      const unsigned int length, const std::string &base_dir,
-                      unsigned int check_sections);
+		/// Loads glTF ASCII asset from a file.
+		/// Returns false and set error string to `err` if there's an error.
+		bool LoadASCIIFromFile(Scene* scene, std::string* err,
+		                       const std::string& filename,
+		                       unsigned int check_sections = REQUIRE_ALL);
 
-  const unsigned char *bin_data_;
-  size_t bin_size_;
-  bool is_binary_;
-  char pad[7];
-};
+		/// Loads glTF ASCII asset from string(memory).
+		/// `length` = strlen(str);
+		/// Returns false and set error string to `err` if there's an error.
+		bool LoadASCIIFromString(Scene* scene, std::string* err, const char* str,
+		                         const unsigned int length,
+		                         const std::string& base_dir,
+		                         unsigned int check_sections = REQUIRE_ALL);
 
-}  // namespace tinygltf
+		/// Loads glTF binary asset from a file.
+		/// Returns false and set error string to `err` if there's an error.
+		bool LoadBinaryFromFile(Scene* scene, std::string* err,
+		                        const std::string& filename,
+		                        unsigned int check_sections = REQUIRE_ALL);
+
+		/// Loads glTF binary asset from memory.
+		/// `length` = strlen(str);
+		/// Returns false and set error string to `err` if there's an error.
+		bool LoadBinaryFromMemory(Scene* scene, std::string* err,
+		                          const unsigned char* bytes,
+		                          const unsigned int length,
+		                          const std::string& base_dir = "",
+		                          unsigned int check_sections = REQUIRE_ALL);
+
+	private:
+		/// Loads glTF asset from string(memory).
+		/// `length` = strlen(str);
+		/// Returns false and set error string to `err` if there's an error.
+		bool LoadFromString(Scene* scene, std::string* err, const char* str,
+		                    const unsigned int length, const std::string& base_dir,
+		                    unsigned int check_sections);
+
+		const unsigned char* bin_data_;
+		size_t bin_size_;
+		bool is_binary_;
+		char pad[7];
+	};
+
+} // namespace tinygltf
 
 #ifdef TINYGLTF_LOADER_IMPLEMENTATION
 #include <algorithm>
@@ -659,7 +675,7 @@ static std::string ExpandFilePath(const std::string &filepath) {
 #else
 
 #if defined(TARGET_OS_IPHONE) || defined(TARGET_IPHONE_SIMULATOR)
-  // no expansion
+// no expansion
   std::string s = filepath;
 #else
   std::string s;
@@ -669,15 +685,15 @@ static std::string ExpandFilePath(const std::string &filepath) {
     return "";
   }
 
-  // char** w;
+// char** w;
   int ret = wordexp(filepath.c_str(), &p, 0);
   if (ret) {
-    // err
+// err
     s = filepath;
     return s;
   }
 
-  // Use first element only.
+// Use first element only.
   if (p.we_wordv) {
     s = std::string(p.we_wordv[0]);
     wordfree(&p);
@@ -696,7 +712,7 @@ static std::string JoinPath(const std::string &path0,
   if (path0.empty()) {
     return path1;
   } else {
-    // check '/'
+// check '/'
     char lastChar = *path0.rbegin();
     if (lastChar != '/') {
       return path0 + std::string("/") + path1;
@@ -1017,7 +1033,7 @@ static void ParseObjectProperty(Value *ret, const picojson::object &o) {
       tinygltf::Value child_value;
       ParseObjectProperty(&child_value, v.get<picojson::object>());
     }
-    // TODO(syoyo) binary, array
+// TODO(syoyo) binary, array
   }
 
   (*ret) = tinygltf::Value(vo);
@@ -1029,7 +1045,7 @@ static bool ParseExtrasProperty(Value *ret, const picojson::object &o) {
     return false;
   }
 
-  // FIXME(syoyo) Currently we only support `object` type for extras property.
+// FIXME(syoyo) Currently we only support `object` type for extras property.
   if (!it->second.is<picojson::object>()) {
     return false;
   }
@@ -1226,7 +1242,7 @@ static bool ParseStringMapProperty(std::map<std::string, std::string> *ret,
     return false;
   }
 
-  // Make sure we are dealing with an object / dictionary.
+// Make sure we are dealing with an object / dictionary.
   if (!it->second.is<picojson::object>()) {
     if (required) {
       if (err) {
@@ -1243,7 +1259,7 @@ static bool ParseStringMapProperty(std::map<std::string, std::string> *ret,
   picojson::object::const_iterator dictItEnd(dict.end());
 
   for (; dictIt != dictItEnd; ++dictIt) {
-    // Check that the value is a string.
+// Check that the value is a string.
     if (!dictIt->second.is<std::string>()) {
       if (required) {
         if (err) {
@@ -1253,7 +1269,7 @@ static bool ParseStringMapProperty(std::map<std::string, std::string> *ret,
       return false;
     }
 
-    // Insert into the list.
+// Insert into the list.
     (*ret)[dictIt->first] = dictIt->second.get<std::string>();
   }
   return true;
@@ -1359,17 +1375,17 @@ static bool ParseImage(Image *image, std::string *err,
   std::vector<unsigned char> img;
 
   if (is_binary) {
-    // Still binary glTF accepts external dataURI. First try external resources.
+// Still binary glTF accepts external dataURI. First try external resources.
     bool loaded = false;
     if (IsDataURI(uri)) {
       loaded = DecodeDataURI(&img, uri, 0, false);
     } else {
-      // Assume external .bin file.
+// Assume external .bin file.
       loaded = LoadExternalFile(&img, err, uri, basedir, 0, false);
     }
 
     if (!loaded) {
-      // load data from (embedded) binary data
+// load data from (embedded) binary data
 
       if ((bin_size == 0) || (bin_data == NULL)) {
         if (err) {
@@ -1378,8 +1394,8 @@ static bool ParseImage(Image *image, std::string *err,
         return false;
       }
 
-      // There should be "extensions" property.
-      // "extensions":{"KHR_binary_glTF":{"bufferView": "id", ...
+// There should be "extensions" property.
+// "extensions":{"KHR_binary_glTF":{"bufferView": "id", ...
 
       std::string buffer_view;
       std::string mime_type;
@@ -1392,7 +1408,7 @@ static bool ParseImage(Image *image, std::string *err,
       }
 
       if (uri.compare("data:,") == 0) {
-        // ok
+// ok
       } else {
         if (err) {
           (*err) += "Invalid URI for binary data.\n";
@@ -1400,8 +1416,8 @@ static bool ParseImage(Image *image, std::string *err,
         return false;
       }
 
-      // Just only save some information here. Loading actual image data from
-      // bufferView is done in other place.
+// Just only save some information here. Loading actual image data from
+// bufferView is done in other place.
       image->bufferView = buffer_view;
       image->mimeType = mime_type;
       image->width = image_width;
@@ -1418,7 +1434,7 @@ static bool ParseImage(Image *image, std::string *err,
         return false;
       }
     } else {
-      // Assume external file
+// Assume external file
       if (!LoadExternalFile(&img, err, uri, basedir, 0, false)) {
         if (err) {
           (*err) += "Failed to load external 'uri'. for image parameter\n";
@@ -1493,24 +1509,24 @@ static bool ParseBuffer(Buffer *buffer, std::string *err,
     if (type->second.is<std::string>()) {
       const std::string &ty = (type->second).get<std::string>();
       if (ty.compare("arraybuffer") == 0) {
-        // buffer.type = "arraybuffer";
+// buffer.type = "arraybuffer";
       }
     }
   }
 
   size_t bytes = static_cast<size_t>(byteLength);
   if (is_binary) {
-    // Still binary glTF accepts external dataURI. First try external resources.
+// Still binary glTF accepts external dataURI. First try external resources.
     bool loaded = false;
     if (IsDataURI(uri)) {
       loaded = DecodeDataURI(&buffer->data, uri, bytes, true);
     } else {
-      // Assume external .bin file.
+// Assume external .bin file.
       loaded = LoadExternalFile(&buffer->data, err, uri, basedir, bytes, true);
     }
 
     if (!loaded) {
-      // load data from (embedded) binary data
+// load data from (embedded) binary data
 
       if ((bin_size == 0) || (bin_data == NULL)) {
         if (err) {
@@ -1531,7 +1547,7 @@ static bool ParseBuffer(Buffer *buffer, std::string *err,
       }
 
       if (uri.compare("data:,") == 0) {
-        // @todo { check uri }
+// @todo { check uri }
         buffer->data.resize(static_cast<size_t>(byteLength));
         memcpy(&(buffer->data.at(0)), bin_data,
                static_cast<size_t>(byteLength));
@@ -1553,7 +1569,7 @@ static bool ParseBuffer(Buffer *buffer, std::string *err,
         return false;
       }
     } else {
-      // Assume external .bin file.
+// Assume external .bin file.
       if (!LoadExternalFile(&buffer->data, err, uri, basedir, bytes, true)) {
         return false;
       }
@@ -1585,7 +1601,7 @@ static bool ParseBufferView(BufferView *bufferView, std::string *err,
   int targetValue = static_cast<int>(target);
   if ((targetValue == TINYGLTF_TARGET_ARRAY_BUFFER) ||
       (targetValue == TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER)) {
-    // OK
+// OK
   } else {
     targetValue = 0;
   }
@@ -1669,7 +1685,7 @@ static bool ParseAccessor(Accessor *accessor, std::string *err,
     int comp = static_cast<int>(componentType);
     if (comp >= TINYGLTF_COMPONENT_TYPE_BYTE &&
         comp <= TINYGLTF_COMPONENT_TYPE_DOUBLE) {
-      // OK
+// OK
       accessor->componentType = comp;
     } else {
       std::stringstream ss;
@@ -1721,7 +1737,7 @@ static bool ParseMesh(Mesh *mesh, std::string *err, const picojson::object &o) {
       Primitive primitive;
       if (ParsePrimitive(&primitive, err,
                          primArray[i].get<picojson::object>())) {
-        // Only add the primitive if the parsing succeeds.
+// Only add the primitive if the parsing succeeds.
         mesh->primitives.push_back(primitive);
       }
     }
@@ -1769,17 +1785,17 @@ static bool ParseParameterProperty(Parameter *param, std::string *err,
                                    const std::string &prop, bool required) {
   double num_val;
 
-  // A parameter value can either be a string or an array of either a boolean or
-  // a number. Booleans of any kind aren't supported here. Granted, it
-  // complicates the Parameter structure and breaks it semantically in the sense
-  // that the client probably works off the assumption that if the string is
-  // empty the vector is used, etc. Would a tagged union work?
+// A parameter value can either be a string or an array of either a boolean or
+// a number. Booleans of any kind aren't supported here. Granted, it
+// complicates the Parameter structure and breaks it semantically in the sense
+// that the client probably works off the assumption that if the string is
+// empty the vector is used, etc. Would a tagged union work?
   if (ParseStringProperty(&param->string_value, err, o, prop, false)) {
-    // Found string property.
+// Found string property.
     return true;
   } else if (ParseNumberArrayProperty(&param->number_array, err, o, prop,
                                       false)) {
-    // Found a number array.
+// Found a number array.
     return true;
   } else if (ParseNumberProperty(&num_val, err, o, prop, false)) {
     param->number_array.push_back(num_val);
@@ -1834,17 +1850,17 @@ static bool ParseShader(Shader *shader, std::string *err,
   }
 
   if (is_binary) {
-    // Still binary glTF accepts external dataURI. First try external resources.
+// Still binary glTF accepts external dataURI. First try external resources.
     bool loaded = false;
     if (IsDataURI(uri)) {
       loaded = DecodeDataURI(&shader->source, uri, 0, false);
     } else {
-      // Assume external .bin file.
+// Assume external .bin file.
       loaded = LoadExternalFile(&shader->source, err, uri, basedir, 0, false);
     }
 
     if (!loaded) {
-      // load data from (embedded) binary data
+// load data from (embedded) binary data
 
       if ((bin_size == 0) || (bin_data == NULL)) {
         if (err) {
@@ -1853,8 +1869,8 @@ static bool ParseShader(Shader *shader, std::string *err,
         return false;
       }
 
-      // There should be "extensions" property.
-      // "extensions":{"KHR_binary_glTF":{"bufferView": "id", ...
+// There should be "extensions" property.
+// "extensions":{"KHR_binary_glTF":{"bufferView": "id", ...
 
       std::string buffer_view;
       std::string mime_type;
@@ -1867,7 +1883,7 @@ static bool ParseShader(Shader *shader, std::string *err,
       }
 
       if (uri.compare("data:,") == 0) {
-        // ok
+// ok
       } else {
         if (err) {
           (*err) += "Invalid URI for binary data.\n";
@@ -1876,8 +1892,8 @@ static bool ParseShader(Shader *shader, std::string *err,
       }
     }
   } else {
-    // Load shader source from data uri
-    // TODO(syoyo): Support ascii or utf-8 data uris.
+// Load shader source from data uri
+// TODO(syoyo): Support ascii or utf-8 data uris.
     if (IsDataURI(uri)) {
       if (!DecodeDataURI(&shader->source, uri, 0, false)) {
         if (err) {
@@ -1886,7 +1902,7 @@ static bool ParseShader(Shader *shader, std::string *err,
         return false;
       }
     } else {
-      // Assume external file
+// Assume external file
       if (!LoadExternalFile(&shader->source, err, uri, basedir, 0, false)) {
         if (err) {
           (*err) += "Failed to load external 'uri' for shader parameter.\n";
@@ -1927,8 +1943,8 @@ static bool ParseProgram(Program *program, std::string *err,
     return false;
   }
 
-  // I suppose the list of attributes isn't needed, but a technique doesn't
-  // really make sense without it.
+// I suppose the list of attributes isn't needed, but a technique doesn't
+// really make sense without it.
   ParseStringArrayProperty(&program->attributes, err, o, "attributes", false);
 
   ParseExtrasProperty(&(program->extras), o);
@@ -1971,9 +1987,9 @@ static bool ParseTechnique(Technique *technique, std::string *err,
   technique->parameters.clear();
   picojson::object::const_iterator paramsIt = o.find("parameters");
 
-  // Verify parameters is an object
+// Verify parameters is an object
   if ((paramsIt != o.end()) && (paramsIt->second).is<picojson::object>()) {
-    // For each parameter in params_object.
+// For each parameter in params_object.
     const picojson::object &params_object =
         (paramsIt->second).get<picojson::object>();
 
@@ -1983,13 +1999,13 @@ static bool ParseTechnique(Technique *technique, std::string *err,
     for (; it != itEnd; it++) {
       TechniqueParameter param;
 
-      // Skip non-objects
+// Skip non-objects
       if (!it->second.is<picojson::object>()) continue;
 
-      // Parse the technique parameter
+// Parse the technique parameter
       const picojson::object &param_obj = it->second.get<picojson::object>();
       if (ParseTechniqueParameter(&param, err, param_obj)) {
-        // Add if successful
+// Add if successful
         technique->parameters[it->first] = param;
       }
     }
@@ -2047,7 +2063,7 @@ static bool ParseAnimation(Animation *animation, std::string *err,
         AnimationChannel channel;
         if (ParseAnimationChannel(&channel, err,
                                   channelArray[i].get<picojson::object>())) {
-          // Only add the channel if the parsing succeeds.
+// Only add the channel if the parsing succeeds.
           animation->channels.push_back(channel);
         }
       }
@@ -2064,7 +2080,7 @@ static bool ParseAnimation(Animation *animation, std::string *err,
       picojson::object::const_iterator itEnd = sampler_object.end();
 
       for (; it != itEnd; it++) {
-        // Skip non-objects
+// Skip non-objects
         if (!it->second.is<picojson::object>()) continue;
 
         const picojson::object &s = it->second.get<picojson::object>();
@@ -2158,7 +2174,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
   }
 
   if (v.contains("scene") && v.get("scene").is<std::string>()) {
-    // OK
+// OK
   } else if (check_sections & REQUIRE_SCENE) {
     if (err) {
       (*err) += "\"scene\" object not found in .gltf\n";
@@ -2167,7 +2183,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
   }
 
   if (v.contains("scenes") && v.get("scenes").is<picojson::object>()) {
-    // OK
+// OK
   } else if (check_sections & REQUIRE_SCENES) {
     if (err) {
       (*err) += "\"scenes\" object not found in .gltf\n";
@@ -2176,7 +2192,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
   }
 
   if (v.contains("nodes") && v.get("nodes").is<picojson::object>()) {
-    // OK
+// OK
   } else if (check_sections & REQUIRE_NODES) {
     if (err) {
       (*err) += "\"nodes\" object not found in .gltf\n";
@@ -2185,7 +2201,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
   }
 
   if (v.contains("accessors") && v.get("accessors").is<picojson::object>()) {
-    // OK
+// OK
   } else if (check_sections & REQUIRE_ACCESSORS) {
     if (err) {
       (*err) += "\"accessors\" object not found in .gltf\n";
@@ -2194,7 +2210,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
   }
 
   if (v.contains("buffers") && v.get("buffers").is<picojson::object>()) {
-    // OK
+// OK
   } else if (check_sections & REQUIRE_BUFFERS) {
     if (err) {
       (*err) += "\"buffers\" object not found in .gltf\n";
@@ -2204,7 +2220,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
 
   if (v.contains("bufferViews") &&
       v.get("bufferViews").is<picojson::object>()) {
-    // OK
+// OK
   } else if (check_sections & REQUIRE_BUFFER_VIEWS) {
     if (err) {
       (*err) += "\"bufferViews\" object not found in .gltf\n";
@@ -2219,14 +2235,14 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
   scene->nodes.clear();
   scene->defaultScene = "";
 
-  // 0. Parse Asset
+// 0. Parse Asset
   if (v.contains("asset") && v.get("asset").is<picojson::object>()) {
     const picojson::object &root = v.get("asset").get<picojson::object>();
 
     ParseAsset(&scene->asset, err, root);
   }
 
-  // 1. Parse Buffer
+// 1. Parse Buffer
   if (v.contains("buffers") && v.get("buffers").is<picojson::object>()) {
     const picojson::object &root = v.get("buffers").get<picojson::object>();
 
@@ -2243,7 +2259,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 2. Parse BufferView
+// 2. Parse BufferView
   if (v.contains("bufferViews") &&
       v.get("bufferViews").is<picojson::object>()) {
     const picojson::object &root = v.get("bufferViews").get<picojson::object>();
@@ -2261,7 +2277,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 3. Parse Accessor
+// 3. Parse Accessor
   if (v.contains("accessors") && v.get("accessors").is<picojson::object>()) {
     const picojson::object &root = v.get("accessors").get<picojson::object>();
 
@@ -2278,7 +2294,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 4. Parse Mesh
+// 4. Parse Mesh
   if (v.contains("meshes") && v.get("meshes").is<picojson::object>()) {
     const picojson::object &root = v.get("meshes").get<picojson::object>();
 
@@ -2294,7 +2310,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 5. Parse Node
+// 5. Parse Node
   if (v.contains("nodes") && v.get("nodes").is<picojson::object>()) {
     const picojson::object &root = v.get("nodes").get<picojson::object>();
 
@@ -2310,7 +2326,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 6. Parse scenes.
+// 6. Parse scenes.
   if (v.contains("scenes") && v.get("scenes").is<picojson::object>()) {
     const picojson::object &root = v.get("scenes").get<picojson::object>();
 
@@ -2333,14 +2349,14 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 7. Parse default scenes.
+// 7. Parse default scenes.
   if (v.contains("scene") && v.get("scene").is<std::string>()) {
     const std::string defaultScene = v.get("scene").get<std::string>();
 
     scene->defaultScene = defaultScene;
   }
 
-  // 8. Parse Material
+// 8. Parse Material
   if (v.contains("materials") && v.get("materials").is<picojson::object>()) {
     const picojson::object &root = v.get("materials").get<picojson::object>();
 
@@ -2357,7 +2373,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 9. Parse Image
+// 9. Parse Image
   if (v.contains("images") && v.get("images").is<picojson::object>()) {
     const picojson::object &root = v.get("images").get<picojson::object>();
 
@@ -2371,7 +2387,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
       }
 
       if (!image.bufferView.empty()) {
-        // Load image from the buffer view.
+// Load image from the buffer view.
         if (scene->bufferViews.find(image.bufferView) ==
             scene->bufferViews.end()) {
           if (err) {
@@ -2398,7 +2414,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 10. Parse Texture
+// 10. Parse Texture
   if (v.contains("textures") && v.get("textures").is<picojson::object>()) {
     const picojson::object &root = v.get("textures").get<picojson::object>();
 
@@ -2415,7 +2431,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 11. Parse Shader
+// 11. Parse Shader
   if (v.contains("shaders") && v.get("shaders").is<picojson::object>()) {
     const picojson::object &root = v.get("shaders").get<picojson::object>();
 
@@ -2432,7 +2448,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 12. Parse Program
+// 12. Parse Program
   if (v.contains("programs") && v.get("programs").is<picojson::object>()) {
     const picojson::object &root = v.get("programs").get<picojson::object>();
 
@@ -2448,7 +2464,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 13. Parse Technique
+// 13. Parse Technique
   if (v.contains("techniques") && v.get("techniques").is<picojson::object>()) {
     const picojson::object &root = v.get("techniques").get<picojson::object>();
 
@@ -2465,7 +2481,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 14. Parse Animation
+// 14. Parse Animation
   if (v.contains("animations") && v.get("animations").is<picojson::object>()) {
     const picojson::object &root = v.get("animations").get<picojson::object>();
 
@@ -2482,7 +2498,7 @@ bool TinyGLTFLoader::LoadFromString(Scene *scene, std::string *err,
     }
   }
 
-  // 15. Parse Sampler
+// 15. Parse Sampler
   if (v.contains("samplers") && v.get("samplers").is<picojson::object>()) {
     const picojson::object &root = v.get("samplers").get<picojson::object>();
 
@@ -2563,7 +2579,7 @@ bool TinyGLTFLoader::LoadBinaryFromMemory(Scene *scene, std::string *err,
 
   if (bytes[0] == 'g' && bytes[1] == 'l' && bytes[2] == 'T' &&
       bytes[3] == 'F') {
-    // ok
+// ok
   } else {
     if (err) {
       (*err) = "Invalid magic.";
@@ -2576,7 +2592,7 @@ bool TinyGLTFLoader::LoadBinaryFromMemory(Scene *scene, std::string *err,
   unsigned int scene_length;  // 4 bytes
   unsigned int scene_format;  // 4 bytes;
 
-  // @todo { Endian swap for big endian machine. }
+// @todo { Endian swap for big endian machine. }
   memcpy(&version, bytes + 4, 4);
   swap4(&version);
   memcpy(&length, bytes + 8, 4);
@@ -2594,7 +2610,7 @@ bool TinyGLTFLoader::LoadBinaryFromMemory(Scene *scene, std::string *err,
     return false;
   }
 
-  // Extract JSON string.
+// Extract JSON string.
   std::string jsonString(reinterpret_cast<const char *>(&bytes[20]),
                          scene_length);
 

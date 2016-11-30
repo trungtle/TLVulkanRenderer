@@ -22,6 +22,8 @@
     <ProjectGuid>{378F6348-0F4A-42A2-8E42-8619E2506ED8}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>TLVulkanRenderer</RootNamespace>
+    <ProjectName>VulkanRenderer</ProjectName>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -71,12 +73,16 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)build\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\$(Configuration)\intermediate\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)build\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\$(Configuration)\intermediate\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -98,15 +104,18 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\src;E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\thirdparty;E:\PROGRAMS\glfw\include;E:\PROGRAMS\VulkanSDK\1.0.26.0\Include;E:\PROGRAMS\glm</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)thirdparty;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\include;$(ProjectDir)thirdparty\VulkanSDK\1.0.33.0\Include;$(ProjectDir)thirdparty\glm</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>E:\PROGRAMS\VulkanSDK\1.0.26.0\Bin;E:\PROGRAMS\glfw-3.2.1.bin.WIN64\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)thirdparty\VulkanSDK\1.0.33.0\lib;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -134,17 +143,20 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\src;E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\thirdparty;E:\PROGRAMS\glfw\include;E:\PROGRAMS\VulkanSDK\1.0.26.0\Include;E:\PROGRAMS\glm</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)thirdparty;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\include;$(ProjectDir)thirdparty\VulkanSDK\1.0.33.0\Include;$(ProjectDir)thirdparty\glm</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>E:\PROGRAMS\VulkanSDK\1.0.26.0\Bin;E:\PROGRAMS\glfw-3.2.1.bin.WIN64\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)thirdparty\VulkanSDK\1.0.33.0\lib;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="src\Application.h" />
@@ -174,6 +186,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\fragShader.frag" />
+    <None Include="shaders\raytracing\raytrace.comp" />
+    <None Include="shaders\raytracing\raytrace.frag" />
+    <None Include="shaders\raytracing\raytrace.vert" />
     <None Include="shaders\vertShader.vert" />
   </ItemGroup>
   <ItemGroup>

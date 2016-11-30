@@ -6,9 +6,7 @@
 #include "renderer/vulkan/VulkanRaytracer.h"
 #include "Camera.h"
 
-static int frame;
 static int fpstracker;
-static double seconds;
 static int fps = 0;
 
 // For camera controls
@@ -31,21 +29,19 @@ int height = 600;
 Camera g_camera;
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-	if (action == GLFW_PRESS)
-	{
-		switch (key)
-		{
-			case GLFW_KEY_ESCAPE:
-				glfwSetWindowShouldClose(window, GL_TRUE);
-				break;
-			case GLFW_KEY_S:
-				//saveImage();
-				break;
-			case GLFW_KEY_SPACE:
-				//camchanged = true;
-				//Camera &cam = renderState->camera;
-				//cam.lookAt = ogLookAt;
-				break;
+	if (action == GLFW_PRESS) {
+		switch (key) {
+		case GLFW_KEY_ESCAPE:
+			glfwSetWindowShouldClose(window, GL_TRUE);
+			break;
+		case GLFW_KEY_S:
+			//saveImage();
+			break;
+		case GLFW_KEY_SPACE:
+			//camchanged = true;
+			//Camera &cam = renderState->camera;
+			//cam.lookAt = ogLookAt;
+			break;
 		}
 	}
 }
@@ -58,29 +54,20 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 
 void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
 	if (xpos == lastX || ypos == lastY) return; // otherwise, clicking back into window causes re-start
-	if (leftMousePressed)
-	{
+	if (leftMousePressed) {
 		// compute new camera parameters
 		phi = (xpos - lastX) * 10.f / width;
 		theta = (ypos - lastY) * 10.f / height;
 		camchanged = true;
 	}
-	else if (rightMousePressed)
-	{
+	else if (rightMousePressed) {
 		zoom += (ypos - lastY) * 10.0f / height;
 		camchanged = true;
 	}
-	else if (middleMousePressed)
-	{
-		Camera &cam = g_camera;
-		glm::vec3 forward = cam.forward;
-		//forward.y = 0.0f;
-		//forward = glm::normalize(forward);
-		glm::vec3 right = cam.right;
-		//right.y = 0.0f;
-		//right = glm::normalize(right);
+	else if (middleMousePressed) {
+		Camera& cam = g_camera;
 
-		cam.lookAt -= (float)(xpos - lastX) * right * 0.01f;
+		cam.lookAt -= (float)(xpos - lastX) * cam.right * 0.01f;
 		cam.lookAt += (float)(ypos - lastY) * cam.up * 0.01f;
 		camchanged = true;
 	}
@@ -90,28 +77,25 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
 
 
 Application::Application(
-	int argc, 
-	char **argv,
+	std::string sceneFile,
 	int width,
 	int height,
-    EGraphicsAPI useAPI,
+	EGraphicsAPI useAPI,
 	ERenderingMode renderingMode
-	) : 
-	m_width(width), 
-	m_height(height), 
-    m_useGraphicsAPI(useAPI),
+) :
+	m_width(width),
+	m_height(height),
+	m_useGraphicsAPI(useAPI),
 	m_renderingMode(renderingMode),
-    m_window(nullptr)
-{
+	m_window(nullptr) {
 	// Initialize glfw
 	glfwInit();
-	
+
 	// Create window
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	m_window = glfwCreateWindow(m_width, m_height, "Vulkan renderer", nullptr, nullptr);
 
-	if (!m_window)
-	{
+	if (!m_window) {
 		glfwTerminate();
 		return;
 	}
@@ -120,40 +104,35 @@ Application::Application(
 	glfwSetCursorPosCallback(m_window, mousePositionCallback);
 	glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
-	// Extra filename
-	std::string inputFilename(argv[1]);
-	m_scene = new Scene(inputFilename);
+	m_scene = new Scene(sceneFile);
 
 	g_camera = Camera(width, height);
 
-    switch(m_useGraphicsAPI) 
-    {
-        case EGraphicsAPI::Vulkan:
-            // Init Vulkan
+	switch (m_useGraphicsAPI) {
+	case EGraphicsAPI::Vulkan:
+		// Init Vulkan
 
-			if (m_renderingMode == ERenderingMode::RAYTRACING) {
-				m_renderer = new VulkanRaytracer(m_window, m_scene);
-			} else {
-				m_renderer = new VulkanRenderer(m_window, m_scene);
-			}
-            break;
-        default:
-            std::cout << "Graphics API not supported\n";
-            break;
-    }
+		if (m_renderingMode == ERenderingMode::RAYTRACING) {
+			m_renderer = new VulkanRaytracer(m_window, m_scene);
+		}
+		else {
+			m_renderer = new VulkanRenderer(m_window, m_scene);
+		}
+		break;
+	default:
+		std::cout << "Graphics API not supported\n";
+		break;
+	}
 
-	frame = 0;
-	seconds = time(NULL);
 	fpstracker = 0;
 
 }
 
 
-Application::~Application()
-{
+Application::~Application() {
 	delete m_scene;
-    delete m_renderer;
-    glfwDestroyWindow(m_window);
+	delete m_renderer;
+	glfwDestroyWindow(m_window);
 	glfwTerminate();
 }
 
@@ -164,23 +143,24 @@ void Application::Run() {
 
 		// Keep track of fps
 		static auto start = std::chrono::system_clock::now();
+		static auto previousFrame = start;
 		auto now = std::chrono::system_clock::now();
 		float timeElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-		if (timeElapsed >= 1000)
-		{
+		if (timeElapsed >= 1000) {
 			fps = fpstracker / (timeElapsed / 1000);
 			fpstracker = 0;
 			start = now;
 		}
 
 		// Update title bar
-		string title = "TL Vulkan Rasterizer | " + std::to_string(fps) + " FPS | " + std::to_string(timeElapsed) + " ms";
+		string title = "TL Vulkan Rasterizer | " + std::to_string(fps) + " FPS | " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(now - previousFrame).count()) + " ms / frame";
+		previousFrame = now;
+
 		glfwSetWindowTitle(m_window, title.c_str());
 
 		// Update camera
-		if (camchanged)
-		{
-			Camera &cam = g_camera;
+		if (camchanged) {
+			Camera& cam = g_camera;
 			cam.TranslateAlongRight(phi);
 			cam.TranslateAlongUp(theta);
 			cam.Zoom(zoom);
@@ -196,7 +176,6 @@ void Application::Run() {
 		m_renderer->Update();
 		m_renderer->Render();
 
-		frame++;
 		fpstracker++;
 	}
 }

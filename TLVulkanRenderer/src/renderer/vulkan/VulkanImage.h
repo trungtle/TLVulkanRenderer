@@ -1,12 +1,11 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include <vulkan.h>
 #include <vector>
 
 namespace VulkanImage {
 
-	struct Image
-	{
+	struct Image {
 		int width;
 		int height;
 		VkImage image;
@@ -52,5 +51,3 @@ namespace VulkanImage {
 		VkFormat format
 	);
 }
-
-
