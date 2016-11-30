@@ -16,7 +16,7 @@ This project also documents my learning progress with Vulkan and GPU programming
 
 This release has several large improvements:
 
-### 1. Large code refactoring for Vulkan interface 
+#### 1. Large code refactoring for Vulkan interface 
 Specifically:
 
 - Abstracted Vulkan devices, queues, and swapchain into its own class
@@ -25,11 +25,11 @@ Specifically:
 - Separated graphics VkPipeline and compute `VkPipeline` workflow with prefixes "`PrepareGraphics_`" and "`PrepareCompute_`", respectively. 
 - **Nice to have**: Previously, the `vulkan-1.lib` and `glfw3.lib` had to be linked externally. I have moved them inside the project for convenient new build. A new clone project should work out of the box now!
 
-### 2. Vulkan forward rasterizer
+#### 2. Vulkan forward rasterizer
 
 Complete Vulkan forward rasterizer as default renderer when the application starts.
 
-### 3. Optional Vulkan raytracing mode
+#### 3. Optional Vulkan raytracing mode
 
 _Can be toggle on and off with `ERenderingMode renderindMode::RAYTRACING` flag when passing the `renderingMode` argument to [`class Application`](https://github.com/trungtle/TLVulkanRenderer/blob/master/TLVulkanRenderer/src/Application.h)_
 
@@ -37,17 +37,17 @@ _Can be toggle on and off with `ERenderingMode renderindMode::RAYTRACING` flag w
 
 This is a migration from my GPU Programming final project in CIS565, Penn. This Vulkan raytracing isn't performant and still a work in progress, but this allows for comparison between rasterizer and raytracer performance.
 
-### 4. Misc
+#### 4. Misc
 
 - Better ms/frame measurement
 - VS project filters for solution navigation
 - Project wide code reformating for reading consistency
 
-### 5. New build
+#### 5. New build
 
 Away with the annoying absolute path configurations! This new release v1.1 now links all the dependencies into the same project so that a new clone can work out of the box. Do make sure you're using Visual Studion 2015 with target x64.
 
-### 6. Usage
+#### 6. Usage
 
 Added a command line argument to specify glTF input file:
 
