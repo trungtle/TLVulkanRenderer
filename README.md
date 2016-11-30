@@ -7,8 +7,8 @@ This project also documents my learning progress with Vulkan and GPU programming
 
 # Releases
 
-[1.1](https://github.com/trungtle/TLVulkanRenderer/releases/tag/v1.1, 11/30/2016
-[1.0](https://github.com/trungtle/TLVulkanRenderer/releases/tag/v1.0), 10/30/2016
+- **[v1.1](https://github.com/trungtle/TLVulkanRenderer/releases/tag/v1.1)**, _11/30/2016_
+- **[v1.0](https://github.com/trungtle/TLVulkanRenderer/releases/tag/v1.0)**, _10/30/2016_
 
 # Updates
 
