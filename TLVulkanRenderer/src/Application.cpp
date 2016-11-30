@@ -6,9 +6,7 @@
 #include "renderer/vulkan/VulkanRaytracer.h"
 #include "Camera.h"
 
-static int frame;
 static int fpstracker;
-static double seconds;
 static int fps = 0;
 
 // For camera controls
@@ -73,14 +71,8 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
 	else if (middleMousePressed)
 	{
 		Camera &cam = g_camera;
-		glm::vec3 forward = cam.forward;
-		//forward.y = 0.0f;
-		//forward = glm::normalize(forward);
-		glm::vec3 right = cam.right;
-		//right.y = 0.0f;
-		//right = glm::normalize(right);
 
-		cam.lookAt -= (float)(xpos - lastX) * right * 0.01f;
+		cam.lookAt -= (float)(xpos - lastX) * cam.right * 0.01f;
 		cam.lookAt += (float)(ypos - lastY) * cam.up * 0.01f;
 		camchanged = true;
 	}
@@ -142,8 +134,6 @@ Application::Application(
             break;
     }
 
-	frame = 0;
-	seconds = time(NULL);
 	fpstracker = 0;
 
 }
@@ -164,6 +154,7 @@ void Application::Run() {
 
 		// Keep track of fps
 		static auto start = std::chrono::system_clock::now();
+		static auto previousFrame = start;
 		auto now = std::chrono::system_clock::now();
 		float timeElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 		if (timeElapsed >= 1000)
@@ -174,7 +165,9 @@ void Application::Run() {
 		}
 
 		// Update title bar
-		string title = "TL Vulkan Rasterizer | " + std::to_string(fps) + " FPS | " + std::to_string(timeElapsed) + " ms";
+		string title = "TL Vulkan Rasterizer | " + std::to_string(fps) + " FPS | " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(now - previousFrame).count()) + " ms / frame";
+		previousFrame = now;
+
 		glfwSetWindowTitle(m_window, title.c_str());
 
 		// Update camera
@@ -196,7 +189,6 @@ void Application::Run() {
 		m_renderer->Update();
 		m_renderer->Render();
 
-		frame++;
 		fpstracker++;
 	}
 }

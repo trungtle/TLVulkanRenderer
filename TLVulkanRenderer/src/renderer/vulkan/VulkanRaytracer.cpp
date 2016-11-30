@@ -798,11 +798,6 @@ void
 VulkanRaytracer::PrepareComputeStorageBuffer() 
 {
 	// =========== INDICES
-	std::vector<ivec4> indices = {
-		ivec4(0, 1, 2, 0),
-		ivec4(0, 3, 2, 0),
-	};
-
 	VulkanBuffer::StorageBuffer stagingBuffer;
 	VkDeviceSize bufferSize = m_scene->indices.size() * sizeof(ivec4);
 
@@ -848,11 +843,6 @@ VulkanRaytracer::PrepareComputeStorageBuffer()
 	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
 
 	// =========== VERTICE POSITIONS
-	std::vector<glm::vec4> vertices = {
-		glm::vec4(1, 0, 0, 1), glm::vec4(0, -2, 0.01, 1), glm::vec4(-1, 0, 0, 1),
-		glm::vec4(0, 1, 0, 1)
-	};
-
 	bufferSize = m_scene->verticePositions.size() * sizeof(glm::vec4);
 
 	// Stage
