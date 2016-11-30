@@ -98,7 +98,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\thirdparty;E:\PROGRAMS\glfw\include;E:\PROGRAMS\VulkanSDK\1.0.26.0\Include;E:\PROGRAMS\glm</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\src;E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\thirdparty;E:\PROGRAMS\glfw\include;E:\PROGRAMS\VulkanSDK\1.0.26.0\Include;E:\PROGRAMS\glm</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -134,7 +134,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\thirdparty;E:\PROGRAMS\glfw\include;E:\PROGRAMS\VulkanSDK\1.0.26.0\Include;E:\PROGRAMS\glm</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\src;E:\CODES\Vulkan_proj\TLVulkanRenderer\TLVulkanRenderer\thirdparty;E:\PROGRAMS\glfw\include;E:\PROGRAMS\VulkanSDK\1.0.26.0\Include;E:\PROGRAMS\glm</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -147,39 +147,49 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="GeometryBase.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Renderer.cpp" />
-    <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="Application.cpp" />
-    <ClCompile Include="Utilities.cpp" />
-    <ClCompile Include="VulkanRenderer.cpp" />
-    <ClCompile Include="VulkanUtil.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Camera.h" />
-    <ClInclude Include="GeometryBase.h" />
-    <ClInclude Include="SceneUtil.h" />
+    <ClInclude Include="src\Application.h" />
+    <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\GeometryBase.h" />
+    <ClInclude Include="src\renderer\Renderer.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanBuffer.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanDevice.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanImage.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanRaytracer.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanRenderer.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanSwapchain.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanUtil.h" />
+    <ClInclude Include="src\Scene.h" />
+    <ClInclude Include="src\SceneUtil.h" />
+    <ClInclude Include="src\Typedef.h" />
+    <ClInclude Include="src\Utilities.h" />
     <ClInclude Include="thirdparty\tinygltfloader\picojson.h" />
     <ClInclude Include="thirdparty\tinygltfloader\stb_image.h" />
     <ClInclude Include="thirdparty\tinygltfloader\tiny_gltf_loader.h" />
-    <ClInclude Include="Utilities.h" />
-    <ClInclude Include="Renderer.h" />
-    <ClInclude Include="Scene.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\common.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\formatter.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\logger.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\spdlog.h" />
     <ClInclude Include="thirdparty\spdlog\include\spdlog\tweakme.h" />
-    <ClInclude Include="Application.h" />
-    <ClInclude Include="VulkanRenderer.h" />
-    <ClInclude Include="VulkanUtil.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\fragShader.frag" />
     <None Include="shaders\vertShader.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Application.cpp" />
+    <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\GeometryBase.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\renderer\Renderer.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanDevice.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanImage.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanRaytracer.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanRenderer.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanSwapchain.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanUtil.cpp" />
+    <ClCompile Include="src\Scene.cpp" />
+    <ClCompile Include="src\Utilities.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
