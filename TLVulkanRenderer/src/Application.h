@@ -7,8 +7,7 @@
 class Application {
 public:
 	Application(
-		int argc,
-		char** argv,
+		std::string sceneFile,
 		int width = 800,
 		int height = 600,
 		EGraphicsAPI useAPI = EGraphicsAPI::Vulkan, /* Default with Vulkan */

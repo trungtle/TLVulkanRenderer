@@ -77,8 +77,7 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
 
 
 Application::Application(
-	int argc,
-	char** argv,
+	std::string sceneFile,
 	int width,
 	int height,
 	EGraphicsAPI useAPI,
@@ -105,9 +104,7 @@ Application::Application(
 	glfwSetCursorPosCallback(m_window, mousePositionCallback);
 	glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
-	// Extra filename
-	std::string inputFilename(argv[1]);
-	m_scene = new Scene(inputFilename);
+	m_scene = new Scene(sceneFile);
 
 	g_camera = Camera(width, height);
 
