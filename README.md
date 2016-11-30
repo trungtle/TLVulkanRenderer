@@ -23,7 +23,7 @@ Specifically:
 
 - Abstracted Vulkan devices, queues, and swapchain into its own class
 - Added more Vulkan convenience methods to intialize and populate Vulkan structs with default values
-- Added resource creation methods for `VkBuffer and `VkImage` with automatic binding for `VkDeviceMemory`
+- Added resource creation methods for `VkBuffer` and `VkImage` with automatic binding for `VkDeviceMemory`
 - Separated graphics VkPipeline and compute `VkPipeline` workflow with prefixes "`PrepareGraphics_`" and "`PrepareCompute_`", respectively. 
 - **Nice to have**: Previously, the `vulkan-1.lib` and `glfw3.lib` had to be linked externally. I have moved them inside the project for convenient new build. A new clone project should work out of the box now!
 
