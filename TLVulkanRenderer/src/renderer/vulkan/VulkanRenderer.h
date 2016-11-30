@@ -20,8 +20,7 @@
 using namespace VulkanUtil;
 using namespace VulkanUtil::Make;
 
-struct GraphicsUniformBufferObject
-{
+struct GraphicsUniformBufferObject {
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
@@ -34,24 +33,23 @@ struct GraphicsUniformBufferObject
 /**
  * \brief 
  */
-class VulkanRenderer : public Renderer
-{
+class VulkanRenderer : public Renderer {
 public:
 	VulkanRenderer(
 		GLFWwindow* window,
 		Scene* scene
-		);
+	);
 
 	virtual ~VulkanRenderer() override;
 
 	virtual void
 	Update() override;
 
-    virtual void
-    Render() override;
+	virtual void
+	Render() override;
 
 protected:
-	
+
 	VkResult
 	PrepareShaderModule(
 		const std::string& filepath,
@@ -97,7 +95,7 @@ protected:
 	// --------------
 	// COMMAND BUFFERS
 	// ---------------
-	
+
 	/**
 	* \brief Vulkan commands are created in advance and submitted to the queue,
 	*        instead of using direct function calls.
@@ -121,7 +119,8 @@ protected:
 	// ----------------
 
 	virtual void
-	PrepareCompute() {} ;
+	PrepareCompute() {
+	} ;
 
 	/**
 	* \brief Helper to determine the memory type to allocate from our graphics card
@@ -139,7 +138,7 @@ protected:
 	VkQueue m_presentQueue;
 
 	struct {
-		
+
 		/**
 		* \brief Descriptor set layout to decribe our resource binding (ex. UBO)
 		*/
@@ -166,7 +165,7 @@ protected:
 		VkRenderPass renderPass;
 
 		std::vector<VulkanBuffer::GeometryBuffer> geometryBuffers;
-		
+
 		/**
 		* \brief Uniform buffers
 		*/
@@ -204,10 +203,8 @@ protected:
 	VkSemaphore m_imageAvailableSemaphore;
 	VkSemaphore m_renderFinishedSemaphore;
 
-    /**
-     * \brief Logger
-     */
-    std::shared_ptr<spdlog::logger> m_logger;
+	/**
+	 * \brief Logger
+	 */
+	std::shared_ptr<spdlog::logger> m_logger;
 };
-
-

@@ -3,8 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-struct Camera
-{
+struct Camera {
 	Camera();
 	Camera(float width, float height);
 

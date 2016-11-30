@@ -4,17 +4,14 @@
 #include <GLFW/glfw3.h>
 #include "VulkanSwapchain.h"
 
-namespace VulkanUtil
-{
-	namespace Make
-	{
-		VkPresentInfoKHR 
+namespace VulkanUtil {
+	namespace Make {
+		VkPresentInfoKHR
 		MakePresentInfoKHR(
 			const std::vector<VkSemaphore>& waitSemaphores,
 			const std::vector<VkSwapchainKHR>& swapchain,
 			const uint32_t* imageIndices
-			) 
-		{
+		) {
 			VkPresentInfoKHR presentInfo = {};
 			presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 			presentInfo.waitSemaphoreCount = waitSemaphores.size();
@@ -28,11 +25,10 @@ namespace VulkanUtil
 		}
 
 		VkDescriptorPoolSize
-			MakeDescriptorPoolSize(
-				VkDescriptorType type,
-				uint32_t descriptorCount
-			)
-		{
+		MakeDescriptorPoolSize(
+			VkDescriptorType type,
+			uint32_t descriptorCount
+		) {
 			VkDescriptorPoolSize poolSize = {};
 			poolSize.type = type;
 			poolSize.descriptorCount = descriptorCount;
@@ -41,12 +37,11 @@ namespace VulkanUtil
 		}
 
 		VkDescriptorPoolCreateInfo
-			MakeDescriptorPoolCreateInfo(
-				uint32_t poolSizeCount,
-				VkDescriptorPoolSize* poolSizes,
-				uint32_t maxSets
-			)
-		{
+		MakeDescriptorPoolCreateInfo(
+			uint32_t poolSizeCount,
+			VkDescriptorPoolSize* poolSizes,
+			uint32_t maxSets
+		) {
 			VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
 			descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 			descriptorPoolCreateInfo.poolSizeCount = poolSizeCount;
@@ -57,13 +52,12 @@ namespace VulkanUtil
 		}
 
 		VkDescriptorSetLayoutBinding
-			MakeDescriptorSetLayoutBinding(
-				uint32_t binding,
-				VkDescriptorType descriptorType,
-				VkShaderStageFlags shaderFlags,
-				uint32_t descriptorCount
-			)
-		{
+		MakeDescriptorSetLayoutBinding(
+			uint32_t binding,
+			VkDescriptorType descriptorType,
+			VkShaderStageFlags shaderFlags,
+			uint32_t descriptorCount
+		) {
 			VkDescriptorSetLayoutBinding layoutBinding = {};
 			layoutBinding.binding = binding;
 			layoutBinding.descriptorType = descriptorType;
@@ -74,11 +68,10 @@ namespace VulkanUtil
 		}
 
 		VkDescriptorSetLayoutCreateInfo
-			MakeDescriptorSetLayoutCreateInfo(
-				VkDescriptorSetLayoutBinding* bindings,
-				uint32_t bindingCount
-			)
-		{
+		MakeDescriptorSetLayoutCreateInfo(
+			VkDescriptorSetLayoutBinding* bindings,
+			uint32_t bindingCount
+		) {
 			VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 
 			layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -89,12 +82,11 @@ namespace VulkanUtil
 		}
 
 		VkDescriptorSetAllocateInfo
-			MakeDescriptorSetAllocateInfo(
-				VkDescriptorPool descriptorPool,
-				VkDescriptorSetLayout* descriptorSetLayout,
-				uint32_t descriptorSetCount
-			)
-		{
+		MakeDescriptorSetAllocateInfo(
+			VkDescriptorPool descriptorPool,
+			VkDescriptorSetLayout* descriptorSetLayout,
+			uint32_t descriptorSetCount
+		) {
 
 			VkDescriptorSetAllocateInfo allocInfo = {};
 			allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -107,12 +99,11 @@ namespace VulkanUtil
 		}
 
 		VkDescriptorBufferInfo
-			MakeDescriptorBufferInfo(
-				VkBuffer buffer,
-				VkDeviceSize offset,
-				VkDeviceSize range
-			)
-		{
+		MakeDescriptorBufferInfo(
+			VkBuffer buffer,
+			VkDeviceSize offset,
+			VkDeviceSize range
+		) {
 			VkDescriptorBufferInfo descriptorBufferInfo = {};
 			descriptorBufferInfo.buffer = buffer;
 			descriptorBufferInfo.offset = offset;
@@ -122,15 +113,14 @@ namespace VulkanUtil
 		}
 
 		VkWriteDescriptorSet
-			MakeWriteDescriptorSet(
-				VkDescriptorType type,
-				VkDescriptorSet dstSet,
-				uint32_t dstBinding,
-				uint32_t descriptorCount,
-				VkDescriptorBufferInfo* bufferInfo,
-				VkDescriptorImageInfo* imageInfo
-			)
-		{
+		MakeWriteDescriptorSet(
+			VkDescriptorType type,
+			VkDescriptorSet dstSet,
+			uint32_t dstBinding,
+			uint32_t descriptorCount,
+			VkDescriptorBufferInfo* bufferInfo,
+			VkDescriptorImageInfo* imageInfo
+		) {
 			VkWriteDescriptorSet writeDescriptorSet = {};
 			writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			writeDescriptorSet.dstSet = dstSet;
@@ -144,13 +134,12 @@ namespace VulkanUtil
 			return writeDescriptorSet;
 		}
 
-		VkVertexInputBindingDescription 
+		VkVertexInputBindingDescription
 		MakeVertexInputBindingDescription(
-			uint32_t binding, 
-			uint32_t stride, 
+			uint32_t binding,
+			uint32_t stride,
 			VkVertexInputRate rate
-			) 
-		{
+		) {
 			VkVertexInputBindingDescription bindingDesc;
 			bindingDesc.binding = binding;
 			bindingDesc.stride = stride;
@@ -159,14 +148,13 @@ namespace VulkanUtil
 			return bindingDesc;
 		}
 
-		VkVertexInputAttributeDescription 
+		VkVertexInputAttributeDescription
 		MakeVertexInputAttributeDescription(
-			uint32_t binding, 
-			uint32_t location, 
-			VkFormat format, 
+			uint32_t binding,
+			uint32_t location,
+			VkFormat format,
 			uint32_t offset
-			) 
-		{
+		) {
 			VkVertexInputAttributeDescription attributeDesc;
 
 			// Position attribute
@@ -182,8 +170,7 @@ namespace VulkanUtil
 		MakePipelineVertexInputStateCreateInfo(
 			const std::vector<VkVertexInputBindingDescription>& bindingDesc,
 			const std::vector<VkVertexInputAttributeDescription>& attribDesc
-			)
-		{
+		) {
 			VkPipelineVertexInputStateCreateInfo vertexInputStageCreateInfo = {};
 			vertexInputStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
@@ -195,11 +182,10 @@ namespace VulkanUtil
 			return vertexInputStageCreateInfo;
 		}
 
-		VkPipelineInputAssemblyStateCreateInfo 
+		VkPipelineInputAssemblyStateCreateInfo
 		MakePipelineInputAssemblyStateCreateInfo(
 			VkPrimitiveTopology topology
-			) 
-		{
+		) {
 			VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
 			inputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 			inputAssemblyStateCreateInfo.topology = topology;
@@ -208,11 +194,10 @@ namespace VulkanUtil
 			return inputAssemblyStateCreateInfo;
 		}
 
-		VkViewport 
+		VkViewport
 		MakeFullscreenViewport(
 			VkExtent2D extent
-			) 
-		{
+		) {
 			VkViewport viewport;
 			viewport.x = 0.0f;
 			viewport.y = 0.0f;
@@ -224,12 +209,11 @@ namespace VulkanUtil
 			return viewport;
 		}
 
-		VkPipelineViewportStateCreateInfo 
+		VkPipelineViewportStateCreateInfo
 		MakePipelineViewportStateCreateInfo(
-			const std::vector<VkViewport>& viewports, 
+			const std::vector<VkViewport>& viewports,
 			const std::vector<VkRect2D>& scissors
-			) 
-		{
+		) {
 			VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
 			viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 			viewportStateCreateInfo.viewportCount = viewports.size();
@@ -240,13 +224,12 @@ namespace VulkanUtil
 			return viewportStateCreateInfo;
 		}
 
-		VkPipelineRasterizationStateCreateInfo 
+		VkPipelineRasterizationStateCreateInfo
 		MakePipelineRasterizationStateCreateInfo(
-			VkPolygonMode polygonMode, 
-			VkCullModeFlags cullMode, 
+			VkPolygonMode polygonMode,
+			VkCullModeFlags cullMode,
 			VkFrontFace frontFace
-			) 
-		{
+		) {
 			VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
 			rasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 			// If enabled, fragments beyond near and far planes are clamped instead of discarded
@@ -266,11 +249,10 @@ namespace VulkanUtil
 			return rasterizationStateCreateInfo;
 		}
 
-		VkPipelineMultisampleStateCreateInfo 
+		VkPipelineMultisampleStateCreateInfo
 		MakePipelineMultisampleStateCreateInfo(
 			VkSampleCountFlagBits sampleCount
-			) 
-		{
+		) {
 			VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = {};
 			multisampleStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 			multisampleStateCreateInfo.sampleShadingEnable = VK_FALSE;
@@ -283,13 +265,12 @@ namespace VulkanUtil
 			return multisampleStateCreateInfo;
 		}
 
-		VkPipelineDepthStencilStateCreateInfo 
+		VkPipelineDepthStencilStateCreateInfo
 		MakePipelineDepthStencilStateCreateInfo(
-			VkBool32 depthTestEnable, 
-			VkBool32 depthWriteEnable, 
+			VkBool32 depthTestEnable,
+			VkBool32 depthWriteEnable,
 			VkCompareOp compareOp
-			) 
-		{
+		) {
 			VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = {};
 			depthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 			depthStencilStateCreateInfo.depthTestEnable = depthTestEnable;
@@ -305,11 +286,10 @@ namespace VulkanUtil
 			return depthStencilStateCreateInfo;
 		}
 
-		VkPipelineColorBlendStateCreateInfo 
+		VkPipelineColorBlendStateCreateInfo
 		MakePipelineColorBlendStateCreateInfo(
 			const std::vector<VkPipelineColorBlendAttachmentState>& attachments
-			) 
-		{
+		) {
 			VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
 			colorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 			colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
@@ -320,11 +300,10 @@ namespace VulkanUtil
 		}
 
 		VkPipelineLayoutCreateInfo
-			MakePipelineLayoutCreateInfo(
-				VkDescriptorSetLayout* descriptorSetLayouts,
-				uint32_t setLayoutCount
-			)
-		{
+		MakePipelineLayoutCreateInfo(
+			VkDescriptorSetLayout* descriptorSetLayouts,
+			uint32_t setLayoutCount
+		) {
 			VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
 			pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 			pipelineLayoutCreateInfo.setLayoutCount = setLayoutCount;
@@ -333,7 +312,7 @@ namespace VulkanUtil
 		}
 
 		VkComputePipelineCreateInfo
-			MakeComputePipelineCreateInfo(VkPipelineLayout layout, VkPipelineCreateFlags flags) {
+		MakeComputePipelineCreateInfo(VkPipelineLayout layout, VkPipelineCreateFlags flags) {
 			VkComputePipelineCreateInfo createInfo = {};
 			createInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 			createInfo.layout = layout;
@@ -342,15 +321,14 @@ namespace VulkanUtil
 			return createInfo;
 		}
 
-		VkRenderPassBeginInfo 
+		VkRenderPassBeginInfo
 		MakeRenderPassBeginInfo(
-			const VkRenderPass& renderPass, 
-			const VkFramebuffer& framebuffer, 
-			const VkOffset2D& offset, 
-			const VkExtent2D& extent, 
+			const VkRenderPass& renderPass,
+			const VkFramebuffer& framebuffer,
+			const VkOffset2D& offset,
+			const VkExtent2D& extent,
 			const std::vector<VkClearValue>& clearValues
-			) 
-		{
+		) {
 			VkRenderPassBeginInfo renderPassBeginInfo = {};
 			renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 			renderPassBeginInfo.renderPass = renderPass;
@@ -367,11 +345,10 @@ namespace VulkanUtil
 		}
 
 		VkPipelineShaderStageCreateInfo
-			MakePipelineShaderStageCreateInfo(
-				VkShaderStageFlagBits stage,
-				const VkShaderModule& shaderModule
-			)
-		{
+		MakePipelineShaderStageCreateInfo(
+			VkShaderStageFlagBits stage,
+			const VkShaderModule& shaderModule
+		) {
 			VkPipelineShaderStageCreateInfo shaderStageCreateInfo = {};
 			shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 			shaderStageCreateInfo.stage = stage;
@@ -385,25 +362,24 @@ namespace VulkanUtil
 			return shaderStageCreateInfo;
 		}
 
-		VkGraphicsPipelineCreateInfo 
+		VkGraphicsPipelineCreateInfo
 		MakeGraphicsPipelineCreateInfo(
-			const std::vector<VkPipelineShaderStageCreateInfo>& shaderCreateInfos, 
-			const VkPipelineVertexInputStateCreateInfo* vertexInputStage, 
-			const VkPipelineInputAssemblyStateCreateInfo* inputAssemblyState, 
-			const VkPipelineTessellationStateCreateInfo* tessellationState, 
-			const VkPipelineViewportStateCreateInfo* viewportState, 
-			const VkPipelineRasterizationStateCreateInfo* rasterizationState, 
-			const VkPipelineColorBlendStateCreateInfo* colorBlendState, 
-			const VkPipelineMultisampleStateCreateInfo* multisampleState, 
-			const VkPipelineDepthStencilStateCreateInfo* depthStencilState, 
-			const VkPipelineDynamicStateCreateInfo* dynamicState, 
-			const VkPipelineLayout pipelineLayout, 
-			const VkRenderPass renderPass, 
+			const std::vector<VkPipelineShaderStageCreateInfo>& shaderCreateInfos,
+			const VkPipelineVertexInputStateCreateInfo* vertexInputStage,
+			const VkPipelineInputAssemblyStateCreateInfo* inputAssemblyState,
+			const VkPipelineTessellationStateCreateInfo* tessellationState,
+			const VkPipelineViewportStateCreateInfo* viewportState,
+			const VkPipelineRasterizationStateCreateInfo* rasterizationState,
+			const VkPipelineColorBlendStateCreateInfo* colorBlendState,
+			const VkPipelineMultisampleStateCreateInfo* multisampleState,
+			const VkPipelineDepthStencilStateCreateInfo* depthStencilState,
+			const VkPipelineDynamicStateCreateInfo* dynamicState,
+			const VkPipelineLayout pipelineLayout,
+			const VkRenderPass renderPass,
 			const uint32_t subpass,
 			const VkPipeline basePipelineHandle,
 			const int32_t basePipelineIndex
-			) 
-		{
+		) {
 			VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {};
 			graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 			graphicsPipelineCreateInfo.stageCount = shaderCreateInfos.size(); // Number of shader stages
@@ -420,7 +396,7 @@ namespace VulkanUtil
 			graphicsPipelineCreateInfo.layout = pipelineLayout;
 			graphicsPipelineCreateInfo.renderPass = renderPass;
 			graphicsPipelineCreateInfo.subpass = 0; // Index to the subpass we'll be using
-			
+
 			graphicsPipelineCreateInfo.basePipelineHandle = basePipelineHandle;
 			graphicsPipelineCreateInfo.basePipelineIndex = basePipelineIndex;
 
@@ -428,11 +404,10 @@ namespace VulkanUtil
 		}
 
 		void
-			MakeDefaultTextureSampler(
-				const VkDevice& device,
-				VkSampler* sampler
-			)
-		{
+		MakeDefaultTextureSampler(
+			const VkDevice& device,
+			VkSampler* sampler
+		) {
 			VkSamplerCreateInfo samplerCreateInfo = {};
 			samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 			samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
@@ -449,10 +424,9 @@ namespace VulkanUtil
 		}
 
 		VkCommandPoolCreateInfo
-			MakeCommandPoolCreateInfo(
-				uint32_t queueFamilyIndex
-			)
-		{
+		MakeCommandPoolCreateInfo(
+			uint32_t queueFamilyIndex
+		) {
 			VkCommandPoolCreateInfo commandPoolCreateInfo = {};
 			commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 			commandPoolCreateInfo.queueFamilyIndex = queueFamilyIndex;
@@ -466,12 +440,11 @@ namespace VulkanUtil
 		}
 
 		VkCommandBufferAllocateInfo
-			MakeCommandBufferAllocateInfo(
-				VkCommandPool commandPool,
-				VkCommandBufferLevel level,
-				uint32_t bufferCount
-			)
-		{
+		MakeCommandBufferAllocateInfo(
+			VkCommandPool commandPool,
+			VkCommandBufferLevel level,
+			uint32_t bufferCount
+		) {
 			VkCommandBufferAllocateInfo allocInfo = {};
 			allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 			allocInfo.commandPool = commandPool;
@@ -482,9 +455,8 @@ namespace VulkanUtil
 			return allocInfo;
 		}
 
-		VkCommandBufferBeginInfo 
-		MakeCommandBufferBeginInfo() 
-		{
+		VkCommandBufferBeginInfo
+		MakeCommandBufferBeginInfo() {
 			VkCommandBufferBeginInfo beginInfo = {};
 			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
@@ -492,14 +464,13 @@ namespace VulkanUtil
 			return beginInfo;
 		}
 
-		VkSubmitInfo 
+		VkSubmitInfo
 		MakeSubmitInfo(
-			const std::vector<VkSemaphore>& waitSemaphores, 
-			const std::vector<VkSemaphore>& signalSemaphores, 
-			const std::vector<VkPipelineStageFlags>& waitStageFlags, 
+			const std::vector<VkSemaphore>& waitSemaphores,
+			const std::vector<VkSemaphore>& signalSemaphores,
+			const std::vector<VkPipelineStageFlags>& waitStageFlags,
 			const VkCommandBuffer& commandBuffer
-			) 
-		{
+		) {
 			VkSubmitInfo submitInfo = {};
 			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -519,11 +490,10 @@ namespace VulkanUtil
 			return submitInfo;
 		}
 
-		VkSubmitInfo 
+		VkSubmitInfo
 		MakeSubmitInfo(
 			const VkCommandBuffer& commandBuffer
-			) 
-		{
+		) {
 			VkSubmitInfo submitInfo = {};
 			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -534,11 +504,10 @@ namespace VulkanUtil
 			return submitInfo;
 		}
 
-		VkFenceCreateInfo 
+		VkFenceCreateInfo
 		MakeFenceCreateInfo(
 			VkFenceCreateFlags flags
-			) 
-		{
+		) {
 			VkFenceCreateInfo createInfo = {};
 
 			createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;

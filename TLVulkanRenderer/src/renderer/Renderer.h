@@ -8,15 +8,14 @@
 
 using namespace std;
 
-typedef enum
-{
-    Vulkan
-    , OpenGL // @note: not in roadmap
-    , DirectX // @note: not in roadmap
+typedef enum {
+	Vulkan,
+	OpenGL // @note: not in roadmap
+	,
+	DirectX // @note: not in roadmap
 } EGraphicsAPI;
 
-enum ERenderingMode
-{
+enum ERenderingMode {
 	FORWARD,
 	DEFERRED,
 	RAYTRACING,
@@ -26,26 +25,27 @@ enum ERenderingMode
 /**
  * \brief This is the base rendering interface class
  */
-class Renderer
-{
+class Renderer {
 public:
-    Renderer(
-        GLFWwindow* window,
+	Renderer(
+		GLFWwindow* window,
 		Scene* scene
-    ) : m_window(window), m_scene(scene) {};
-    virtual ~Renderer() {};
+	) : m_window(window), m_scene(scene) {
+	};
+
+	virtual ~Renderer() {
+	};
 	virtual void Update() = 0;
-    virtual void Render() = 0;
+	virtual void Render() = 0;
 
 protected:
-    /**
-    * \brief The window handle from glfw
-    */
-    GLFWwindow* m_window;
+	/**
+	* \brief The window handle from glfw
+	*/
+	GLFWwindow* m_window;
 
 	/**
 	 * \brief Handle to scene
 	 */
 	Scene* m_scene;
 };
-

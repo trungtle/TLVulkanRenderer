@@ -6,8 +6,7 @@ Swapchain::SwapchainSupport
 Swapchain::QuerySwapchainSupport(
 	const VkPhysicalDevice& physicalDevice
 	, const VkSurfaceKHR& surface
-)
-{
+) {
 	SwapchainSupport swapchainInfo;
 
 	// Query surface capabilities
@@ -17,8 +16,7 @@ Swapchain::QuerySwapchainSupport(
 	uint32_t formatCount = 0;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
 
-	if (formatCount != 0)
-	{
+	if (formatCount != 0) {
 		swapchainInfo.surfaceFormats.resize(formatCount);
 		vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, swapchainInfo.surfaceFormats.data());
 	}
@@ -27,8 +25,7 @@ Swapchain::QuerySwapchainSupport(
 	uint32_t presentModeCount = 0;
 	vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
 
-	if (presentModeCount != 0)
-	{
+	if (presentModeCount != 0) {
 		swapchainInfo.presentModes.resize(presentModeCount);
 		vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, swapchainInfo.presentModes.data());
 	}
@@ -39,8 +36,7 @@ Swapchain::QuerySwapchainSupport(
 VkSurfaceFormatKHR
 Swapchain::SelectDesiredSwapchainSurfaceFormat(
 	const std::vector<VkSurfaceFormatKHR> availableFormats
-)
-{
+) {
 	assert(availableFormats.empty() == false);
 
 	// List of some formats options we would like to choose from. Rank from most preferred down.
@@ -53,16 +49,13 @@ Swapchain::SelectDesiredSwapchainSurfaceFormat(
 		// for more details.
 		// For mannipulating colors, use a 32 bit unsigned normalized RGB since it's an easier format to do math with.
 
-		{ VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+		{VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
 	};
 
 	// Just return the first reasonable format we found
-	for (const auto& format : availableFormats)
-	{
-		for (const auto& preferred : preferredFormats)
-		{
-			if (format.format == preferred.format && format.colorSpace == preferred.colorSpace)
-			{
+	for (const auto& format : availableFormats) {
+		for (const auto& preferred : preferredFormats) {
+			if (format.format == preferred.format && format.colorSpace == preferred.colorSpace) {
 				return format;
 			}
 		}
@@ -75,21 +68,17 @@ Swapchain::SelectDesiredSwapchainSurfaceFormat(
 VkPresentModeKHR
 Swapchain::SelectDesiredSwapchainPresentMode(
 	const std::vector<VkPresentModeKHR> availablePresentModes
-)
-{
+) {
 	assert(availablePresentModes.empty() == false);
 
 	// Maybe we should do tripple buffering here to avoid tearing & stuttering
 	// @todo: This SHOULD be a configuration passed from somewhere else in a global configuration state
 	bool enableTrippleBuffering = true;
-	if (enableTrippleBuffering)
-	{
+	if (enableTrippleBuffering) {
 		// Search for VK_PRESENT_MODE_MAILBOX_KHR. This is because we're interested in 
 		// using tripple buffering.
-		for (const auto& presentMode : availablePresentModes)
-		{
-			if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR)
-			{
+		for (const auto& presentMode : availablePresentModes) {
+			if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
 				return VK_PRESENT_MODE_MAILBOX_KHR;
 			}
 		}
@@ -106,17 +95,15 @@ Swapchain::SelectDesiredSwapchainExtent(
 	, bool useCurrentExtent
 	, unsigned int desiredWidth
 	, unsigned int desiredHeight
-)
-{
+) {
 	// @ref From Vulkan 1.0.29 spec (with KHR extension) at
 	// https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceCapabilitiesKHR
 	// "currentExtent is the current width and height of the surface, or the special value (0xFFFFFFFF, 0xFFFFFFFF) 
 	// indicating that the surface size will be determined by the extent of a swapchain targeting the surface."
 	// So we first check if this special value is set. If it is, proceed with the desiredWidth and desiredHeight
 	if (surfaceCapabilities.currentExtent.width != 0xFFFFFFFF ||
-		surfaceCapabilities.currentExtent.height != 0xFFFFFFFF)
-	{
-		
+		surfaceCapabilities.currentExtent.height != 0xFFFFFFFF) {
+
 		return surfaceCapabilities.currentExtent;
 	}
 
@@ -133,4 +120,3 @@ Swapchain::SelectDesiredSwapchainExtent(
 
 	return extent;
 }
-

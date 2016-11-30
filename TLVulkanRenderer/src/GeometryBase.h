@@ -1,8 +1,6 @@
 #pragma once
-class GeometryBase
-{
+class GeometryBase {
 public:
 	GeometryBase();
 	~GeometryBase();
 };
-

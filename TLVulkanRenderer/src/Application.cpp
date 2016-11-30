@@ -29,21 +29,19 @@ int height = 600;
 Camera g_camera;
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-	if (action == GLFW_PRESS)
-	{
-		switch (key)
-		{
-			case GLFW_KEY_ESCAPE:
-				glfwSetWindowShouldClose(window, GL_TRUE);
-				break;
-			case GLFW_KEY_S:
-				//saveImage();
-				break;
-			case GLFW_KEY_SPACE:
-				//camchanged = true;
-				//Camera &cam = renderState->camera;
-				//cam.lookAt = ogLookAt;
-				break;
+	if (action == GLFW_PRESS) {
+		switch (key) {
+		case GLFW_KEY_ESCAPE:
+			glfwSetWindowShouldClose(window, GL_TRUE);
+			break;
+		case GLFW_KEY_S:
+			//saveImage();
+			break;
+		case GLFW_KEY_SPACE:
+			//camchanged = true;
+			//Camera &cam = renderState->camera;
+			//cam.lookAt = ogLookAt;
+			break;
 		}
 	}
 }
@@ -56,21 +54,18 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 
 void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
 	if (xpos == lastX || ypos == lastY) return; // otherwise, clicking back into window causes re-start
-	if (leftMousePressed)
-	{
+	if (leftMousePressed) {
 		// compute new camera parameters
 		phi = (xpos - lastX) * 10.f / width;
 		theta = (ypos - lastY) * 10.f / height;
 		camchanged = true;
 	}
-	else if (rightMousePressed)
-	{
+	else if (rightMousePressed) {
 		zoom += (ypos - lastY) * 10.0f / height;
 		camchanged = true;
 	}
-	else if (middleMousePressed)
-	{
-		Camera &cam = g_camera;
+	else if (middleMousePressed) {
+		Camera& cam = g_camera;
 
 		cam.lookAt -= (float)(xpos - lastX) * cam.right * 0.01f;
 		cam.lookAt += (float)(ypos - lastY) * cam.up * 0.01f;
@@ -82,28 +77,26 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
 
 
 Application::Application(
-	int argc, 
-	char **argv,
+	int argc,
+	char** argv,
 	int width,
 	int height,
-    EGraphicsAPI useAPI,
+	EGraphicsAPI useAPI,
 	ERenderingMode renderingMode
-	) : 
-	m_width(width), 
-	m_height(height), 
-    m_useGraphicsAPI(useAPI),
+) :
+	m_width(width),
+	m_height(height),
+	m_useGraphicsAPI(useAPI),
 	m_renderingMode(renderingMode),
-    m_window(nullptr)
-{
+	m_window(nullptr) {
 	// Initialize glfw
 	glfwInit();
-	
+
 	// Create window
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	m_window = glfwCreateWindow(m_width, m_height, "Vulkan renderer", nullptr, nullptr);
 
-	if (!m_window)
-	{
+	if (!m_window) {
 		glfwTerminate();
 		return;
 	}
@@ -118,32 +111,31 @@ Application::Application(
 
 	g_camera = Camera(width, height);
 
-    switch(m_useGraphicsAPI) 
-    {
-        case EGraphicsAPI::Vulkan:
-            // Init Vulkan
+	switch (m_useGraphicsAPI) {
+	case EGraphicsAPI::Vulkan:
+		// Init Vulkan
 
-			if (m_renderingMode == ERenderingMode::RAYTRACING) {
-				m_renderer = new VulkanRaytracer(m_window, m_scene);
-			} else {
-				m_renderer = new VulkanRenderer(m_window, m_scene);
-			}
-            break;
-        default:
-            std::cout << "Graphics API not supported\n";
-            break;
-    }
+		if (m_renderingMode == ERenderingMode::RAYTRACING) {
+			m_renderer = new VulkanRaytracer(m_window, m_scene);
+		}
+		else {
+			m_renderer = new VulkanRenderer(m_window, m_scene);
+		}
+		break;
+	default:
+		std::cout << "Graphics API not supported\n";
+		break;
+	}
 
 	fpstracker = 0;
 
 }
 
 
-Application::~Application()
-{
+Application::~Application() {
 	delete m_scene;
-    delete m_renderer;
-    glfwDestroyWindow(m_window);
+	delete m_renderer;
+	glfwDestroyWindow(m_window);
 	glfwTerminate();
 }
 
@@ -157,8 +149,7 @@ void Application::Run() {
 		static auto previousFrame = start;
 		auto now = std::chrono::system_clock::now();
 		float timeElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-		if (timeElapsed >= 1000)
-		{
+		if (timeElapsed >= 1000) {
 			fps = fpstracker / (timeElapsed / 1000);
 			fpstracker = 0;
 			start = now;
@@ -171,9 +162,8 @@ void Application::Run() {
 		glfwSetWindowTitle(m_window, title.c_str());
 
 		// Update camera
-		if (camchanged)
-		{
-			Camera &cam = g_camera;
+		if (camchanged) {
+			Camera& cam = g_camera;
 			cam.TranslateAlongRight(phi);
 			cam.TranslateAlongUp(theta);
 			cam.Zoom(zoom);

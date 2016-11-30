@@ -5,8 +5,7 @@
 
 namespace VulkanImage {
 
-	struct Image
-	{
+	struct Image {
 		int width;
 		int height;
 		VkImage image;
@@ -52,5 +51,3 @@ namespace VulkanImage {
 		VkFormat format
 	);
 }
-
-

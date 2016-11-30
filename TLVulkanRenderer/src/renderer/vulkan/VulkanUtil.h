@@ -9,10 +9,8 @@
 
 using namespace glm;
 
-namespace VulkanUtil
-{
-	namespace Make
-	{
+namespace VulkanUtil {
+	namespace Make {
 		// ===================
 		// DEVICE
 		// ===================
@@ -28,55 +26,55 @@ namespace VulkanUtil
 		// ===================
 
 		VkDescriptorPoolSize
-			MakeDescriptorPoolSize(
-				VkDescriptorType descriptorType,
-				uint32_t descriptorCount
-			);
+		MakeDescriptorPoolSize(
+			VkDescriptorType descriptorType,
+			uint32_t descriptorCount
+		);
 
 		VkDescriptorPoolCreateInfo
-			MakeDescriptorPoolCreateInfo(
-				uint32_t poolSizeCount,
-				VkDescriptorPoolSize* poolSizes,
-				uint32_t maxSets = 1
-			);
+		MakeDescriptorPoolCreateInfo(
+			uint32_t poolSizeCount,
+			VkDescriptorPoolSize* poolSizes,
+			uint32_t maxSets = 1
+		);
 
 		VkDescriptorSetLayoutBinding
-			MakeDescriptorSetLayoutBinding(
-				uint32_t binding,
-				VkDescriptorType descriptorType,
-				VkShaderStageFlags shaderFlags,
-				uint32_t descriptorCount = 1
-			);
+		MakeDescriptorSetLayoutBinding(
+			uint32_t binding,
+			VkDescriptorType descriptorType,
+			VkShaderStageFlags shaderFlags,
+			uint32_t descriptorCount = 1
+		);
 
 		VkDescriptorSetLayoutCreateInfo
-			MakeDescriptorSetLayoutCreateInfo(
-				VkDescriptorSetLayoutBinding* bindings,
-				uint32_t bindingCount = 1
-			);
+		MakeDescriptorSetLayoutCreateInfo(
+			VkDescriptorSetLayoutBinding* bindings,
+			uint32_t bindingCount = 1
+		);
 
 		VkDescriptorSetAllocateInfo
-			MakeDescriptorSetAllocateInfo(
-				VkDescriptorPool descriptorPool,
-				VkDescriptorSetLayout* descriptorSetLayout,
-				uint32_t descriptorSetCount = 1
-			);
+		MakeDescriptorSetAllocateInfo(
+			VkDescriptorPool descriptorPool,
+			VkDescriptorSetLayout* descriptorSetLayout,
+			uint32_t descriptorSetCount = 1
+		);
 
 		VkDescriptorBufferInfo
-			MakeDescriptorBufferInfo(
-				VkBuffer buffer,
-				VkDeviceSize offset,
-				VkDeviceSize range
-			);
+		MakeDescriptorBufferInfo(
+			VkBuffer buffer,
+			VkDeviceSize offset,
+			VkDeviceSize range
+		);
 
 		VkWriteDescriptorSet
-			MakeWriteDescriptorSet(
-				VkDescriptorType type,
-				VkDescriptorSet dstSet,
-				uint32_t dstBinding,
-				uint32_t descriptorCount,
-				VkDescriptorBufferInfo* bufferInfo,
-				VkDescriptorImageInfo* imageInfo
-			);
+		MakeWriteDescriptorSet(
+			VkDescriptorType type,
+			VkDescriptorSet dstSet,
+			uint32_t dstBinding,
+			uint32_t descriptorCount,
+			VkDescriptorBufferInfo* bufferInfo,
+			VkDescriptorImageInfo* imageInfo
+		);
 
 		// ===================
 		// PIPELINE
@@ -100,7 +98,7 @@ namespace VulkanUtil
 		MakePipelineVertexInputStateCreateInfo(
 			const std::vector<VkVertexInputBindingDescription>& bindingDesc,
 			const std::vector<VkVertexInputAttributeDescription>& attribDesc
-			);
+		);
 
 		VkPipelineInputAssemblyStateCreateInfo
 		MakePipelineInputAssemblyStateCreateInfo(
@@ -143,16 +141,16 @@ namespace VulkanUtil
 		);
 
 		VkPipelineLayoutCreateInfo
-			MakePipelineLayoutCreateInfo(
-				VkDescriptorSetLayout* descriptorSetLayouts,
-				uint32_t setLayoutCount = 1
-			);
+		MakePipelineLayoutCreateInfo(
+			VkDescriptorSetLayout* descriptorSetLayouts,
+			uint32_t setLayoutCount = 1
+		);
 
 		VkPipelineShaderStageCreateInfo
-			MakePipelineShaderStageCreateInfo(
-				VkShaderStageFlagBits stage,
-				const VkShaderModule& shaderModule
-			);
+		MakePipelineShaderStageCreateInfo(
+			VkShaderStageFlagBits stage,
+			const VkShaderModule& shaderModule
+		);
 
 		VkGraphicsPipelineCreateInfo
 		MakeGraphicsPipelineCreateInfo(
@@ -242,10 +240,8 @@ namespace VulkanUtil
 	inline void CheckVulkanResult(
 		VkResult result,
 		std::string message
-	)
-	{
-		if (result != VK_SUCCESS)
-		{
+	) {
+		if (result != VK_SUCCESS) {
 			throw std::runtime_error(message);
 		}
 	}
