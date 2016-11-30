@@ -7,15 +7,14 @@ This project also documents my learning progress with Vulkan and GPU programming
 
 # Releases
 
-https://github.com/trungtle/TLVulkanRenderer/releases
+[1.1](https://github.com/trungtle/TLVulkanRenderer/releases/tag/v1.1, 11/30/2016
+[1.0](https://github.com/trungtle/TLVulkanRenderer/releases/tag/v1.0), 10/30/2016
 
 # Updates
 
 ### Nov 30, 2016 - Release v1.1: Optional raytracing mode, and a large software overhaul
 
 This release has several large improvements:
-
-# Changelist
 
 ### 1. Large code refactoring for Vulkan interface 
 Specifically:
@@ -30,7 +29,7 @@ Specifically:
 
 Complete Vulkan forward rasterizer as default renderer when the application starts.
 
-### 3. Optinal Vulkan raytracing mode
+### 3. Optional Vulkan raytracing mode
 
 _Can be toggle on and off with `ERenderingMode renderindMode::RAYTRACING` flag when passing the `renderingMode` argument to [`class Application`](https://github.com/trungtle/TLVulkanRenderer/blob/master/TLVulkanRenderer/src/Application.h)_
 
