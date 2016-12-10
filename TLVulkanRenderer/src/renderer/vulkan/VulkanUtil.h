@@ -5,7 +5,7 @@
 #include <map>
 #include <vulkan.h>
 #include <glm/mat4x4.hpp>
-#include "SceneUtil.h"
+#include "../../SceneUtil.h"
 
 using namespace glm;
 

@@ -58,10 +58,19 @@ struct Box
 	mat4 invTransform;
 };
 
+struct BVHAabb
+{
+	// [0].xyz	:= aabbMin, [1].xyz := aabbMax.
+	// [0].w	:= left aabb child index, [1].w := right aabb child index.
+	vec4 bounds[2];
+};
+
 struct Ray
 {
 	vec3 origin;
 	vec3 direction;
+    vec3 inv_direction;
+    int sign[3];
 };
 
 struct PathSegment {
@@ -115,6 +124,11 @@ layout (std140, binding = 4) buffer TriangleNormals
 layout (std140, binding = 5) uniform Materials
 {
 	Material materials[100];
+};
+
+layout (std140, binding = 6) buffer BVHAabbNodes
+{
+	BVHAabb bvhNodes[ ];
 };
 
 void reflectRay(inout vec3 rayD, in vec3 normal)
@@ -259,6 +273,55 @@ float triangleIntersect(
 	return t;
 }
 
+// Sphere ==========================================================
+/*
+float sphereIntersect(in Ray ray, in int sphereIdx)
+{
+    vec3 spherePos  = sphere[sphereIdx].xyz;
+    float sphereRad = sphere[sphereIdx].w;
+    
+	vec3 oc = ray.origin - spherePos;
+	float b = 2.0 * dot(oc, ray.direction);
+	float c = dot(oc, oc) - sphereRad * sphereRad;
+	float h = b*b - 4.0*c;
+	if (h < 0.0) 
+	{
+		return -1.0;
+	}
+	float t = (-b - sqrt(h)) / 2.0;
+
+	return t;
+}
+*/
+
+// Aabb ===========================================================
+
+float aabbIntersect(in Ray r, in BVHAabb aabb)
+{
+    float tmin  = (aabb.bounds[r.sign[0]].x      - r.origin.x) * r.inv_direction.x;
+    float tmax  = (aabb.bounds[1-r.sign[0]].x    - r.origin.x) * r.inv_direction.x;
+    float tymin = (aabb.bounds[r.sign[1]].y      - r.origin.y) * r.inv_direction.y;
+    float tymax = (aabb.bounds[1-r.sign[1]].y    - r.origin.y) * r.inv_direction.y;
+    
+    if ( (tmin > tymax) || (tymin > tmax) )
+        return MAXLEN;
+    if (tymin > tmin)
+        tmin = tymin;
+    if (tymax < tmax)
+        tmax = tymax;
+    float tzmin = (aabb.bounds[r.sign[2]].z     - r.origin.z) * r.inv_direction.z;
+    float tzmax = (aabb.bounds[1-r.sign[2]].z   - r.origin.z) * r.inv_direction.z;
+    
+    if ( (tmin > tzmax) || (tzmin > tmax) )
+        return MAXLEN;
+    if (tzmin > tmin)
+        tmin = tzmin;
+    if (tzmax < tmax)
+        tmax = tzmax;
+    //return ( (tmin < MAXLEN) && (tmax > EPSILON) );
+    return tmin;
+}
+
 // Box ===========================================================
 
 float boxIntersect(
@@ -307,7 +370,88 @@ float boxIntersect(
 }
 
 // Intersection ===========================================================
-
+/*
+Intersection computeIntersectionsWithBvh(
+	int depth,
+	in Ray ray
+	)
+{
+    // Allocate traversal stack from thread-local memory,
+    // and push NULL to indicate that there are no postponed nodes.
+    BVHAabb stack[64];
+    int stackIdx        = 0;
+    stack[stackIdx++]   = NULL; // push
+    
+    
+    float tMin = MAXLEN;
+	vec3 normal;
+	vec3 hitPoint;
+	int objectID = -1;
+	int materialID = 0;
+	Intersection intersection;
+    
+    const int numMeshes = m_aabbNodes[0].m_minAABB.w;
+	for (int iMeshIdx = 0; iMeshIdx < numMeshes; iMeshIdx++)
+    {
+        BVHAabb node = m_aabbNodes[iMeshIdx + 1];
+        do
+        {
+            if (node.m_minAABB.w == node.m_maxAABB.w)
+            {
+                int numTris = node.m_minAABB.w;
+                for (int i = 0; i < numTris; ++i)
+                {
+                    BVHAabb LNodes = node[1 + i];
+                    // Reconstruct triangle
+                    Triangle tri;
+                    tri.vert0 = vec3(positions[LNodes.m_minAABB.x]);
+                    tri.vert1 = vec3(positions[LNodes.m_minAABB.y]);
+                    tri.vert2 = vec3(positions[LNodes.m_minAABB.z]);
+                    tri.norm0 = vec3(normals[LNodes.m_minAABB.x]);
+                    tri.norm1 = vec3(normals[LNodes.m_minAABB.y]);
+                    tri.norm2 = vec3(normals[LNodes.m_minAABB.z]);
+		
+                    vec3 tmp_normal;
+                    vec3 tmp_hitPoint;
+                    float tTri = triangleIntersect(tri, ray, tmp_normal, tmp_hitPoint);
+                    if ((tTri > EPSILON) && (tTri < tMin))
+                    {
+                        objectID = tri.id;
+                        tMin = tTri;
+                        normal = tmp_normal;
+                        hitPoint = tmp_hitPoint;
+                        materialID = tri.materialId;
+                    }
+                }
+                break;
+            }
+            else
+            {
+                BVHAabb childL = m_aabbNodes[node.m_minAABB.w];
+                BVHAabb childR = m_aabbNodes[node.m_maxAABB.w];
+                
+                float tChildL = aabbIntersect(path.ray, childL);
+                float tChildR = aabbIntersect(path.ray, childR);
+                
+                bool overlapL = (EPSILON < tChildL) && (tChildL < MAXLEN);
+                bool overlapR = (EPSILON < tChildL) && (tChildL < MAXLEN);
+                
+                if (!overlapL && !overlapR)
+                {
+                    node = stack[--stackIdx]; // pop   
+                }
+                else
+                {
+                    node = (overlapL) ? childL : childR;
+                    if (overlapL && overlapR) // Can probably only test against farthest if no intersection with closest.
+                        stack[stackIdx++] = childR; // push
+                }                
+            }
+        }
+        while (node != NULL);
+    }
+}
+*/
 Intersection computeIntersections(
 	int depth,
 	in Ray ray
@@ -439,16 +583,25 @@ void shadeMaterial(
 
 vec3 renderScene(inout PathSegment path)
 {
-	vec3 color = vec3(0.0);
+	vec3 color = vec3(0);
 	float t = MAXLEN;
 
 	// Compute intersection
-	Intersection intersect = computeIntersections(0, path.ray);	
+	//Intersection intersect = computeIntersections(0, path.ray);	
 
 	// Shade material and reflect ray
-	shadeMaterial(0, intersect, path);
-
-	return path.color;
+	//shadeMaterial(0, intersect, path);
+    
+    BVHAabb AABB =bvhNodes[16];
+    float tAabb = aabbIntersect(path.ray, AABB);
+	if ( (tAabb < MAXLEN) && (tAabb > EPSILON) )
+    {
+        color = vec3(0,0,1);
+    }
+    
+    //color = vec3(0, bvhNodes[0].bounds[0].y, 0.0);
+    
+	return color;
 }
 
 // Generate ray ========================
@@ -464,12 +617,15 @@ void castRayFromCamera(in int width, in int height, inout Ray ray)
 			- camera.right * camera.pixelLength.x * (float(x) - float(width) * 0.5)
 			- camera.up * camera.pixelLength.y * (float(y) - float(height) * 0.5)
 			));
+        ray.inv_direction = vec3(1/ray.direction.x, 1/ray.direction.y, 1/ray.direction.z);
+        ray.sign[0] = (ray.inv_direction.x < 0) ? 1 : 0;
+        ray.sign[1] = (ray.inv_direction.y < 0) ? 1 : 0;
+        ray.sign[2] = (ray.inv_direction.z < 0) ? 1 : 0;
 	}
 }
 
 void main()
 {
-
 	ivec2 dim = imageSize(resultImage);
 	vec2 uv = vec2(gl_GlobalInvocationID.xy) / dim;
 

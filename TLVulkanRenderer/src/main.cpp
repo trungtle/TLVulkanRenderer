@@ -4,7 +4,7 @@
 int main(int argc, char** argv) {
 
 	// Default scenefile
-	std::string sceneFile = "scenes/gltfs/duck/duck.gltf";
+	std::string sceneFile = "scenes/gltfs/cornell/cornell.glb";
 	if (argc != 2) {
 		cout << "Missing scene file input! Loading default scene..." << endl;
 	} else {

@@ -105,6 +105,7 @@ Application::Application(
 	glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
 	m_scene = new Scene(sceneFile);
+	m_scene->bvh.buildBVHTree(m_scene, sceneFile);
 
 	g_camera = Camera(width, height);
 

@@ -18,9 +18,9 @@ public:
 		std::shared_ptr<spdlog::logger> logger
 	) :
 		isEnableValidationLayers(true),
-		debugCallback(nullptr),
+		debugCallback(NULL),
 		instance(nullptr),
-		surfaceKHR(nullptr),
+		surfaceKHR(NULL),
 		physicalDevice(nullptr),
 		device(nullptr),
 		m_name(name),

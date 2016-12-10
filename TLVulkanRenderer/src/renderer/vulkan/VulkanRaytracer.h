@@ -108,6 +108,7 @@ protected:
 			VulkanBuffer::StorageBuffer materials;
 
 			// -- Shapes buffers
+			VulkanBuffer::StorageBuffer bvhAabbNodes;
 			VulkanBuffer::StorageBuffer indices;
 			VulkanBuffer::StorageBuffer verticePositions;
 			VulkanBuffer::StorageBuffer verticeNormals;

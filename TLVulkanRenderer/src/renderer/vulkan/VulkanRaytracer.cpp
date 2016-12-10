@@ -1,6 +1,6 @@
 #include "VulkanRaytracer.h"
-#include "Utilities.h"
-#include "Camera.h"
+#include "../../Utilities.h"
+#include "../../Camera.h"
 
 VulkanRaytracer::VulkanRaytracer(
 	GLFWwindow* window,
@@ -109,6 +109,9 @@ VulkanRaytracer::~VulkanRaytracer() {
 
 	vkDestroyBuffer(m_vulkanDevice->device, m_compute.buffers.materials.buffer, nullptr);
 	vkFreeMemory(m_vulkanDevice->device, m_compute.buffers.materials.memory, nullptr);
+
+	vkDestroyBuffer(m_vulkanDevice->device, m_compute.buffers.bvhAabbNodes.buffer, nullptr);
+	vkFreeMemory(m_vulkanDevice->device, m_compute.buffers.bvhAabbNodes.memory, nullptr);
 
 	vkDestroyBuffer(m_vulkanDevice->device, m_compute.buffers.indices.buffer, nullptr);
 	vkFreeMemory(m_vulkanDevice->device, m_compute.buffers.indices.memory, nullptr);
@@ -673,6 +676,12 @@ VulkanRaytracer::PrepareComputeDescriptors() {
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			VK_SHADER_STAGE_COMPUTE_BIT
 		),
+		// Binding 6: storage buffer for bvhAabbNodes
+		MakeDescriptorSetLayoutBinding(
+			6,
+			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			VK_SHADER_STAGE_COMPUTE_BIT
+			),
 	};
 
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo =
@@ -715,6 +724,7 @@ VulkanRaytracer::PrepareComputeDescriptors() {
 			&m_compute.buffers.uniform.descriptor,
 			nullptr
 		),
+
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			m_compute.descriptorSets,
@@ -723,6 +733,7 @@ VulkanRaytracer::PrepareComputeDescriptors() {
 			&m_compute.buffers.indices.descriptor,
 			nullptr
 		),
+
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			m_compute.descriptorSets,
@@ -747,6 +758,15 @@ VulkanRaytracer::PrepareComputeDescriptors() {
 			&m_compute.buffers.materials.descriptor,
 			nullptr
 		),
+
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			m_compute.descriptorSets,
+			6, // Binding 6
+			1,
+			&m_compute.buffers.bvhAabbNodes.descriptor,
+			nullptr
+			),
 	};
 
 	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
@@ -776,10 +796,58 @@ struct Plane {
 uint32_t currentId = 0; // Id used to identify objects by the ray tracing shader
 
 void
-VulkanRaytracer::PrepareComputeStorageBuffer() {
-	// =========== INDICES
+VulkanRaytracer::PrepareComputeStorageBuffer()
+{
 	VulkanBuffer::StorageBuffer stagingBuffer;
-	VkDeviceSize bufferSize = m_scene->indices.size() * sizeof(ivec4);
+	VkDeviceSize bufferSize = 0;
+
+	// =========== BVH AABBs
+	bufferSize = m_scene->bvh.m_aabbNodes.size() * sizeof(Scene::BVH::BVHNode);
+
+	// Stage
+	m_vulkanDevice->CreateBufferAndMemory(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer.buffer,
+		stagingBuffer.memory
+		);
+
+	m_vulkanDevice->MapMemory(
+		m_scene->bvh.m_aabbNodes.data(),
+		stagingBuffer.memory,
+		bufferSize,
+		0
+		);
+
+	// -----------------------------------------
+
+	m_vulkanDevice->CreateBufferAndMemory(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_compute.buffers.bvhAabbNodes.buffer,
+		m_compute.buffers.bvhAabbNodes.memory
+		);
+
+	// Copy over to vertex buffer in device local memory
+	m_vulkanDevice->CopyBuffer(
+		m_compute.queue,
+		m_compute.commandPool,
+		m_compute.buffers.bvhAabbNodes.buffer,
+		stagingBuffer.buffer,
+		bufferSize
+		);
+
+	m_compute.buffers.bvhAabbNodes.descriptor = MakeDescriptorBufferInfo(m_compute.buffers.bvhAabbNodes.buffer, 0, bufferSize);
+
+	// Cleanup staging buffer memory
+	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
+	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
+
+	// =========== INDICES
+	
+	bufferSize = m_scene->indices.size() * sizeof(ivec4);
 
 	// Stage
 	m_vulkanDevice->CreateBufferAndMemory(
@@ -909,7 +977,6 @@ VulkanRaytracer::PrepareComputeStorageBuffer() {
 	// Cleanup staging buffer memory
 	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
 	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
-
 }
 
 void VulkanRaytracer::PrepareComputeUniformBuffer() {

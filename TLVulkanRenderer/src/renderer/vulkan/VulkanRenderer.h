@@ -9,11 +9,11 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include "spdlog/spdlog.h"
-#include "renderer/Renderer.h"
+#include "../Renderer.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
 #include "VulkanUtil.h"
-#include "Typedef.h"
+#include "../../Typedef.h"
 #include "VulkanImage.h"
 #include "VulkanBuffer.h"
 
