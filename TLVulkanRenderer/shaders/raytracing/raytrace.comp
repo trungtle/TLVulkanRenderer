@@ -16,7 +16,7 @@ vec3 LIGHT_POS = vec3(2, 4, 5);
 
 struct Camera
 {
-	vec4 position;   
+	vec4 position;    
 	vec4 right;
 	vec4 lookat;
 	vec4 forward;
