@@ -3,6 +3,7 @@
 #include <geometry/Ray.h>
 #include <geometry/Transform.h>
 #include <MathUtil.h>
+#include <vector>
 
 using namespace glm;
 
@@ -207,4 +208,28 @@ public:
 
 		return isx;
 	}
+};
+
+class Mesh : public Geometry {
+public:
+
+	std::vector<Triangle> triangles;
+	Intersection GetIntersection(Ray r) {
+
+		float nearestT = -1.0f;
+		Intersection nearestIsx;
+		for (auto tri : triangles) {
+			Intersection isx = tri.GetIntersection(r);
+			if (nearestT < 0.0f && isx.t > 0) {
+				// First time
+				nearestT = isx.t;
+				nearestIsx = isx;
+			} else if (isx.t > 0 && isx.t < nearestT) {
+				nearestT = isx.t;
+				nearestIsx = isx;
+			}
+		}
+		return nearestIsx;
+	}
+
 };

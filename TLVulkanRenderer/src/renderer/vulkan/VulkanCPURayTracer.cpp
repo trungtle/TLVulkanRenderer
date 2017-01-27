@@ -552,30 +552,14 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 
 void VulkanCPURaytracer::Raytrace() {
 
-	// @todo make a full scene description file
-	vector<Geometry*> geos;
-
-	// Make triangles
-	for (int idx = 0; idx < m_scene->indices.size(); idx++) {
-		geos.push_back(
-			new Triangle(
-				m_scene->verticePositions[idx], 
-				m_scene->verticePositions[idx + 1], 
-				m_scene->verticePositions[idx + 2], 
-				m_scene->verticeNormals[idx], 
-				m_scene->verticeNormals[idx + 1], 
-				m_scene->verticeNormals[idx + 2])
-		);
-	}
-
 	vec3 light(3, 5, 10);
 
 	for (int w = 0; w < m_width; w++) {
 		for (int h = 0; h < m_height; h++) {
 			Ray newRay = m_scene->camera.GenerateRay(w, h, m_width, m_height);
 
-			for (auto geo : geos) { // Replace with acceleration structure
-				Intersection isx = geo->GetIntersection(newRay);
+			for (auto mesh : m_scene->meshes) { // Replace with acceleration structure
+				Intersection isx = mesh.GetIntersection(newRay);
 				if (isx.t > 0)
 				{
 					// Shade material

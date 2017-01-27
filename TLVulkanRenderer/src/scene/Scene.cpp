@@ -842,6 +842,7 @@ Scene::Scene(
 		const glm::mat3& matrixNormal = glm::transpose(glm::inverse(glm::mat3(matrix)));
 
 		int materialId = 0;
+		int idxOffset = 0;
 		for (auto& meshName : node.meshes) {
 			auto& mesh = scene.meshes.at(meshName);
 			for (size_t i = 0; i < mesh.primitives.size(); i++) {
@@ -1005,11 +1006,31 @@ Scene::Scene(
 				}
 
 				meshesData.push_back(geom);
+
+				Mesh newMesh;
+				for (int i = idxOffset; i < indices.size(); i++)
+				{
+					ivec4 idx = indices[i];
+					newMesh.triangles.push_back(
+						Triangle(
+							this->verticePositions[idx.x],
+							this->verticePositions[idx.y],
+							this->verticePositions[idx.z],
+							this->verticeNormals[idx.x],
+							this->verticeNormals[idx.y],
+							this->verticeNormals[idx.z])
+					);
+				}
+				meshes.push_back(newMesh);
+				idxOffset = indices.size();
 			}
 		}
 	}
 
-	Dump(scene);
+
+
+
+	//Dump(scene);
 }
 
 
