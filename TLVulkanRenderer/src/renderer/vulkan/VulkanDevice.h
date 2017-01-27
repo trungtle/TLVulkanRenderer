@@ -183,7 +183,7 @@ public:
 		VkFormat format,
 		VkImageAspectFlags aspectFlags,
 		VkImageView& imageView
-	);
+	) const;
 
 	void
 	TransitionImageLayout(

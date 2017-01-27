@@ -4,6 +4,7 @@
 #include <glfw3.h>
 #include "VulkanSwapchain.h"
 
+
 namespace VulkanUtil {
 	namespace Make {
 		VkPresentInfoKHR
@@ -110,6 +111,23 @@ namespace VulkanUtil {
 			descriptorBufferInfo.range = range;
 
 			return descriptorBufferInfo;
+		}
+
+		VkDescriptorImageInfo
+		MakeDescriptorImageInfo(
+			VkImageLayout layout,
+			VulkanImage::Image& image
+		) 
+		{
+			VkDescriptorImageInfo imageInfo;
+
+			imageInfo.imageLayout = layout;
+			imageInfo.imageView = image.imageView;
+			imageInfo.sampler = image.sampler;
+			
+			image.descriptor = imageInfo;
+
+			return imageInfo;
 		}
 
 		VkWriteDescriptorSet
@@ -299,6 +317,19 @@ namespace VulkanUtil {
 			return colorBlendStateCreateInfo;
 		}
 
+		VkPipelineDynamicStateCreateInfo
+		MakePipelineDynamicStateCreateInfo(
+			const VkDynamicState* pDynamicStates,
+			uint32_t dynamicStateCount,
+			VkPipelineDynamicStateCreateFlags flags) 
+		{
+			VkPipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo = {};
+			pipelineDynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+			pipelineDynamicStateCreateInfo.pDynamicStates = pDynamicStates;
+			pipelineDynamicStateCreateInfo.dynamicStateCount = dynamicStateCount;
+			return pipelineDynamicStateCreateInfo;
+		}
+
 		VkPipelineLayoutCreateInfo
 		MakePipelineLayoutCreateInfo(
 			VkDescriptorSetLayout* descriptorSetLayouts,
@@ -404,7 +435,7 @@ namespace VulkanUtil {
 		}
 
 		void
-		MakeDefaultTextureSampler(
+		CreateDefaultImageSampler(
 			const VkDevice& device,
 			VkSampler* sampler
 		) {

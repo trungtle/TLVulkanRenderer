@@ -1,6 +1,48 @@
 #include "VulkanImage.h"
+#include "VulkanDevice.h"
 
 namespace VulkanImage {
+
+	Image 
+	Create2DImage(
+		VulkanDevice* device, 
+		uint32_t width, 
+		uint32_t height,
+		VkImageTiling tiling,
+		VkImageUsageFlags usage, 
+		VkMemoryPropertyFlags properties
+		) 
+	{
+		VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		Image image; 
+
+		image.width = width;
+		image.height = height;
+
+		device->CreateImage(
+			width,
+			height,
+			1, // only a 2D depth image
+			VK_IMAGE_TYPE_2D,
+			imageFormat,
+			tiling,
+			// Image is sampled in fragment shader and used as storage for compute output
+			usage,
+			properties,
+			image.image,
+			image.imageMemory
+		);
+
+		return image;
+	}
+
+	void 
+	Destroy2DImage(VulkanDevice* device, Image image) {
+		vkDestroySampler(device->device, image.sampler, nullptr);
+		vkDestroyImageView(device->device, image.imageView, nullptr);
+		vkDestroyImage(device->device, image.image, nullptr);
+		vkFreeMemory(device->device, image.imageMemory, nullptr);
+	}
 
 	VkFormat
 	FindSupportedFormat(

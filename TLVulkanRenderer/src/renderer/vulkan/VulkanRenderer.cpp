@@ -31,6 +31,8 @@ VulkanRenderer::VulkanRenderer(
 	// -- Initialize Vulkan
 
 	m_vulkanDevice = new VulkanDevice(m_window, "Vulkan renderer", m_logger);
+	m_height = m_vulkanDevice->m_swapchain.extent.height;
+	m_width = m_vulkanDevice->m_swapchain.extent.width;
 
 	// Grabs the first queue in the graphics queue family since we only need one graphics queue anyway
 	vkGetDeviceQueue(m_vulkanDevice->device, m_vulkanDevice->queueFamilyIndices.graphicsFamily, 0, &m_graphics.queue);
@@ -68,6 +70,10 @@ VulkanRenderer::VulkanRenderer(
 }
 
 VulkanRenderer::~VulkanRenderer() {
+
+	// Flush device to make sure all resources can be freed 
+	vkDeviceWaitIdle(m_vulkanDevice->device);
+
 	// Free memory in the opposite order of creation
 
 	vkDestroySemaphore(m_vulkanDevice->device, m_imageAvailableSemaphore, nullptr);
@@ -227,8 +233,8 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 	VkShaderModule fragShader;
 	PrepareShaderModule("shaders/frag.spv", fragShader);
 
+	// -- VERTEX INPUT STAGE
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
-	// 1. Vertex input stage
 	// Input binding description
 	VertexAttributeInfo positionAttrib = m_scene->meshesData[0]->vertexAttributes.at(POSITION);
 	VertexAttributeInfo normalAttrib = m_scene->meshesData[0]->vertexAttributes.at(NORMAL);
@@ -268,16 +274,16 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 	);
 
 
-	// 2. Input assembly
+	// -- INPUT ASSEMBLY
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineInputAssemblyStateCreateInfo
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo =
 			MakePipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
-	// 3. Skip tesselation 
+	// -- TESSELATION
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineTessellationStateCreateInfo
 
 
-	// 4. Viewports and scissors
+	// -- VIEWPORTS & SCISSORS
 	// Viewport typically just covers the entire swapchain extent
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineViewportStateCreateInfo
 	std::vector<VkViewport> viewports = {
@@ -294,22 +300,22 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 
 	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = MakePipelineViewportStateCreateInfo(viewports, scissors);
 
-	// 5. Rasterizer
+	// -- RASTERIZATION
 	// This stage converts primitives into fragments. It also performs depth/stencil testing, face culling, scissor test.
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineRasterizationStateCreateInfo 
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = MakePipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
-	// 6. Multisampling state. We're not doing anything special here for now
+	// -- MULTISAMPLING
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineMultisampleStateCreateInfo
 
 	VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo =
 			MakePipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT);
 
-	// 6. Depth/stecil tests state
+	// -- DEPTH AND STENCIL TEST
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineDepthStencilStateCreateInfo
 	VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = MakePipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS);
 
-	// 7. Color blending state
+	// -- COLOR BLENDING
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineColorBlendStateCreateInfo
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
 	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -323,7 +329,17 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 
 	VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = MakePipelineColorBlendStateCreateInfo(colorBlendAttachments);
 
-	// 8. Dynamic state. Some pipeline states can be updated dynamically. Skip for now.
+	// -- DYNAMIC STATE
+	std::vector<VkDynamicState> dynamicStateEnables = {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR
+	};
+
+	VkPipelineDynamicStateCreateInfo dynamicState =
+		MakePipelineDynamicStateCreateInfo(
+			dynamicStateEnables.data(),
+			static_cast<uint32_t>(dynamicStateEnables.size()),
+			0);
 
 	// 9. Create pipeline layout to hold uniforms. This can be modified dynamically. 
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_graphics.descriptorSetLayout);

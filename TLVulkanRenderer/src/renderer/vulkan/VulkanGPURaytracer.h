@@ -2,10 +2,10 @@
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
 
-class VulkanRaytracer : public VulkanRenderer {
+class VulkanGPURaytracer : public VulkanRenderer {
 
 public:
-	VulkanRaytracer(
+	VulkanGPURaytracer(
 		GLFWwindow* window,
 		Scene* scene
 	);
@@ -16,7 +16,7 @@ public:
 	virtual void
 	Render() final;
 
-	virtual ~VulkanRaytracer() final;
+	virtual ~VulkanGPURaytracer() final;
 
 protected:
 

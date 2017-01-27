@@ -998,12 +998,9 @@ Scene::Scene(
 							material.transparency = 1.0f;
 						}
 
-						// Hack for light material
-						if (materialId == 9 || materialId == 8) {
-							material.shininess = 1;
-						}
 						materials.push_back(material);
 						++materialId;
+			
 					}
 				}
 
