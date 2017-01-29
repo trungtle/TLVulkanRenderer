@@ -102,6 +102,7 @@ VulkanRenderer::~VulkanRenderer() {
 
 	vkDestroyDescriptorSetLayout(m_vulkanDevice->device, m_graphics.descriptorSetLayout, nullptr);
 
+
 	vkDestroyPipelineLayout(m_vulkanDevice->device, m_graphics.pipelineLayout, nullptr);
 	for (auto& imageView : m_vulkanDevice->m_swapchain.imageViews) {
 		vkDestroyImageView(m_vulkanDevice->device, imageView, nullptr);

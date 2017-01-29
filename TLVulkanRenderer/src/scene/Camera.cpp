@@ -16,7 +16,8 @@ Camera::Camera(
     right(glm::vec3(1.0f, 0.0f, 0.0f)),
     nearClip(0.001f),
     farClip(1000.0f),
-    isPerspective(true) {
+    isPerspective(true),
+    aspect(float(width) / height) {
 	forward = lookAt - eye;
 	RecomputeAttributes();
 }
@@ -124,16 +125,15 @@ Camera::TranslateAlongUp(
 	RecomputeAttributes();
 }
 
-Ray Camera::GenerateRay(int x, int y, int width, int height) const {
+Ray Camera::GenerateRay(int x, int y) const {
 
 	float tan_fovy = tan(fov / 2 * DEG2RAD);
 	float len = glm::length(lookAt - eye);
-	float aspect = static_cast<float>(width) / static_cast<float>(height);
 	glm::vec3 V = up * len * tan_fovy;
 	glm::vec3 H = right * len * aspect * tan_fovy;
 
-	float pixelNDCx = (2.0 * x / width - 1.0);
-	float pixelNDCy = (1.0 - 2.0 * y / height);
+	float pixelNDCx = (2.0 * x / resolution.x - 1.0);
+	float pixelNDCy = (1.0 - 2.0 * y / resolution.y);
 	glm::vec3 P = lookAt + pixelNDCx * H + pixelNDCy * V;
 
 	return Ray(eye, normalize(P - eye));

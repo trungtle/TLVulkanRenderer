@@ -4,6 +4,56 @@
 #include "geometry/Geometry.h"
 #include "scene/Camera.h"
 
+
+
+void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
+
+	vec3 light(3, 5, 10);
+
+	Ray newRay = scene->camera.GenerateRay(x, y);
+
+	for (auto mesh : scene->meshes)
+	{ // Replace with acceleration structure
+		Intersection isx = mesh.GetIntersection(newRay);
+		if (isx.t > 0 || true)
+		{
+			// Shade material
+			vec3 lightDirection = glm::normalize(light - isx.hitPoint);
+			vec3 color = glm::clamp(glm::dot(isx.hitNormal, lightDirection), 0.1f, 1.0f) * isx.hitTextureColor * 255.0f;
+			film->SetPixel(x, y, glm::vec4(color, 1));
+		}
+	}
+}
+
+void Task(
+	uint32_t tileX,
+	uint32_t tileY,
+	Scene* scene,
+	Film* film
+)
+{
+	uint32_t width = scene->camera.resolution.x;
+	uint32_t height = scene->camera.resolution.y;
+	uint32_t sizeX = width / 4;
+	uint32_t startX = tileX * sizeX;
+	uint32_t endX = (tileX + 1) * sizeX;
+	endX = std::min(endX, width);
+
+	uint32_t sizeY = height / 4;
+	uint32_t startY = tileY * sizeY;
+	uint32_t endY = (tileY + 1) * sizeY;
+	endY = std::min(endY, height);
+
+	for (uint32_t x = startX; x < endX; x++)
+	{
+		for (uint32_t y = startY; y < endY; y++)
+		{
+			Raytrace(x, y, scene, film);
+		}
+	}
+}
+
+
 VulkanCPURaytracer::VulkanCPURaytracer(
 	GLFWwindow* window, 
 	Scene* scene
@@ -18,6 +68,7 @@ VulkanCPURaytracer::~VulkanCPURaytracer()
 
 	vkDestroyImage(m_vulkanDevice->device, m_stagingImage.image, nullptr);
 	vkFreeMemory(m_vulkanDevice->device, m_stagingImage.imageMemory, nullptr);
+
 }
 
 void 
@@ -34,7 +85,14 @@ VulkanCPURaytracer::Render() {
 
 	VkDeviceSize imageSize = m_width * m_height * 4;
 
-	Raytrace();
+	for (int i = 0; i < 16; i++)
+	{
+		m_threads[i] = std::thread(Task, i / 4, i % 4, m_scene, &m_film);
+	}
+	for (int i = 0; i < 16; i++)
+	{
+		m_threads[i].join();
+	}
 
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,
@@ -550,33 +608,20 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 	return result;
 }
 
-void VulkanCPURaytracer::Raytrace() {
-
-	vec3 light(3, 5, 10);
-
-	for (int w = 0; w < m_width; w++) {
-		for (int h = 0; h < m_height; h++) {
-			Ray newRay = m_scene->camera.GenerateRay(w, h, m_width, m_height);
-
-			for (auto mesh : m_scene->meshes) { // Replace with acceleration structure
-				Intersection isx = mesh.GetIntersection(newRay);
-				if (isx.t > 0)
-				{
-					// Shade material
-					vec3 lightDirection = glm::normalize(light - isx.hitPoint);
-					vec3 color = glm::clamp(glm::dot(isx.hitNormal, light), 0.1f, 1.0f) * vec3(100, 0, 0);
-					m_film.SetPixel(w, h, glm::vec4(color, 1));
-				}
-			}
-		}
-	}
-}
-
 void VulkanCPURaytracer::PrepareResources() {
 
+	m_logger->info("Number of threads available: {0}\n", std::thread::hardware_concurrency());
+
+	// Generate 4x4 threads
+	for (int i = 0; i < 16; i++) {
+		m_threads[i] = std::thread(Task, i / 4, i % 4, m_scene, &m_film);
+	}
+	for (int i = 0; i < 16; i++)
+	{
+		m_threads[i].join();
+	}
 	VkDeviceSize imageSize = m_width * m_height * 4;
 
-	Raytrace();
 
 	// Stage image
 	m_stagingImage = VulkanImage::Create2DImage(

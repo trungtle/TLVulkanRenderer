@@ -4,6 +4,7 @@
 #include <geometry/Transform.h>
 #include <MathUtil.h>
 #include <vector>
+#include <geometry/materials/LambertMaterial.h>
 
 using namespace glm;
 
@@ -26,8 +27,10 @@ public:
 	~Geometry();
 
 	virtual Intersection GetIntersection(Ray r) = 0;
+	virtual vec2 GetUV(const vec3&) = 0;
 
-	Transform transform;
+	Transform m_transform;
+	LambertMaterial* m_material;
 };
 
 class Sphere : public Geometry
@@ -37,7 +40,7 @@ public:
 	Intersection GetIntersection(Ray r) override
 	{
 		//Transform the ray
-		Ray r_loc = r.GetTransformedCopy(transform.invT());
+		Ray r_loc = r.GetTransformedCopy(m_transform.invT());
 		Intersection result;
 
 		float A = pow(r_loc.m_direction[0], 2) + pow(r_loc.m_direction[1], 2) + pow(r_loc.m_direction[2], 2);
@@ -57,14 +60,25 @@ public:
 		if (t >= 0)
 		{
 			glm::vec4 P = glm::vec4(r_loc.m_origin + t*r_loc.m_direction, 1);
-			result.hitPoint = glm::vec3(transform.T() * P);
+			result.hitPoint = glm::vec3(m_transform.T() * P);
 			glm::vec3 normal = glm::normalize(glm::vec3(P));
-
-			result.hitNormal = glm::normalize(glm::vec3(transform.invTransT() * (P - glm::vec4(0, 0, 0, 1))));
+			result.hitNormal = glm::normalize(glm::vec3(m_transform.invTransT() * (P - glm::vec4(0, 0, 0, 1))));
+			result.hitTextureColor = m_material->m_colorDiffuse;
+			result.t = glm::distance(result.hitPoint, r.m_origin);
+			result.objectHit = this;
 		}
-		result.t = glm::distance(result.hitPoint, r.m_origin);
-		result.objectHit = this;
 		return result;
+	}
+
+	vec2 GetUV(const vec3& point) override {
+		glm::vec3 p = glm::normalize(point);
+		float phi = atan2f(p.z, p.x);//glm::atan(p.x/p.z);
+		if (phi < 0)
+		{
+			phi += TWO_PI;
+		}
+		float theta = glm::acos(p.y);
+		return glm::vec2(1 - phi / TWO_PI, 1 - theta / PI);
 	}
 };
 
@@ -91,7 +105,7 @@ public:
 	Intersection GetIntersection(Ray r) override
 	{
 		//Transform the ray
-		Ray r_loc = r.GetTransformedCopy(transform.invT());
+		Ray r_loc = r.GetTransformedCopy(m_transform.invT());
 		Intersection result;
 
 		float t_n = -1000000;
@@ -128,11 +142,12 @@ public:
 		{
 			//Lastly, transform the point found in object space by T
 			glm::vec4 P = glm::vec4(r_loc.m_origin + t_n*r_loc.m_direction, 1);
-			result.hitPoint = glm::vec3(transform.T() * P);
-			result.hitNormal = glm::normalize(glm::vec3(transform.invTransT() * GetCubeNormal(P)));
+			result.hitPoint = glm::vec3(m_transform.T() * P);
+			result.hitNormal = glm::normalize(glm::vec3(m_transform.invTransT() * GetCubeNormal(P)));
 			result.objectHit = this;
 			result.t = glm::distance(result.hitPoint, r.m_origin);
 //			result.hitTextureColor = Material::GetImageColorInterp(GetUVCoordinates(glm::vec3(P)), material->texture);
+			result.hitTextureColor = m_material->m_colorDiffuse;
 			return result;
 		}
 		else
@@ -140,21 +155,89 @@ public:
 			return result;
 		}
 	}
+
+	vec2 GetUV(const vec3& point) override {
+		glm::vec3 abs = glm::min(glm::abs(point), 0.5f);
+		glm::vec2 UV;//Always offset lower-left corner
+		if (abs.x > abs.y && abs.x > abs.z)
+		{
+			UV = glm::vec2(point.z + 0.5f, point.y + 0.5f) / 3.0f;
+			//Left face
+			if (point.x < 0)
+			{
+				UV += glm::vec2(0, 0.333f);
+			}
+			else
+			{
+				UV += glm::vec2(0, 0.667f);
+			}
+		}
+		else if (abs.y > abs.x && abs.y > abs.z)
+		{
+			UV = glm::vec2(point.x + 0.5f, point.z + 0.5f) / 3.0f;
+			//Left face
+			if (point.y < 0)
+			{
+				UV += glm::vec2(0.333f, 0.333f);
+			}
+			else
+			{
+				UV += glm::vec2(0.333f, 0.667f);
+			}
+		}
+		else
+		{
+			UV = glm::vec2(point.x + 0.5f, point.y + 0.5f) / 3.0f;
+			//Left face
+			if (point.z < 0)
+			{
+				UV += glm::vec2(0.667f, 0.333f);
+			}
+			else
+			{
+				UV += glm::vec2(0.667f, 0.667f);
+			}
+		}
+		return UV;
+	}
+
 };
 
 class Triangle : public Geometry {
 public:
-
 	vec3 vert0;
 	vec3 vert1;
 	vec3 vert2;
 	vec3 norm0;
 	vec3 norm1;
 	vec3 norm2;
+	vec2 uv0;
+	vec2 uv1;
+	vec2 uv2;
 
-	Triangle(vec3 v0, vec3 v1, vec3 v2, vec3 n0, vec3 n1, vec3 n2) :
-		vert0{v0}, vert1{v1}, vert2{v2}, norm0{n0}, norm1{n1}, norm2{n2}
-	{}
+	Triangle(
+		vec3 v0, vec3 v1, vec3 v2,
+		vec3 n0, vec3 n1, vec3 n2,
+		LambertMaterial* material
+	) :
+		vert0(v0), vert1(v1), vert2(v2),
+		norm0(n0), norm1(n1), norm2(n2)
+	{
+		m_material = material;
+	}
+
+	Triangle(
+		vec3 v0, vec3 v1, vec3 v2,
+		vec3 n0, vec3 n1, vec3 n2,
+		vec2 uv0, vec2 uv1, vec2 uv2,
+		LambertMaterial* material
+		) :
+		vert0(v0), vert1(v1), vert2(v2), 
+		norm0(n0), norm1(n1), norm2(n2),
+		uv0(uv0), uv1(uv1), uv2(uv2) 
+	{
+		m_material = material;
+	}
 
 	Intersection GetIntersection(Ray r) override
 	{
@@ -201,12 +284,29 @@ public:
 		// Compute t
 		t = dot(edge2, qvec) * inv_det;
 
+		// Color
+		glm::vec2 uv = uv0 * (1 - u - v) + uv1 * u + uv2 * v;
+
 		isx.hitPoint = r.GetPointOnRay(t);
 		isx.hitNormal = normalize(norm0 * (1 - u - v) + norm1 * u + norm2 * v);
 		isx.t = t;
+		isx.hitTextureColor = m_material->m_colorDiffuse;
 		isx.objectHit = this;
 
 		return isx;
+	}
+
+	static float Area(const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 &p3)
+	{
+		return glm::length(glm::cross(p1 - p2, p3 - p2)) * 0.5f;
+	}
+
+	vec2 GetUV(const vec3& point) override {
+		float A = Area(vert0, vert1, vert2);
+		float A0 = Area(vert1, vert2, point);
+		float A1 = Area(vert0, vert2, point);
+		float A2 = Area(vert0, vert1, point);
+		return uv0 * (A0 / A) + uv1 * (A1 / A) + uv2 * (A2 / A);
 	}
 };
 
@@ -214,7 +314,7 @@ class Mesh : public Geometry {
 public:
 
 	std::vector<Triangle> triangles;
-	Intersection GetIntersection(Ray r) {
+	Intersection GetIntersection(Ray r) override {
 
 		float nearestT = -1.0f;
 		Intersection nearestIsx;
@@ -232,4 +332,7 @@ public:
 		return nearestIsx;
 	}
 
+	vec2 GetUV(const vec3& point) override {
+		return vec2();
+	}
 };

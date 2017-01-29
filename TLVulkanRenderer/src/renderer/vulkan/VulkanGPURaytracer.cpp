@@ -966,7 +966,7 @@ void VulkanGPURaytracer::PrepareComputeUniformBuffer() {
 	m_compute.buffers.uniform.descriptor = MakeDescriptorBufferInfo(m_compute.buffers.uniform.buffer, 0, bufferSize);
 
 	// ====== MATERIALS
-	bufferSize = sizeof(Material) * m_scene->materials.size();
+	bufferSize = sizeof(MaterialPacked) * m_scene->materials.size();
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingMemory;
 

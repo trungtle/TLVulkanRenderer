@@ -19,7 +19,7 @@ struct Camera {
 	void Zoom(float amount);
 	void TranslateAlongRight(float amount);
 	void TranslateAlongUp(float amount);
-	Ray GenerateRay(int x, int y, int width, int height) const;
+	Ray GenerateRay(int x, int y) const;
 
 	// -- Attributes
 	glm::ivec2 resolution;
@@ -33,6 +33,7 @@ struct Camera {
 	float farClip;
 	glm::vec2 pixelLength;
 	int samplesPerPixel;
+	float aspect;
 
 	glm::mat4 viewMat;
 	glm::mat4 projMat;

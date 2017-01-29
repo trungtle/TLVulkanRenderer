@@ -2,6 +2,7 @@
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
 #include "renderer/Film.h"
+#include <thread>
 
 class VulkanCPURaytracer : public VulkanRenderer
 {
@@ -63,9 +64,8 @@ protected:
 
 	Film m_film;
 
+	std::array<std::thread, 16> m_threads;
+
 	void
 	PrepareResources();
-
-	void 
-	Raytrace();
 };

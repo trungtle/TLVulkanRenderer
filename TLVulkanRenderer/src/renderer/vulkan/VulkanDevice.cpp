@@ -895,7 +895,6 @@ VulkanDevice::TransitionImageLayout(
 		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
 			// Image will be used as a transfer source
 			// Make sure any reads from and writes to the image have been finished
-			imageBarrier.srcAccessMask = imageBarrier.srcAccessMask | VK_ACCESS_TRANSFER_READ_BIT;
 			imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 			break;
 

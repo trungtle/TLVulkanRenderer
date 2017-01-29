@@ -41,6 +41,9 @@
     <ClCompile Include="src\scene\Scene.cpp">
       <Filter>Sources\scene</Filter>
     </ClCompile>
+    <ClCompile Include="src\geometry\BBox.cpp" />
+    <ClCompile Include="src\geometry\SBVH.cpp" />
+    <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -122,6 +125,11 @@
     <ClInclude Include="src\scene\Scene.h">
       <Filter>Headers\scene</Filter>
     </ClInclude>
+    <ClInclude Include="src\geometry\BBox.h" />
+    <ClInclude Include="src\geometry\SBVH.h" />
+    <ClInclude Include="src\geometry\materials\Material.h" />
+    <ClInclude Include="src\ImageUtil.h" />
+    <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">
