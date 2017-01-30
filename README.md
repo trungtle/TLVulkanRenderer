@@ -22,7 +22,7 @@ For next week, I'm going to experiment with having the main thread render the ne
 
 #### BVH
 
-![](TLVulkanRenderer/renders/SBVH_debug.png)
+![](TLVulkanRenderer/renders/BVH_Multithread.gif)
 
 I also added a basic BVH structure to the scene. Since SBVH and BVH shares a similar structure and only differs in its construction phase, I opted to build and verified working for the normal BVH first before moving on to SBVH. 
 
