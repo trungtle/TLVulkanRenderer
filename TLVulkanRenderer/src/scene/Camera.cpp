@@ -10,7 +10,7 @@ Camera::Camera(
 	float height
 ) : resolution(glm::ivec2(width, height)),
     fov(45),
-    eye(glm::vec3(0.0f, 0.0f, 20.0f)),
+    eye(glm::vec3(0.0f, 0.0f, 10.0f)),
     lookAt(glm::vec3(0.0f, 0.0f, 0.0f)),
     up(glm::vec3(0.0f, 1.0f, 0.0f)),
     right(glm::vec3(1.0f, 0.0f, 0.0f)),
@@ -18,7 +18,6 @@ Camera::Camera(
     farClip(1000.0f),
     isPerspective(true),
     aspect(float(width) / height) {
-	forward = lookAt - eye;
 	RecomputeAttributes();
 }
 
@@ -51,7 +50,7 @@ Camera::RecomputeAttributes() {
 	if (isPerspective) {
 		projMat = glm::perspective(
 			fov,
-			(float)resolution.x / (float)resolution.y,
+			aspect,
 			nearClip,
 			farClip
 		);
@@ -127,7 +126,7 @@ Camera::TranslateAlongUp(
 
 Ray Camera::GenerateRay(int x, int y) const {
 
-	float tan_fovy = tan(fov / 2 * DEG2RAD);
+	float tan_fovy = tan(fov / 2);
 	float len = glm::length(lookAt - eye);
 	glm::vec3 V = up * len * tan_fovy;
 	glm::vec3 H = right * len * aspect * tan_fovy;

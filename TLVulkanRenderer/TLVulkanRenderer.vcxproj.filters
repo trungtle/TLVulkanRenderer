@@ -153,6 +153,8 @@
     <None Include="shaders\raytracing\quad.frag">
       <Filter>Resources\Shaders</Filter>
     </None>
+    <None Include="shaders\raytracing\wireframe.vert" />
+    <None Include="shaders\raytracing\wireframe.frag" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

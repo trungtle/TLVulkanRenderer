@@ -147,12 +147,13 @@ VulkanDevice::SelectPhysicalDevice() {
 
 VkResult
 VulkanDevice::SetupLogicalDevice() {
-	// @todo: should add new & interesting features later
-	VkPhysicalDeviceFeatures deviceFeatures = {};
-
 	// Create logical device info struct and populate it
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+	VkPhysicalDeviceFeatures deviceFeatures = {};
+	deviceFeatures.fillModeNonSolid = VK_TRUE;	
+	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
 
 	// Create a set of unique queue families for the required queues
 	queueFamilyIndices = FindQueueFamilyIndices(physicalDevice, surfaceKHR);

@@ -935,10 +935,10 @@ Scene::Scene(
 					else if (attribute.first.compare("TEXCOORD_0") == 0) {
 						attributeType = EVertexAttributeType::TEXCOORD;
 						int uvCount = accessor.count;
-						glm::vec3* uvs = reinterpret_cast<glm::vec3*>(data.data());
+						glm::vec2* uvs = reinterpret_cast<glm::vec2*>(data.data());
 						for (auto p = 0; p < uvCount; ++p)
 						{
-							verticeUVs.push_back(glm::vec4(uvs[p], 0.0f));
+							verticeUVs.push_back(uvs[p]);
 						}
 					}
 
@@ -1058,6 +1058,24 @@ Scene::Scene(
 			} // -- End of mesh primitives
 		} // -- End of meshes
 	}
+
+	sbvh = SBVH(
+		1,
+		SBVH::SAH
+		);
+
+	std::vector<Geometry*> geoms;
+	for (int m = 0; m < meshes.size(); m++)
+	{
+		for (int t = 0; t < meshes[m].triangles.size(); t++)
+		{
+			geoms.push_back(&meshes[m].triangles[t]);
+		}
+	}
+	for (auto t : geoms) {
+		t->GetBBox();
+	}
+	sbvh.Build(geoms);
 
 	//Dump(scene);
 }

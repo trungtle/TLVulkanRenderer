@@ -6,6 +6,7 @@
 #include "scene/Camera.h"
 #include <geometry/Geometry.h>
 #include <geometry/materials/LambertMaterial.h>
+#include <geometry/SBVH.h>
 
 class Scene {
 public:
@@ -21,4 +22,5 @@ public:
 	std::vector<glm::vec4> verticeNormals;
 	std::vector<glm::vec2> verticeUVs;
 	std::vector<Mesh> meshes;
+	SBVH sbvh;
 };

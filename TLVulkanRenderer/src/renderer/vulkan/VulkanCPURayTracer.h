@@ -35,6 +35,9 @@ protected:
 	VkResult
 		PrepareGraphicsVertexBuffer() final;
 
+	VkResult
+		PrepareGraphicsUniformBuffer() final;
+
 	// --- Descriptor
 
 	VkResult
@@ -61,6 +64,14 @@ protected:
 protected:
 	VulkanImage::Image m_stagingImage;
 	VulkanImage::Image m_displayImage;
+	VulkanBuffer::StorageBuffer m_wireframeBVHVertices;
+	VulkanBuffer::StorageBuffer m_wireframeBVHIndices;
+	VulkanBuffer::StorageBuffer m_wireframeUniform;
+	VkDescriptorSet m_wireframeDescriptorSet;
+	VkDescriptorSetLayout m_wireframeDescriptorLayout;
+	VkPipeline m_wireframePipeline;
+	VkPipelineLayout m_wireframePipelineLayout;
+	uint32_t m_wireframeIndexCount;
 
 	Film m_film;
 
@@ -68,4 +79,7 @@ protected:
 
 	void
 	PrepareResources();
+
+	void
+	GenerateWireframeBVHNodes();
 };

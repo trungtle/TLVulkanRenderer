@@ -8,6 +8,7 @@
 
 using namespace glm;
 
+class BBox;
 class Geometry;
 
 class Intersection {
@@ -28,6 +29,7 @@ public:
 
 	virtual Intersection GetIntersection(Ray r) = 0;
 	virtual vec2 GetUV(const vec3&) = 0;
+	virtual BBox GetBBox() = 0;
 
 	Transform m_transform;
 	LambertMaterial* m_material;
@@ -80,6 +82,9 @@ public:
 		float theta = glm::acos(p.y);
 		return glm::vec2(1 - phi / TWO_PI, 1 - theta / PI);
 	}
+
+	BBox GetBBox() override;
+
 };
 
 class Cube : public Geometry {
@@ -201,6 +206,8 @@ public:
 		return UV;
 	}
 
+	BBox GetBBox() override;
+
 };
 
 class Triangle : public Geometry {
@@ -308,6 +315,8 @@ public:
 		float A2 = Area(vert0, vert1, point);
 		return uv0 * (A0 / A) + uv1 * (A1 / A) + uv2 * (A2 / A);
 	}
+
+	BBox GetBBox() override;
 };
 
 class Mesh : public Geometry {
@@ -335,4 +344,6 @@ public:
 	vec2 GetUV(const vec3& point) override {
 		return vec2();
 	}
+
+	BBox GetBBox() override;
 };

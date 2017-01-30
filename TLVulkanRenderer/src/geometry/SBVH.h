@@ -5,7 +5,12 @@
 class SBVHNode {
 public:
 
-	SBVHNode() {};
+	SBVHNode() : 
+		parent(nullptr), 
+		nearChild(nullptr), 
+		farChild(nullptr),
+		nodeIdx(-1)
+	{};
 
 	virtual bool IsLeaf() {
 		return false;
@@ -22,8 +27,12 @@ public:
 class SBVHLeaf : public SBVHNode {
 public:
 	SBVHLeaf(std::vector<Geometry*> geoms) : 
-		m_geoms(geoms)
+		SBVHNode(), m_geoms(geoms)
 	{
+		for (auto g : geoms) {
+			BBox b = g->GetBBox();
+			bbox = BBox::BBoxUnion(b, bbox);
+		}
 	}
 
 	bool IsLeaf() final {
@@ -41,6 +50,9 @@ public:
 		SAH
 	};
 
+	SBVH() : m_root(nullptr), m_maxPrimInNode(1), m_splitMethod(SAH)
+	{};
+
 	SBVH(
 		int maxPrimInNode,
 		ESplitMethod splitMethod
@@ -52,17 +64,29 @@ public:
 	void Build(
 		const std::vector<Geometry*>& geoms
 	);
-	void Traverse();
+
+	Intersection GetIntersection(Ray r);
 
 	void Destroy();
+
+	std::vector<SBVHNode*> m_nodes;
 
 protected:
 
 	SBVHNode* 
 	BuildRecursive(std::vector<SBVHNode*>& leaves, int first, int last, size_t nodeCount);
 	
+	void GetIntersectionRecursive(Ray r, SBVHNode* node, float& nearestT, Intersection& nearestIsx);
+
 	void 
 	DestroyRecursive(SBVHNode* node);
+
+	void
+	Flatten();
+
+	void
+	FlattenRecursive(SBVHNode* node);
+
 
 	SBVHNode* m_root;
 	int m_maxPrimInNode;

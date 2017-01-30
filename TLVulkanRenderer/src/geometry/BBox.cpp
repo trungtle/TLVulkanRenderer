@@ -1,6 +1,7 @@
 #include "bbox.h"
 #include <glm/gtc/matrix_inverse.hpp>
 
+
 Intersection BBox::GetIntersection(Ray r) 
 {
 	//Transform the ray
@@ -42,7 +43,6 @@ Intersection BBox::GetIntersection(Ray r)
 		//Lastly, transform the point found in object space by T
 		glm::vec4 P = glm::vec4(r_loc.m_origin + t_n*r_loc.m_direction, 1);
 		result.hitPoint = glm::vec3(m_transform.T() * P);
-		result.objectHit = this;
 		result.t = glm::distance(result.hitPoint, r.m_origin);
 		return result;
 	}
@@ -74,21 +74,6 @@ BBox BBox::BBoxUnion(const BBox& a, const BBox& b) {
 	ret.min.z = glm::min(a.min.z, b.min.z);
 	ret.centroid = BBox::Centroid(ret.max, ret.min);
 	return ret;
-}
-
-BBox BBox::BBoxFromGeometries(const std::vector<Triangle*>& geom) {
-	BBox result;
-	for (auto g : geom) {
-		BBox box;
-		glm::vec3 p0 = glm::vec3(g->m_transform.T() * glm::vec4(g->vert0, 1.f));
-		glm::vec3 p1 = glm::vec3(g->m_transform.T() * glm::vec4(g->vert1, 1.f));
-		glm::vec3 p2 = glm::vec3(g->m_transform.T() * glm::vec4(g->vert2, 1.f));
-		box.min = glm::min(p0, glm::min(p1, p2));
-		box.max = glm::max(p0, glm::max(p1, p2));
-		box.centroid = BBox::Centroid(box.min, box.max);
-		result = BBox::BBoxUnion(result, box);
-	}
-	return result;
 }
 
 BBox::EAxis BBox::BBoxMaximumExtent(const BBox& bbox) {

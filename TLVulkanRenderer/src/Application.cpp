@@ -21,11 +21,9 @@ static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
 static glm::vec3 cammove;
 
-float zoom = 0, theta = 0, phi = 0;
+float zoom = 0, theta = 0, phi = 0, translateX = 0, translateY = 0;
 int width = 800;
 int height = 600;
-
-Camera g_camera;
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
@@ -64,10 +62,8 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
 		camchanged = true;
 	}
 	else if (middleMousePressed) {
-		Camera& cam = g_camera;
-
-		cam.lookAt -= (float)(xpos - lastX) * cam.right * 0.01f;
-		cam.lookAt += (float)(ypos - lastY) * cam.up * 0.01f;
+		translateX = (xpos - lastX) * 10.f / width;
+		translateY = (ypos - lastY) * 10.f / height;
 		camchanged = true;
 	}
 	lastX = xpos;
@@ -136,8 +132,6 @@ Application::Application(
 
 	m_scene = new Scene(sceneFile);
 
-	//g_camera = m_scene->camera;
-
 	switch (useAPI) {
 	case EGraphicsAPI::Vulkan:
 		// Init Vulkan
@@ -195,12 +189,16 @@ void Application::Run() {
 
 		// Update camera
 		if (camchanged) {
-			m_scene->camera.TranslateAlongRight(-phi);
-			m_scene->camera.TranslateAlongUp(theta);
+			m_scene->camera.RotateAboutRight(phi * 10.f);
+			m_scene->camera.RotateAboutUp(theta * 10.0f);
+			m_scene->camera.TranslateAlongRight(-translateX);
+			m_scene->camera.TranslateAlongUp(translateY);
 			m_scene->camera.Zoom(zoom);
 			zoom = 0;
 			theta = 0;
 			phi = 0;
+			translateX = 0;
+			translateY = 0;
 			camchanged = false;
 		}
 

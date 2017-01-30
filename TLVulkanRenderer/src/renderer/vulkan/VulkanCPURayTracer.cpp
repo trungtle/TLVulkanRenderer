@@ -4,7 +4,8 @@
 #include "geometry/Geometry.h"
 #include "scene/Camera.h"
 
-
+#define MULTITHREAD
+//#define USE_SBVH
 
 void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
 
@@ -12,10 +13,20 @@ void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
 
 	Ray newRay = scene->camera.GenerateRay(x, y);
 
-	for (auto mesh : scene->meshes)
+#ifdef USE_SBVH
+	Intersection isx = scene->sbvh.GetIntersection(newRay);
+	if (isx.t > 0)
+	{
+		// Shade material
+		vec3 lightDirection = glm::normalize(light - isx.hitPoint);
+		vec3 color = glm::clamp(glm::dot(isx.hitNormal, lightDirection), 0.1f, 1.0f) * isx.hitTextureColor * 255.0f;
+		film->SetPixel(x, y, glm::vec4(color, 1));
+	}
+#else
+		for (auto mesh : scene->meshes)
 	{ // Replace with acceleration structure
 		Intersection isx = mesh.GetIntersection(newRay);
-		if (isx.t > 0 || true)
+		if (isx.t > 0)
 		{
 			// Shade material
 			vec3 lightDirection = glm::normalize(light - isx.hitPoint);
@@ -23,6 +34,7 @@ void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
 			film->SetPixel(x, y, glm::vec4(color, 1));
 		}
 	}
+#endif
 }
 
 void Task(
@@ -64,6 +76,8 @@ VulkanCPURaytracer::VulkanCPURaytracer(
 
 VulkanCPURaytracer::~VulkanCPURaytracer()
 {
+	m_scene->sbvh.Destroy();
+
 	Destroy2DImage(m_vulkanDevice, m_displayImage);
 
 	vkDestroyImage(m_vulkanDevice->device, m_stagingImage.image, nullptr);
@@ -73,7 +87,19 @@ VulkanCPURaytracer::~VulkanCPURaytracer()
 
 void 
 VulkanCPURaytracer::Update() {
-	
+	static auto startTime = std::chrono::high_resolution_clock::now();
+
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	float timeSeconds = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
+
+	// === Wireframe
+	glm::mat4 vp = m_scene->camera.GetViewProj();
+
+	uint8_t *pData;
+	vkMapMemory(m_vulkanDevice->device, m_wireframeUniform.memory, 0, sizeof(vp), 0, (void **)&pData);
+	memcpy(pData, &vp, sizeof(vp));
+	vkUnmapMemory(m_vulkanDevice->device, m_wireframeUniform.memory);
+
 }
 
 void 
@@ -85,6 +111,8 @@ VulkanCPURaytracer::Render() {
 
 	VkDeviceSize imageSize = m_width * m_height * 4;
 
+#ifdef MULTITHREAD
+	// Generate 4x4 threads
 	for (int i = 0; i < 16; i++)
 	{
 		m_threads[i] = std::thread(Task, i / 4, i % 4, m_scene, &m_film);
@@ -93,6 +121,15 @@ VulkanCPURaytracer::Render() {
 	{
 		m_threads[i].join();
 	}
+#else
+	for (int w = 0; w < m_width; w++)
+	{
+		for (int h = 0; h < m_height; h++)
+		{
+			Raytrace(w, h, m_scene, &m_film);
+		}
+	}
+#endif
 
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,
@@ -157,6 +194,7 @@ void
 VulkanCPURaytracer::PrepareGraphics() 
 {
 	PrepareResources();
+	PrepareGraphicsUniformBuffer();
 	PrepareGraphicsVertexBuffer();
 	PrepareGraphicsDescriptorPool();
 	PrepareGraphicsDescriptorSetLayout();
@@ -282,13 +320,6 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 	dynamicState.dynamicStateCount = dynamicStateEnables.size();
 	dynamicState.pDynamicStates = dynamicStateEnables.data();
 
-	// 9. Create pipeline layout to hold uniforms. This can be modified dynamically. 
-	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_graphics.descriptorSetLayout);
-	pipelineLayoutCreateInfo.pSetLayouts = &m_graphics.descriptorSetLayout;
-	CheckVulkanResult(
-		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_graphics.pipelineLayout),
-		"Failed to create pipeline layout."
-	);
 
 	// -- Setup the programmable stages for the pipeline. This links the shader modules with their corresponding stages.
 	// \ref https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineShaderStageCreateInfo
@@ -338,6 +369,89 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 	// We don't need the shader modules after the graphics pipeline creation. Destroy them now.
 	vkDestroyShaderModule(m_vulkanDevice->device, vertShader, nullptr);
 	vkDestroyShaderModule(m_vulkanDevice->device, fragShader, nullptr);
+
+
+	// === For BVH wireframe debug
+	inputAssemblyStateCreateInfo = MakePipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+	rasterizationStateCreateInfo = MakePipelineRasterizationStateCreateInfo(
+		VK_POLYGON_MODE_LINE, 
+		VK_CULL_MODE_NONE, 
+		VK_FRONT_FACE_COUNTER_CLOCKWISE);
+
+	VkShaderModule wireframeVertShader;
+	PrepareShaderModule("shaders/raytracing/wireframe.vert.spv", wireframeVertShader);
+	VkShaderModule wireframeFragShader;
+	PrepareShaderModule("shaders/raytracing/wireframe.frag.spv", wireframeFragShader);
+
+	shaderCreateInfos = {
+		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, wireframeVertShader),
+		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, wireframeFragShader)
+	};
+
+
+	attribDesc = {
+		MakeVertexInputAttributeDescription(
+			0, // binding
+			0, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			0 // offset
+		)
+	};
+
+	bindingDesc = {
+		MakeVertexInputBindingDescription(
+			0, // binding
+			sizeof(glm::vec3), // stride
+			VK_VERTEX_INPUT_RATE_VERTEX
+		)
+	};
+
+	VkPipelineVertexInputStateCreateInfo wireframeInputState = MakePipelineVertexInputStateCreateInfo(
+		bindingDesc,
+		attribDesc
+	);
+
+
+	graphicsPipelineCreateInfo.pVertexInputState = &wireframeInputState;
+	graphicsPipelineCreateInfo.pInputAssemblyState = &inputAssemblyStateCreateInfo;
+	graphicsPipelineCreateInfo.pRasterizationState = &rasterizationStateCreateInfo;
+	
+	VkGraphicsPipelineCreateInfo wireframePipelineCreateInfo = 
+		MakeGraphicsPipelineCreateInfo(
+		shaderCreateInfos,
+		&vertexInputStageCreateInfo,
+		&inputAssemblyStateCreateInfo,
+		nullptr,
+		&viewportStateCreateInfo,
+		&rasterizationStateCreateInfo,
+		&colorBlendStateCreateInfo,
+		&multisampleStateCreateInfo,
+		&depthStencilStateCreateInfo,
+		nullptr,
+		m_wireframePipelineLayout,
+		m_graphics.renderPass,
+		0, // Subpass
+
+		   // Since pipelins are expensive to create, potentially we could reuse a common parent pipeline using the base pipeline handle.									
+		   // We just have one here so we don't need to specify these values.
+		VK_NULL_HANDLE,
+		-1
+	);
+	
+	CheckVulkanResult(
+		vkCreateGraphicsPipelines(
+			m_vulkanDevice->device,
+			VK_NULL_HANDLE, // Pipeline caches here
+			1, // Pipeline count
+			&wireframePipelineCreateInfo,
+			nullptr,
+			&m_wireframePipeline // Pipelines
+		),
+		"Failed to create graphics pipeline"
+	);
+
+	vkDestroyShaderModule(m_vulkanDevice->device, wireframeVertShader, nullptr);
+	vkDestroyShaderModule(m_vulkanDevice->device, wireframeFragShader, nullptr);
 
 	return result;
 }
@@ -452,12 +566,27 @@ VkResult VulkanCPURaytracer::PrepareGraphicsVertexBuffer() {
 	return VK_SUCCESS;
 }
 
+VkResult VulkanCPURaytracer::PrepareGraphicsUniformBuffer() 
+{
+	VulkanRenderer::PrepareGraphicsUniformBuffer();
+
+	m_wireframeUniform.Create(
+		m_vulkanDevice,
+		sizeof(glm::mat4),
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+
+	return VK_SUCCESS;
+}
+
 VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorPool() {
-	std::array<VkDescriptorPoolSize, 1> poolSizes = {
-		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+	std::array<VkDescriptorPoolSize, 2> poolSizes = {
+		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
+		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)
 	};
 
-	VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = MakeDescriptorPoolCreateInfo(poolSizes.size(), poolSizes.data(), 1);
+	VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = MakeDescriptorPoolCreateInfo(poolSizes.size(), poolSizes.data(), 5);
 
 	CheckVulkanResult(
 		vkCreateDescriptorPool(m_vulkanDevice->device, &descriptorPoolCreateInfo, nullptr, &m_graphics.descriptorPool),
@@ -469,6 +598,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorPool() {
 
 VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSetLayout() 
 {
+	// === Quad
 	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 		MakeDescriptorSetLayoutBinding(
 			0,
@@ -490,10 +620,48 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSetLayout()
 		return result;
 	}
 
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_graphics.descriptorSetLayout);
+	pipelineLayoutCreateInfo.pSetLayouts = &m_graphics.descriptorSetLayout;
+	CheckVulkanResult(
+		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_graphics.pipelineLayout),
+		"Failed to create pipeline layout."
+	);
+
+	// === Wireframe set layout
+	setLayoutBindings = {
+		MakeDescriptorSetLayoutBinding(
+			0,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_SHADER_STAGE_VERTEX_BIT
+		),
+	};
+
+	descriptorSetLayoutCreateInfo =
+		MakeDescriptorSetLayoutCreateInfo(
+			setLayoutBindings.data(),
+			setLayoutBindings.size()
+		);
+
+	result = vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorSetLayoutCreateInfo, nullptr, &m_wireframeDescriptorLayout);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create descriptor set layout");
+		return result;
+	}
+
+	pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_wireframeDescriptorLayout);
+	pipelineLayoutCreateInfo.pSetLayouts = &m_wireframeDescriptorLayout;
+	CheckVulkanResult(
+		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_wireframePipelineLayout),
+		"Failed to create pipeline layout."
+	);
+
 	return result;
 }
 
 VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
+
+	// === Quad
 	VkDescriptorSetAllocateInfo allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_graphics.descriptorSetLayout);
 
 	CheckVulkanResult(
@@ -508,7 +676,6 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
 
 	m_displayImage.descriptor = imageInfo;
 
-	// Update descriptor set info
 	std::array<VkWriteDescriptorSet, 1> descriptorWrites = 
 	{
 		MakeWriteDescriptorSet(
@@ -518,6 +685,27 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
 			1,
 			nullptr,
 			&m_displayImage.descriptor
+		),
+	};
+
+	vkUpdateDescriptorSets(m_vulkanDevice->device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+
+	// === Wireframe
+	allocInfo = allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_wireframeDescriptorLayout);
+	CheckVulkanResult(
+		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_wireframeDescriptorSet),
+		"Failed to allocate descriptor set"
+	);
+
+	descriptorWrites =
+	{
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			m_wireframeDescriptorSet,
+			0,
+			1,
+			&m_wireframeUniform.descriptor,
+			nullptr
 		),
 	};
 
@@ -593,6 +781,15 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_quad.indices.size(), 1, 0, 0, 0);
 		}
 
+
+		// -- Draw BVH tree
+		VkDeviceSize offsets[1] = { 0 };
+		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
+		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
+		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
+		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
+
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
 
@@ -610,8 +807,11 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 
 void VulkanCPURaytracer::PrepareResources() {
 
+	GenerateWireframeBVHNodes();
+
 	m_logger->info("Number of threads available: {0}\n", std::thread::hardware_concurrency());
 
+#ifdef MULTITHREAD
 	// Generate 4x4 threads
 	for (int i = 0; i < 16; i++) {
 		m_threads[i] = std::thread(Task, i / 4, i % 4, m_scene, &m_film);
@@ -620,6 +820,15 @@ void VulkanCPURaytracer::PrepareResources() {
 	{
 		m_threads[i].join();
 	}
+#else
+	for (int w = 0; w < m_width; w++) {
+		for (int h = 0; h < m_height; h++) {
+			Raytrace(w, h, m_scene, &m_film);
+		}
+	}
+#endif
+
+
 	VkDeviceSize imageSize = m_width * m_height * 4;
 
 
@@ -701,4 +910,94 @@ void VulkanCPURaytracer::PrepareResources() {
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+}
+
+void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
+
+	std::vector<glm::vec3> vertexBuffer;
+	std::vector<uint16_t> bbox_idx;
+
+	size_t verticeCount = 0;
+	for (auto node : m_scene->sbvh.m_nodes)
+	{
+
+		// Setup vertices
+		glm::vec3 centroid = node->bbox.centroid;
+		glm::vec3 translation = centroid;
+		glm::vec3 scale = glm::vec3(glm::vec3(node->bbox.max) - glm::vec3(node->bbox.min));
+		glm::mat4 transform = glm::translate(glm::mat4(1.0), translation) * glm::scale(glm::mat4(1.0f), scale);
+
+		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)));
+		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)));
+		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)));
+		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)));
+		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)));
+		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)));
+		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)));
+		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)));
+
+		// Setup indices
+
+		bbox_idx.push_back(0 + verticeCount);
+		bbox_idx.push_back(1 + verticeCount);
+		bbox_idx.push_back(1 + verticeCount);
+		bbox_idx.push_back(3 + verticeCount);
+		bbox_idx.push_back(3 + verticeCount);
+		bbox_idx.push_back(2 + verticeCount);
+		bbox_idx.push_back(2 + verticeCount);
+		bbox_idx.push_back(0 + verticeCount);
+		bbox_idx.push_back(0 + verticeCount);
+		bbox_idx.push_back(4 + verticeCount);
+		bbox_idx.push_back(4 + verticeCount);
+		bbox_idx.push_back(6 + verticeCount);
+		bbox_idx.push_back(6 + verticeCount);
+		bbox_idx.push_back(2 + verticeCount);
+		bbox_idx.push_back(3 + verticeCount);
+		bbox_idx.push_back(7 + verticeCount);
+		bbox_idx.push_back(7 + verticeCount);
+		bbox_idx.push_back(6 + verticeCount);
+		bbox_idx.push_back(1 + verticeCount);
+		bbox_idx.push_back(5 + verticeCount);
+		bbox_idx.push_back(5 + verticeCount);
+		bbox_idx.push_back(4 + verticeCount);
+		bbox_idx.push_back(5 + verticeCount);
+		bbox_idx.push_back(7 + verticeCount);
+
+		verticeCount += 8;
+
+	}
+
+	VkDeviceSize bufferSize = vertexBuffer.size() * sizeof(glm::vec3);
+	m_vulkanDevice->CreateBufferAndMemory(
+		bufferSize,
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+		m_wireframeBVHVertices.buffer,
+		m_wireframeBVHVertices.memory
+	);
+
+	m_vulkanDevice->MapMemory(
+		vertexBuffer.data(),
+		m_wireframeBVHVertices.memory,
+		bufferSize,
+		0
+	);
+
+	bufferSize = bbox_idx.size() * sizeof(uint16_t);
+	m_vulkanDevice->CreateBufferAndMemory(
+		bufferSize,
+		VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+		m_wireframeBVHIndices.buffer,
+		m_wireframeBVHIndices.memory
+	);
+
+	m_vulkanDevice->MapMemory(
+		bbox_idx.data(),
+		m_wireframeBVHIndices.memory,
+		bufferSize,
+		0
+	);
+
+	m_wireframeIndexCount = bbox_idx.size();
 }

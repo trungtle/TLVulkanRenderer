@@ -13,6 +13,26 @@ namespace VulkanBuffer {
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 		VkDescriptorBufferInfo descriptor;
+
+		void Create(
+			const VulkanDevice* device,
+			const VkDeviceSize size,
+			const VkBufferUsageFlags usage,
+			const VkMemoryPropertyFlags memoryProperties
+		) {
+
+			device->CreateBufferAndMemory(
+				size,
+				usage,
+				memoryProperties,
+				buffer,
+				memory
+			);
+
+			descriptor.buffer = buffer;
+			descriptor.offset = 0;
+			descriptor.range = size;
+		};
 	};
 
 	// ===================

@@ -3,7 +3,7 @@
 #include "glm/glm.hpp"
 #include <geometry/Geometry.h>
 
-class BBox : public Cube
+class BBox
 {
 public:
 	typedef enum
@@ -16,8 +16,9 @@ public:
 	glm::vec3 min;
 	glm::vec3 max;
 	glm::vec3 centroid;
+	Transform m_transform;
 
-	Intersection GetIntersection(Ray r) override;
+	Intersection GetIntersection(Ray r);
 
 	static glm::vec3 Centroid(
 		const glm::vec3& a,
@@ -31,15 +32,6 @@ public:
 	* \return the union bounding box
 	*/
 	static BBox BBoxUnion(const BBox& a, const BBox& b);
-
-
-	/**
-	* \brief Generate a bounding box from a given geometry (cube or sphere)
-	* \param geom
-	* \return
-	*/
-	static BBox BBoxFromGeometries(const std::vector<Triangle*>& geom);
-
 
 	/**
 	* \brief Return the maximum extent axis of the bounding box. This is used to sort the BVH tree

@@ -201,6 +201,8 @@
     <None Include="shaders\raytracing\raytrace.comp" />
     <None Include="shaders\raytracing\raytrace.frag" />
     <None Include="shaders\raytracing\raytrace.vert" />
+    <None Include="shaders\raytracing\wireframe.frag" />
+    <None Include="shaders\raytracing\wireframe.vert" />
     <None Include="shaders\vertShader.vert" />
   </ItemGroup>
   <ItemGroup>
