@@ -1064,23 +1064,30 @@ Scene::Scene(
 		SBVH::SAH
 		);
 
-	std::vector<Geometry*> geoms;
 	for (int m = 0; m < meshes.size(); m++)
 	{
 		for (int t = 0; t < meshes[m].triangles.size(); t++)
 		{
-			geoms.push_back(&meshes[m].triangles[t]);
+			geometries.push_back(&meshes[m].triangles[t]);
 		}
 	}
 
+	// Add spheres
 	for (int i = 0; i < 12; i++) {
-		geoms.push_back(new Sphere(glm::vec3(
-			sin(glm::radians(360.0f * i / 12.0f)) * 2, 
-			cos(glm::radians(360.0f * i / 12.0f)) * 2, 
-			0), 0.5, &materials[0]));
+		Sphere* s = new Sphere(glm::vec3(
+			sin(glm::radians(360.0f * i / 12.0f)) * 2,
+			cos(glm::radians(360.0f * i / 12.0f)) * 2,
+			0), 0.5, &materials[0]);
+		geometries.push_back(s);
 	}
 
-	sbvh.Build(geoms);
+	// Add planes
+	Cube* c = new Cube;
+	c->m_transform = Transform(glm::vec3(0, -3, 0), glm::vec3(), glm::vec3(7, 0.2, 7));
+	c->m_material = &materials[0];
+	geometries.push_back(c);
+
+	sbvh.Build(geometries);
 
 	//Dump(scene);
 }

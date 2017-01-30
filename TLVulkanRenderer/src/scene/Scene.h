@@ -22,5 +22,6 @@ public:
 	std::vector<glm::vec4> verticeNormals;
 	std::vector<glm::vec2> verticeUVs;
 	std::vector<Mesh> meshes;
+	std::vector<Geometry*> geometries;
 	SBVH sbvh;
 };

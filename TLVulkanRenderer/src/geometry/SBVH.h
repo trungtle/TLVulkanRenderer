@@ -65,7 +65,8 @@ public:
 		const std::vector<Geometry*>& geoms
 	);
 
-	Intersection GetIntersection(Ray r);
+	Intersection GetIntersection(const Ray& r);
+	bool DoesIntersect(const Ray& r);
 
 	void Destroy();
 
@@ -76,7 +77,12 @@ protected:
 	SBVHNode* 
 	BuildRecursive(std::vector<SBVHNode*>& leaves, int first, int last, size_t nodeCount);
 	
-	void GetIntersectionRecursive(Ray r, SBVHNode* node, float& nearestT, Intersection& nearestIsx);
+	void GetIntersectionRecursive(const Ray& r, 
+		SBVHNode* node, float& nearestT, Intersection& nearestIsx);
+
+	bool DoesIntersectRecursive(
+		const Ray& r,
+		SBVHNode* node);
 
 	void 
 	DestroyRecursive(SBVHNode* node);
