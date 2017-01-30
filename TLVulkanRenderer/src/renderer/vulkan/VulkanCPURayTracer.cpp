@@ -7,33 +7,116 @@
 #define MULTITHREAD
 #define USE_SBVH
 
+vec3 ShadeMaterial(const vector<vec3>& lights, Scene* scene, Ray& newRay) {
+	vec3 color;
+	int depth = 1;
+	for (auto light : lights) {
+		for (int i = 0; i < depth; i++)
+		{
+			Intersection isx = scene->sbvh.GetIntersection(newRay);
+			if (isx.t > 0)
+			{
+				vec3 lightDirection = glm::normalize(light - isx.hitPoint);
+
+				// Shade material
+				if (i == 0)
+				{
+					color = glm::clamp(glm::dot(isx.hitNormal, lightDirection), 0.1f, 1.0f) * isx.hitTextureColor * 255.0f;
+				}
+				else
+				{
+					color *= glm::clamp(glm::dot(isx.hitNormal, lightDirection), 0.1f, 1.0f) * isx.hitTextureColor * 255.0f;
+				}
+
+				// Shadow feeler
+				Ray shadowFeeler(isx.hitPoint, lightDirection);
+				if (scene->sbvh.DoesIntersect(shadowFeeler))
+				{
+					color *= 0.1f;
+				}
+
+				// === Reflection === //
+				if (false)
+				{
+					vec3 reflected = normalize(reflect(newRay.m_direction, isx.hitNormal));
+					newRay = Ray(isx.hitPoint + reflected * 0.001f, reflected);
+				}
+
+				// === Refraction === //
+				if (false)
+				{
+					float ei = 1.0;
+					float et = 1.5;
+					float cosi = clamp(dot(newRay.m_direction, isx.hitNormal), -1.0f, 1.0f);
+					bool entering = cosi < 0;
+					if (!entering)
+					{
+						float t = ei;
+						ei = et;
+						et = t;
+					}
+					float eta = ei / et;
+					vec3 refracted = normalize(refract(newRay.m_direction, isx.hitNormal, eta));
+					newRay = Ray(isx.hitPoint + refracted * 0.001f, refracted);
+				}
+
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	return color;
+}
+
 void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
 
-	vec3 light(3, 5, 10);
+	vector<vec3> lights = {
+		vec3(3, 5, 10)
+	};
 
 	Ray newRay = scene->camera.GenerateRay(x, y);
 
 #ifdef USE_SBVH
-	Intersection isx = scene->sbvh.GetIntersection(newRay);
-	if (isx.t > 0)
-	{
+	
+	vec3 color = ShadeMaterial(lights, scene, newRay);
+
+	color = glm::clamp(color, 0.f, 255.f);
+	film->SetPixel(x, y, glm::vec4(color, 1));
+#else
+	
+	for (auto light : lights) {
+		float nearestT = INFINITY;
+		Intersection nearestIsx;
+		for (auto geo : scene->geometries)
+		{ 
+			Intersection isx = geo->GetIntersection(newRay);
+			if (isx.t > 0 && isx.t < nearestT)
+			{
+				nearestT = isx.t;
+				nearestIsx = isx;
+			}
+		}
 		// Shade material
-		vec3 lightDirection = glm::normalize(light - isx.hitPoint);
-		vec3 color = glm::clamp(glm::dot(isx.hitNormal, lightDirection), 0.1f, 1.0f) * isx.hitTextureColor * 255.0f;
+		vec3 lightDirection = glm::normalize(light - nearestIsx.hitPoint);
+		vec3 color = glm::clamp(glm::dot(nearestIsx.hitNormal, lightDirection), 0.1f, 1.0f) * nearestIsx.hitTextureColor * 255.0f;
+
+		// Shadow feeler
+		Ray shadowFeeler(nearestIsx.hitPoint + lightDirection * 0.001f, lightDirection);
+		for (auto geo : scene->geometries)
+		{
+			Intersection isx = geo->GetIntersection(shadowFeeler);
+			if (isx.t > 0) {
+				color *= 0.1f;
+				break;
+			}
+		}
+
 		film->SetPixel(x, y, glm::vec4(color, 1));
 	}
-#else
-		for (auto mesh : scene->meshes)
-	{ // Replace with acceleration structure
-		Intersection isx = mesh.GetIntersection(newRay);
-		if (isx.t > 0)
-		{
-			// Shade material
-			vec3 lightDirection = glm::normalize(light - isx.hitPoint);
-			vec3 color = glm::clamp(glm::dot(isx.hitNormal, lightDirection), 0.1f, 1.0f) * isx.hitTextureColor * 255.0f;
-			film->SetPixel(x, y, glm::vec4(color, 1));
-		}
-	}
+
+
 #endif
 }
 
@@ -783,13 +866,14 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 
 
 		// -- Draw BVH tree
+#ifdef USE_SBVH
 		VkDeviceSize offsets[1] = { 0 };
 		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
 		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
 		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
 		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
 		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
-
+#endif
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
 

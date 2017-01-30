@@ -76,7 +76,7 @@ SBVH::BuildRecursive(std::vector<SBVHNode*>& leaves, int first, int last, size_t
 }
 
 
-Intersection SBVH::GetIntersection(Ray r) 
+Intersection SBVH::GetIntersection(const Ray& r) 
 {
 	float nearestT = INFINITY;
 	Intersection nearestIsx; 
@@ -96,7 +96,13 @@ Intersection SBVH::GetIntersection(Ray r)
 	return nearestIsx;
 }
 
-void SBVH::GetIntersectionRecursive(Ray r, SBVHNode* node, float& nearestT, Intersection& nearestIsx) 
+
+void SBVH::GetIntersectionRecursive(
+	const Ray& r, 
+	SBVHNode* node, 
+	float& nearestT, 
+	Intersection& nearestIsx
+	) 
 {
 	if (node == nullptr) {
 		return;
@@ -120,6 +126,56 @@ void SBVH::GetIntersectionRecursive(Ray r, SBVHNode* node, float& nearestT, Inte
 		GetIntersectionRecursive(r, node->farChild, nearestT, nearestIsx);
 	}
 }
+
+
+bool SBVH::DoesIntersect(
+	const Ray& r
+	)
+{
+	if (m_root->IsLeaf())
+	{
+		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
+		Intersection isx = leaf->m_geoms[0]->GetIntersection(r);
+		if (isx.t > 0)
+		{
+			return true;
+		}
+	}
+
+	// Traverse children
+	return DoesIntersectRecursive(r, m_root->nearChild) || DoesIntersectRecursive(r, m_root->farChild);
+}
+
+bool SBVH::DoesIntersectRecursive(
+	const Ray& r, 
+	SBVHNode* node
+	)
+{
+	if (node == nullptr)
+	{
+		return false;
+	}
+
+	if (node->IsLeaf())
+	{
+		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
+		Intersection isx = leaf->m_geoms[0]->GetIntersection(r);
+		if (isx.t > 0)
+		{
+			return true;
+		}
+	}
+
+	Intersection isx = node->bbox.GetIntersection(r);
+	if (isx.t > 0)
+	{
+		// Traverse children
+		return DoesIntersectRecursive(r, node->nearChild) || DoesIntersectRecursive(r, node->farChild);
+	}
+	return false;
+}
+
+
 
 void SBVH::Destroy() {
 	DestroyRecursive(m_root);
