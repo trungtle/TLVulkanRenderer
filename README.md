@@ -20,7 +20,7 @@ For this update, the CPU ray tracer now has added multithreading (using C++11 `s
 
 For next week, I'm going to experiment with having the main thread render the next frame while the other worker threads ray trace. Addditionally, each generated ray should be put on a shared queue that each thread can pick up as soon as it has done its job instead of just sitting and waiting for all threads to join. Given the complexity differences for each pixel traced, this can give us the benefit of balancing out work load between each thread.
 
-#### SBVH
+#### BVH
 
 ![](TLVulkanRenderer/renders/SBVH_debug.png)
 
