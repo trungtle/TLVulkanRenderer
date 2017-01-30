@@ -5,7 +5,7 @@
 #include "scene/Camera.h"
 
 #define MULTITHREAD
-//#define USE_SBVH
+#define USE_SBVH
 
 void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
 

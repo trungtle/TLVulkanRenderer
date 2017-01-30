@@ -1072,9 +1072,14 @@ Scene::Scene(
 			geoms.push_back(&meshes[m].triangles[t]);
 		}
 	}
-	for (auto t : geoms) {
-		t->GetBBox();
+
+	for (int i = 0; i < 12; i++) {
+		geoms.push_back(new Sphere(glm::vec3(
+			sin(glm::radians(360.0f * i / 12.0f)) * 2, 
+			cos(glm::radians(360.0f * i / 12.0f)) * 2, 
+			0), 0.5, &materials[0]));
 	}
+
 	sbvh.Build(geoms);
 
 	//Dump(scene);

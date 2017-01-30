@@ -73,6 +73,7 @@ BBox BBox::BBoxUnion(const BBox& a, const BBox& b) {
 	ret.min.y = glm::min(a.min.y, b.min.y);
 	ret.min.z = glm::min(a.min.z, b.min.z);
 	ret.centroid = BBox::Centroid(ret.max, ret.min);
+	ret.m_transform = Transform(ret.centroid, glm::vec3(0), ret.max - ret.min);
 	return ret;
 }
 

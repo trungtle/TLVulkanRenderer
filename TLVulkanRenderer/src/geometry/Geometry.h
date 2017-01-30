@@ -25,7 +25,7 @@ class Geometry
 {
 public:
 	Geometry();
-	~Geometry();
+	virtual ~Geometry();
 
 	virtual Intersection GetIntersection(Ray r) = 0;
 	virtual vec2 GetUV(const vec3&) = 0;
@@ -38,6 +38,18 @@ public:
 class Sphere : public Geometry
 {
 public:
+
+	Sphere() :
+		Sphere(glm::vec3(0), 1, nullptr)
+	{};
+
+	Sphere(glm::vec3 center, float radius, LambertMaterial* material)
+	{
+		m_transform = Transform(center, glm::vec3(0), glm::vec3(radius));
+		m_material = material;
+	}
+
+	virtual ~Sphere() {};
 
 	Intersection GetIntersection(Ray r) override
 	{
