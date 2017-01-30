@@ -12,6 +12,22 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
+### Jan 30, 2017 - CPU ray tracer with BVH and multithreading
+
+#### Multithreading
+
+For this update, the CPU ray tracer now has added multithreading (using C++11 `std::thread`). Each render call will now launch up to 16 threads if available and ray trace for a 4x4 tiled image. 
+
+For next week, I'm going to experiment with having the main thread render the next frame while the other worker threads ray trace. Addditionally, each generated ray should be put on a shared queue that each thread can pick up as soon as it has done its job instead of just sitting and waiting for all threads to join. Given the complexity differences for each pixel traced, this can give us the benefit of balancing out work load between each thread.
+
+#### SBVH
+
+![](TLVulkanRenderer/renders/SBVH_debug.png)
+
+I also added a basic BVH structure to the scene. Since SBVH and BVH shares a similar structure and only differs in its construction phase, I opted to build and verified working for the normal BVH first before moving on to SBVH. 
+
+The renderer also supports visualization of the BVH tree, which comes in handy for debugging. 
+
 ### Jan 24, 2017 - Preparation for CPU ray tracing
 
 Just small clean up to preparing for CPU ray tracing. I have split my previous implementation of ray tracing to be call VulkanGPURaytracer, versus this new renderer called VulkanCPURaytracer. Right now the renderer just load a texture a display it directly on the screen. Next step is to implement camera ray generation and ray intersection with sphere. 
