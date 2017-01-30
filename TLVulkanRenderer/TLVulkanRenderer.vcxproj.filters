@@ -4,19 +4,10 @@
     <ClCompile Include="src\Application.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="src\GeometryBase.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Camera.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="src\renderer\vulkan\VulkanDevice.cpp">
       <Filter>Sources\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="src\renderer\vulkan\VulkanImage.cpp">
-      <Filter>Sources\vulkan</Filter>
-    </ClCompile>
-    <ClCompile Include="src\renderer\vulkan\VulkanRaytracer.cpp">
       <Filter>Sources\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="src\renderer\vulkan\VulkanRenderer.cpp">
@@ -31,13 +22,28 @@
     <ClCompile Include="src\renderer\Renderer.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="src\Scene.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="src\Utilities.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanGPURaytracer.cpp">
+      <Filter>Sources\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renderer\vulkan\VulkanCPURayTracer.cpp">
+      <Filter>Sources\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geometry\Geometry.cpp">
+      <Filter>Sources\geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\Camera.cpp">
+      <Filter>Sources\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\Scene.cpp">
+      <Filter>Sources\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geometry\BBox.cpp" />
+    <ClCompile Include="src\geometry\SBVH.cpp" />
+    <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -51,12 +57,6 @@
     </ClInclude>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\logger.h">
       <Filter>Headers\thirdparty</Filter>
-    </ClInclude>
-    <ClInclude Include="src\GeometryBase.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Camera.h">
-      <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\common.h">
       <Filter>Headers\thirdparty</Filter>
@@ -76,9 +76,6 @@
     <ClInclude Include="thirdparty\spdlog\include\spdlog\tweakme.h">
       <Filter>Headers\thirdparty</Filter>
     </ClInclude>
-    <ClInclude Include="src\Scene.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="src\renderer\Renderer.h">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -86,9 +83,6 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="src\Utilities.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="src\SceneUtil.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="src\renderer\vulkan\VulkanBuffer.h">
@@ -100,9 +94,6 @@
     <ClInclude Include="src\renderer\vulkan\VulkanImage.h">
       <Filter>Headers\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="src\renderer\vulkan\VulkanRaytracer.h">
-      <Filter>Headers\vulkan</Filter>
-    </ClInclude>
     <ClInclude Include="src\renderer\vulkan\VulkanRenderer.h">
       <Filter>Headers\vulkan</Filter>
     </ClInclude>
@@ -112,6 +103,33 @@
     <ClInclude Include="src\renderer\vulkan\VulkanUtil.h">
       <Filter>Headers\vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="src\renderer\vulkan\VulkanGPURaytracer.h">
+      <Filter>Headers\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderer\vulkan\VulkanCPURayTracer.h">
+      <Filter>Headers\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scene\SceneUtil.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geometry\Geometry.h">
+      <Filter>Headers\geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scene\Camera.h">
+      <Filter>Headers\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderer\Film.h" />
+    <ClInclude Include="src\geometry\Ray.h" />
+    <ClInclude Include="src\geometry\Transform.h" />
+    <ClInclude Include="src\MathUtil.h" />
+    <ClInclude Include="src\scene\Scene.h">
+      <Filter>Headers\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geometry\BBox.h" />
+    <ClInclude Include="src\geometry\SBVH.h" />
+    <ClInclude Include="src\geometry\materials\Material.h" />
+    <ClInclude Include="src\ImageUtil.h" />
+    <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">
@@ -129,6 +147,14 @@
     <None Include="shaders\vertShader.vert">
       <Filter>Resources\Shaders</Filter>
     </None>
+    <None Include="shaders\raytracing\quad.vert">
+      <Filter>Resources\Shaders</Filter>
+    </None>
+    <None Include="shaders\raytracing\quad.frag">
+      <Filter>Resources\Shaders</Filter>
+    </None>
+    <None Include="shaders\raytracing\wireframe.vert" />
+    <None Include="shaders\raytracing\wireframe.frag" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">
@@ -151,6 +177,18 @@
     </Filter>
     <Filter Include="Headers\vulkan">
       <UniqueIdentifier>{7e9a0003-0eec-4a8a-9f79-f839d1d2ca08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\geometry">
+      <UniqueIdentifier>{51b9ee06-0284-4c26-9d69-1ce8fb3ec9ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\geometry">
+      <UniqueIdentifier>{676d7cce-2a47-4401-8c08-e66d5f6dfea1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\scene">
+      <UniqueIdentifier>{72112a3b-81af-4b59-b993-88394d360040}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\scene">
+      <UniqueIdentifier>{f3c3a37a-5c05-4696-8e85-2a9d972466bd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

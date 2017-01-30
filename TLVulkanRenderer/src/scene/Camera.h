@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "geometry/Ray.h"
 
 struct Camera {
 	Camera();
@@ -18,11 +19,12 @@ struct Camera {
 	void Zoom(float amount);
 	void TranslateAlongRight(float amount);
 	void TranslateAlongUp(float amount);
+	Ray GenerateRay(int x, int y) const;
 
 	// -- Attributes
 	glm::ivec2 resolution;
 	float fov;
-	glm::vec3 position;
+	glm::vec3 eye;
 	glm::vec3 lookAt;
 	glm::vec3 forward;
 	glm::vec3 up;
@@ -31,6 +33,7 @@ struct Camera {
 	float farClip;
 	glm::vec2 pixelLength;
 	int samplesPerPixel;
+	float aspect;
 
 	glm::mat4 viewMat;
 	glm::mat4 projMat;

@@ -160,18 +160,28 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="src\Application.h" />
-    <ClInclude Include="src\Camera.h" />
-    <ClInclude Include="src\GeometryBase.h" />
+    <ClInclude Include="src\geometry\BBox.h" />
+    <ClInclude Include="src\geometry\Geometry.h" />
+    <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
+    <ClInclude Include="src\geometry\materials\Material.h" />
+    <ClInclude Include="src\geometry\SBVH.h" />
+    <ClInclude Include="src\geometry\Transform.h" />
+    <ClInclude Include="src\ImageUtil.h" />
+    <ClInclude Include="src\MathUtil.h" />
+    <ClInclude Include="src\renderer\Film.h" />
+    <ClInclude Include="src\geometry\Ray.h" />
     <ClInclude Include="src\renderer\Renderer.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanBuffer.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanCPURayTracer.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanDevice.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanImage.h" />
-    <ClInclude Include="src\renderer\vulkan\VulkanRaytracer.h" />
+    <ClInclude Include="src\renderer\vulkan\VulkanGPURaytracer.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanRenderer.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanSwapchain.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanUtil.h" />
-    <ClInclude Include="src\Scene.h" />
-    <ClInclude Include="src\SceneUtil.h" />
+    <ClInclude Include="src\scene\Camera.h" />
+    <ClInclude Include="src\scene\Scene.h" />
+    <ClInclude Include="src\scene\SceneUtil.h" />
     <ClInclude Include="src\Typedef.h" />
     <ClInclude Include="src\Utilities.h" />
     <ClInclude Include="thirdparty\tinygltfloader\picojson.h" />
@@ -186,24 +196,32 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\fragShader.frag" />
+    <None Include="shaders\raytracing\quad.frag" />
+    <None Include="shaders\raytracing\quad.vert" />
     <None Include="shaders\raytracing\raytrace.comp" />
     <None Include="shaders\raytracing\raytrace.frag" />
     <None Include="shaders\raytracing\raytrace.vert" />
+    <None Include="shaders\raytracing\wireframe.frag" />
+    <None Include="shaders\raytracing\wireframe.vert" />
     <None Include="shaders\vertShader.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Application.cpp" />
-    <ClCompile Include="src\Camera.cpp" />
-    <ClCompile Include="src\GeometryBase.cpp" />
+    <ClCompile Include="src\geometry\BBox.cpp" />
+    <ClCompile Include="src\geometry\Geometry.cpp" />
+    <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
+    <ClCompile Include="src\geometry\SBVH.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanCPURayTracer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanDevice.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanImage.cpp" />
-    <ClCompile Include="src\renderer\vulkan\VulkanRaytracer.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanGPURaytracer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanRenderer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanSwapchain.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanUtil.cpp" />
-    <ClCompile Include="src\Scene.cpp" />
+    <ClCompile Include="src\scene\Camera.cpp" />
+    <ClCompile Include="src\scene\Scene.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

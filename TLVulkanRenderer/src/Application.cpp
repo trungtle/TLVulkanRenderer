@@ -3,8 +3,9 @@
 
 #include "Application.h"
 #include "renderer/vulkan/VulkanRenderer.h"
-#include "renderer/vulkan/VulkanRaytracer.h"
-#include "Camera.h"
+#include "renderer/vulkan/VulkanGPURaytracer.h"
+#include "scene/Camera.h"
+#include "renderer/vulkan/VulkanCPURayTracer.h"
 
 static int fpstracker;
 static int fps = 0;
@@ -20,13 +21,9 @@ static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
 static glm::vec3 cammove;
 
-float zoom = 0, theta = 0, phi = 0;
-glm::vec3 cameraPosition;
-glm::vec3 ogLookAt; // for recentering the camera
+float zoom = 0, theta = 0, phi = 0, translateX = 0, translateY = 0;
 int width = 800;
 int height = 600;
-
-Camera g_camera;
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
@@ -65,14 +62,47 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
 		camchanged = true;
 	}
 	else if (middleMousePressed) {
-		Camera& cam = g_camera;
-
-		cam.lookAt -= (float)(xpos - lastX) * cam.right * 0.01f;
-		cam.lookAt += (float)(ypos - lastY) * cam.up * 0.01f;
+		translateX = (xpos - lastX) * 10.f / width;
+		translateY = (ypos - lastY) * 10.f / height;
 		camchanged = true;
 	}
 	lastX = xpos;
 	lastY = ypos;
+}
+
+Application* Application::pApp = nullptr;
+string Application::sceneFile = "";
+int Application::width = 0;
+int Application::height = 0;
+EGraphicsAPI Application::useAPI = EGraphicsAPI::Vulkan;
+ERenderingMode Application::renderingMode = ERenderingMode::FORWARD;
+
+void Application::PreInitialize(
+	std::string sceneFile,
+	int width,
+	int height,
+	EGraphicsAPI useAPI,
+	ERenderingMode renderindMode
+) {
+	Application::sceneFile = sceneFile;
+	Application::width = width;
+	Application::height = height;
+	Application::useAPI = useAPI;
+	Application::renderingMode = renderindMode;
+};
+
+Application* Application::GetInstanced() {
+	if (Application::pApp == nullptr)
+	{
+		Application::pApp = new Application(
+			Application::sceneFile,
+			Application::width,
+			Application::height,
+			Application::useAPI,
+			Application::renderingMode);
+	}
+
+	return Application::pApp;
 }
 
 
@@ -83,17 +113,13 @@ Application::Application(
 	EGraphicsAPI useAPI,
 	ERenderingMode renderingMode
 ) :
-	m_width(width),
-	m_height(height),
-	m_useGraphicsAPI(useAPI),
-	m_renderingMode(renderingMode),
 	m_window(nullptr) {
 	// Initialize glfw
 	glfwInit();
 
 	// Create window
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	m_window = glfwCreateWindow(m_width, m_height, "Vulkan renderer", nullptr, nullptr);
+	m_window = glfwCreateWindow(width, height, "Vulkan renderer", nullptr, nullptr);
 
 	if (!m_window) {
 		glfwTerminate();
@@ -106,17 +132,20 @@ Application::Application(
 
 	m_scene = new Scene(sceneFile);
 
-	g_camera = Camera(width, height);
-
-	switch (m_useGraphicsAPI) {
+	switch (useAPI) {
 	case EGraphicsAPI::Vulkan:
 		// Init Vulkan
 
-		if (m_renderingMode == ERenderingMode::RAYTRACING) {
-			m_renderer = new VulkanRaytracer(m_window, m_scene);
-		}
-		else {
+		switch (renderingMode) {
+		case ERenderingMode::RAYTRACING_GPU:
+			m_renderer = new VulkanGPURaytracer(m_window, m_scene);
+			break;
+		case ERenderingMode::RAYTRACING_CPU:
+			m_renderer = new VulkanCPURaytracer(m_window, m_scene);
+			break;
+		default:
 			m_renderer = new VulkanRenderer(m_window, m_scene);
+			break;
 		}
 		break;
 	default:
@@ -153,24 +182,25 @@ void Application::Run() {
 		}
 
 		// Update title bar
-		string title = "TL Vulkan Rasterizer | " + std::to_string(fps) + " FPS | " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(now - previousFrame).count()) + " ms / frame";
+		string title = "TL Vulkan Renderer | " + std::to_string(fps) + " FPS | " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(now - previousFrame).count()) + " ms / frame";
 		previousFrame = now;
 
 		glfwSetWindowTitle(m_window, title.c_str());
 
 		// Update camera
 		if (camchanged) {
-			Camera& cam = g_camera;
-			cam.TranslateAlongRight(phi);
-			cam.TranslateAlongUp(theta);
-			cam.Zoom(zoom);
+			m_scene->camera.RotateAboutRight(phi * 10.f);
+			m_scene->camera.RotateAboutUp(theta * 10.0f);
+			m_scene->camera.TranslateAlongRight(-translateX);
+			m_scene->camera.TranslateAlongUp(translateY);
+			m_scene->camera.Zoom(zoom);
 			zoom = 0;
 			theta = 0;
 			phi = 0;
+			translateX = 0;
+			translateY = 0;
 			camchanged = false;
 		}
-
-		m_scene->camera = &g_camera;
 
 		// Draw
 		m_renderer->Update();

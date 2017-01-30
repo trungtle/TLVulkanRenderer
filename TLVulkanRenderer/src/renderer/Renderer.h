@@ -4,7 +4,7 @@
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
-#include "Scene.h"
+#include "scene/Scene.h"
 
 using namespace std;
 
@@ -18,7 +18,8 @@ typedef enum {
 enum ERenderingMode {
 	FORWARD,
 	DEFERRED,
-	RAYTRACING,
+	RAYTRACING_CPU,
+	RAYTRACING_GPU,
 	DEFFERRED_RAYTRACING
 };
 
@@ -48,4 +49,7 @@ protected:
 	 * \brief Handle to scene
 	 */
 	Scene* m_scene;
+
+	uint32_t m_width;
+	uint32_t m_height;
 };

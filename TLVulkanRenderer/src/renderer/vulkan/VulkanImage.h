@@ -3,6 +3,8 @@
 #include <vulkan.h>
 #include <vector>
 
+class VulkanDevice;
+
 namespace VulkanImage {
 
 	struct Image {
@@ -14,6 +16,22 @@ namespace VulkanImage {
 		VkSampler sampler;
 		VkDescriptorImageInfo descriptor;
 	};
+
+	Image
+	Create2DImage(
+		VulkanDevice* device,
+		uint32_t width, 
+		uint32_t height,
+		VkImageTiling tiling,
+		VkImageUsageFlags usage,
+		VkMemoryPropertyFlags properties
+	);
+
+	void
+	Destroy2DImage(
+		VulkanDevice* device,
+		Image image
+	);
 
 	/**
 	* \brief Find a supported format from a list of candidates

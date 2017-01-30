@@ -1,7 +1,7 @@
 #pragma once
 
 #include "VulkanSDK/1.0.33.0/Include/vulkan.h"
-#include "SceneUtil.h"
+#include "scene/SceneUtil.h"
 #include <map>
 
 namespace VulkanBuffer {
@@ -13,6 +13,26 @@ namespace VulkanBuffer {
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 		VkDescriptorBufferInfo descriptor;
+
+		void Create(
+			const VulkanDevice* device,
+			const VkDeviceSize size,
+			const VkBufferUsageFlags usage,
+			const VkMemoryPropertyFlags memoryProperties
+		) {
+
+			device->CreateBufferAndMemory(
+				size,
+				usage,
+				memoryProperties,
+				buffer,
+				memory
+			);
+
+			descriptor.buffer = buffer;
+			descriptor.offset = 0;
+			descriptor.range = size;
+		};
 	};
 
 	// ===================

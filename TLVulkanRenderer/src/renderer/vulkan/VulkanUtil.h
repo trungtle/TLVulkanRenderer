@@ -5,7 +5,8 @@
 #include <map>
 #include <vulkan.h>
 #include <glm/mat4x4.hpp>
-#include "SceneUtil.h"
+#include "scene/SceneUtil.h"
+#include "VulkanImage.h"
 
 using namespace glm;
 
@@ -57,6 +58,12 @@ namespace VulkanUtil {
 			VkDescriptorPool descriptorPool,
 			VkDescriptorSetLayout* descriptorSetLayout,
 			uint32_t descriptorSetCount = 1
+		);
+
+		VkDescriptorImageInfo
+		MakeDescriptorImageInfo(
+			VkImageLayout layout,
+			VulkanImage::Image& image
 		);
 
 		VkDescriptorBufferInfo
@@ -140,6 +147,12 @@ namespace VulkanUtil {
 			const std::vector<VkPipelineColorBlendAttachmentState>& attachments
 		);
 
+		VkPipelineDynamicStateCreateInfo
+		MakePipelineDynamicStateCreateInfo(
+			const VkDynamicState* pDynamicStates,
+			uint32_t dynamicStateCount,
+			VkPipelineDynamicStateCreateFlags flags);
+
 		VkPipelineLayoutCreateInfo
 		MakePipelineLayoutCreateInfo(
 			VkDescriptorSetLayout* descriptorSetLayouts,
@@ -193,7 +206,7 @@ namespace VulkanUtil {
 		// TEXTURE
 		// ===================
 		void
-		MakeDefaultTextureSampler(
+		CreateDefaultImageSampler(
 			const VkDevice& device,
 			VkSampler* sampler
 		);
@@ -244,5 +257,10 @@ namespace VulkanUtil {
 		if (result != VK_SUCCESS) {
 			throw std::runtime_error(message);
 		}
+	}
+
+	inline void CreateTextureImage(
+		) {
+		
 	}
 }

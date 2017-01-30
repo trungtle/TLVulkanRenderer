@@ -12,6 +12,7 @@ int main(int argc, char** argv) {
 	}
 
 	// Launch our application using the Vulkan API
-	Application app(sceneFile, 800, 600, EGraphicsAPI::Vulkan);
-	app.Run();
+	Application::PreInitialize(sceneFile, 800, 600, EGraphicsAPI::Vulkan);
+	Application::GetInstanced()->Run();
+	Application::Destroy();
 }

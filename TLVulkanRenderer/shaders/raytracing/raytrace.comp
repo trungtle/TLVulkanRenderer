@@ -414,7 +414,7 @@ void shadeMaterial(
 				// Shade color
 				vec3 lightVec = normalize(LIGHT_POS - intersect.hitPoint);
 				float diffuse = lightDiffuse(intersect.hitNormal, lightVec);
-				path.color = vec3(mat.diffuse) * diffuse * 1.1;	
+				path.color = vec3(1, 0, 0) * diffuse * 1.1;	
 				
 				// Reflect ray for next render pass
 				scatterRay(path, intersect);
@@ -424,7 +424,7 @@ void shadeMaterial(
 				feeler.origin = intersect.hitPoint;
 				feeler.direction = lightVec;
 				float t = length(LIGHT_POS - intersect.hitPoint);
-				path.color *= calcShadow(feeler, intersect.objectID, t);
+				//path.color *= calcShadow(feeler, intersect.objectID, t);
 
 				path.remainingBounces -= 1;
 			}
@@ -474,7 +474,7 @@ void main()
 	vec2 uv = vec2(gl_GlobalInvocationID.xy) / dim;
 
 	// Initialize camera
-	camera.position = ubo.position;
+	camera.position = vec4(0, 0, -10, 1);
 	camera.right = ubo.right;
 	camera.up = ubo.up;
 	camera.aspectRatio = dim.x / dim.y;

@@ -1,6 +1,7 @@
 #pragma once
 #include "Typedef.h"
 #include <glm/glm.hpp>
+#include <map>
 
 // ---------
 // VERTEX
@@ -42,4 +43,4 @@ typedef struct MaterialTyp {
 	float shininess;
 	float transparency;
 	glm::ivec2 _pad;
-} Material;
+} MaterialPacked;

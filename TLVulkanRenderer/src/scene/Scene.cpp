@@ -842,6 +842,7 @@ Scene::Scene(
 		const glm::mat3& matrixNormal = glm::transpose(glm::inverse(glm::mat3(matrix)));
 
 		int materialId = 0;
+		int idxOffset = 0;
 		for (auto& meshName : node.meshes) {
 			auto& mesh = scene.meshes.at(meshName);
 			for (size_t i = 0; i < mesh.primitives.size(); i++) {
@@ -933,6 +934,12 @@ Scene::Scene(
 
 					else if (attribute.first.compare("TEXCOORD_0") == 0) {
 						attributeType = EVertexAttributeType::TEXCOORD;
+						int uvCount = accessor.count;
+						glm::vec2* uvs = reinterpret_cast<glm::vec2*>(data.data());
+						for (auto p = 0; p < uvCount; ++p)
+						{
+							verticeUVs.push_back(uvs[p]);
+						}
 					}
 
 					VertexAttributeInfo attributeInfo = {
@@ -947,9 +954,8 @@ Scene::Scene(
 					// ----------Materials-------------
 
 					//TextureData* dev_diffuseTex = NULL;
-					int diffuseTexWidth = 0;
-					int diffuseTexHeight = 0;
-					Material material;
+					MaterialPacked materialPacked;
+					Texture texture;
 					if (!primitive.material.empty()) {
 						const tinygltf::Material& mat = scene.materials.at(primitive.material);
 						printf("material.name = %s\n", mat.name.c_str());
@@ -962,57 +968,121 @@ Scene::Scene(
 									const tinygltf::Image& image = scene.images.at(tex.source);
 
 									// Texture bytes
-									size_t s = image.image.size() * sizeof(Byte);
-									diffuseTexWidth = image.width;
-									diffuseTexHeight = image.height;
+									texture.width = image.width;
+									texture.height = image.height;
+									texture.component = image.component;
+									texture.name = image.name;
+									texture.image = image.image;
 								}
 							}
 							else {
 								auto diff = mat.values.at("diffuse").number_array;
-								material.diffuse = glm::vec4(diff.at(0), diff.at(1), diff.at(2), diff.at(3));
+								materialPacked.diffuse = glm::vec4(diff.at(0), diff.at(1), diff.at(2), diff.at(3));
 							}
 						}
 
 						if (mat.values.find("ambient") != mat.values.end()) {
 							auto amb = mat.values.at("ambient").number_array;
-							material.ambient = glm::vec4(amb.at(0), amb.at(1), amb.at(2), amb.at(3));
+							materialPacked.ambient = glm::vec4(amb.at(0), amb.at(1), amb.at(2), amb.at(3));
 						}
 						if (mat.values.find("emission") != mat.values.end()) {
 							auto em = mat.values.at("emission").number_array;
-							material.emission = glm::vec4(em.at(0), em.at(1), em.at(2), em.at(3));
+							materialPacked.emission = glm::vec4(em.at(0), em.at(1), em.at(2), em.at(3));
 
 						}
 						if (mat.values.find("specular") != mat.values.end()) {
 							auto spec = mat.values.at("specular").number_array;
-							material.specular = glm::vec4(spec.at(0), spec.at(1), spec.at(2), spec.at(3));
+							materialPacked.specular = glm::vec4(spec.at(0), spec.at(1), spec.at(2), spec.at(3));
 
 						}
 						if (mat.values.find("shininess") != mat.values.end()) {
-							material.shininess = mat.values.at("shininess").number_array.at(0);
+							materialPacked.shininess = mat.values.at("shininess").number_array.at(0);
 						}
 
 						if (mat.values.find("transparency") != mat.values.end()) {
-							material.transparency = mat.values.at("transparency").number_array.at(0);
+							materialPacked.transparency = mat.values.at("transparency").number_array.at(0);
 						}
 						else {
-							material.transparency = 1.0f;
+							materialPacked.transparency = 1.0f;
 						}
 
-						// Hack for light material
-						if (materialId == 9 || materialId == 8) {
-							material.shininess = 1;
-						}
-						materials.push_back(material);
+						materials.push_back(LambertMaterial(materialPacked, texture));
+
+						materialPackeds.push_back(materialPacked);
 						++materialId;
-					}
-				}
+			
+					} // --End of materials
+				} // -- End of attributes
 
 				meshesData.push_back(geom);
-			}
+
+				Mesh newMesh;
+				for (int j = idxOffset; j < indices.size(); j++)
+				{
+					ivec4 idx = indices[j];
+
+					if (this->verticeUVs.size() == 0) {
+						// No UVs
+						newMesh.triangles.push_back(
+							Triangle(
+								this->verticePositions[idx.x],
+								this->verticePositions[idx.y],
+								this->verticePositions[idx.z],
+								this->verticeNormals[idx.x],
+								this->verticeNormals[idx.y],
+								this->verticeNormals[idx.z],
+								&materials[materialId - 1]
+							)
+						);
+					}
+					else
+					{
+						newMesh.triangles.push_back(
+							Triangle(
+								this->verticePositions[idx.x],
+								this->verticePositions[idx.y],
+								this->verticePositions[idx.z],
+								this->verticeNormals[idx.x],
+								this->verticeNormals[idx.y],
+								this->verticeNormals[idx.z],
+								this->verticeUVs[idx.x],
+								this->verticeUVs[idx.y],
+								this->verticeUVs[idx.z],
+								&materials[materialId - 1]
+							)
+						);
+					}
+				}
+				meshes.push_back(newMesh);
+				idxOffset = indices.size();
+			} // -- End of mesh primitives
+		} // -- End of meshes
+	}
+
+	sbvh = SBVH(
+		1,
+		SBVH::SAH
+		);
+
+	std::vector<Geometry*> geoms;
+	for (int m = 0; m < meshes.size(); m++)
+	{
+		for (int t = 0; t < meshes[m].triangles.size(); t++)
+		{
+			geoms.push_back(&meshes[m].triangles[t]);
 		}
 	}
 
-	Dump(scene);
+	for (int i = 0; i < 12; i++) {
+		geoms.push_back(new Sphere(glm::vec3(
+			sin(glm::radians(360.0f * i / 12.0f)) * 2, 
+			cos(glm::radians(360.0f * i / 12.0f)) * 2, 
+			0), 0.5, &materials[0]));
+	}
+
+	sbvh.Build(geoms);
+
+	//Dump(scene);
 }
 
 
