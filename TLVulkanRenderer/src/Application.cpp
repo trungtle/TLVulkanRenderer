@@ -130,7 +130,10 @@ Application::Application(
 	glfwSetCursorPosCallback(m_window, mousePositionCallback);
 	glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
-	m_scene = new Scene(sceneFile);
+	std::map<std::string, std::string> config = {
+		{ "USE_SBVH", "true" }
+	};
+	m_scene = new Scene(sceneFile, config);
 
 	switch (useAPI) {
 	case EGraphicsAPI::Vulkan:

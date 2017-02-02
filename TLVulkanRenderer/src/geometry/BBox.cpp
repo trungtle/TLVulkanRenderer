@@ -2,7 +2,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 
 
-Intersection BBox::GetIntersection(Ray r) 
+Intersection BBox::GetIntersection(const Ray& r) const 
 {
 	//Transform the ray
 	Ray r_loc = r.GetTransformedCopy(m_transform.invT());

@@ -11,6 +11,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "Scene.h"
+#include "lights/PointLight.h"
 
 static std::map<int, int> GLTF_COMPONENT_LENGTH_LOOKUP = {
 	{TINYGLTF_TYPE_SCALAR, 1},
@@ -800,8 +801,10 @@ static std::string GetFilePathExtension(const std::string& FileName) {
 }
 
 Scene::Scene(
-	std::string fileName
-) {
+	std::string fileName,
+	std::map<std::string, std::string>& config	
+) : m_useSBVH(false) 
+{
 	tinygltf::Scene scene;
 	tinygltf::TinyGLTFLoader loader;
 	std::string err;
@@ -1006,7 +1009,7 @@ Scene::Scene(
 							materialPacked.transparency = 1.0f;
 						}
 
-						materials.push_back(LambertMaterial(materialPacked, texture));
+						materials.push_back(new LambertMaterial(materialPacked, texture));
 
 						materialPackeds.push_back(materialPacked);
 						++materialId;
@@ -1031,7 +1034,7 @@ Scene::Scene(
 								this->verticeNormals[idx.x],
 								this->verticeNormals[idx.y],
 								this->verticeNormals[idx.z],
-								&materials[materialId - 1]
+								materials[materialId - 1]
 							)
 						);
 					}
@@ -1048,7 +1051,7 @@ Scene::Scene(
 								this->verticeUVs[idx.x],
 								this->verticeUVs[idx.y],
 								this->verticeUVs[idx.z],
-								&materials[materialId - 1]
+								materials[materialId - 1]
 							)
 						);
 					}
@@ -1059,11 +1062,18 @@ Scene::Scene(
 		} // -- End of meshes
 	}
 
-	sbvh = SBVH(
+	// Parse scene config
+	if (config.find("USE_SBVH") != config.end()) {
+		m_useSBVH = config["USE_SBVH"].compare("true") == 0;
+	}
+
+	// Construct SBVH
+	m_sbvh = SBVH(
 		1,
 		SBVH::SAH
 		);
 
+	// Turn meshes into triangles
 	for (int m = 0; m < meshes.size(); m++)
 	{
 		for (int t = 0; t < meshes[m].triangles.size(); t++)
@@ -1072,22 +1082,39 @@ Scene::Scene(
 		}
 	}
 
+	// Setup materials
+	LambertMaterial* reflectiveMat = new LambertMaterial();
+	reflectiveMat->m_reflectivity = 0.5;
+	reflectiveMat->m_colorReflective = vec3(1, 1, 1);
+	materials.push_back(reflectiveMat);
+
+	for (auto mat : materials) {
+		mat->m_colorAmbient = vec3(0.1, 0.1, 0.1);
+	}
+
 	// Add spheres
 	for (int i = 0; i < 12; i++) {
 		Sphere* s = new Sphere(glm::vec3(
 			sin(glm::radians(360.0f * i / 12.0f)) * 2,
 			cos(glm::radians(360.0f * i / 12.0f)) * 2,
-			0), 0.5, &materials[0]);
+			0), 0.5, materials[0]);
 		geometries.push_back(s);
 	}
 
 	// Add planes
 	Cube* c = new Cube;
 	c->m_transform = Transform(glm::vec3(0, -3, 0), glm::vec3(), glm::vec3(7, 0.2, 7));
-	c->m_material = &materials[0];
+	c->m_material = materials[0];
 	geometries.push_back(c);
 
-	sbvh.Build(geometries);
+	// Add lights
+	PointLight* light = new PointLight(vec3(3, 5, 2), vec3(2, 2, 2), 10);
+	lights.push_back(light);
+
+//	light = new PointLight(vec3(-10, 5, -10), vec3(1, 2, 1), 15);
+//	lights.push_back(light);
+
+	m_sbvh.Build(geometries);
 
 	//Dump(scene);
 }
@@ -1097,5 +1124,65 @@ Scene::~Scene() {
 	for (MeshData* geom : meshesData) {
 		delete geom;
 		geom = nullptr;
+	}
+
+	for (Material* mat : materials) {
+		delete mat;
+		mat = nullptr;
+	}
+
+	for (Geometry* geo: geometries) {
+		delete geo;
+		geo = nullptr;
+	}
+
+	for (Light* l : lights) {
+		delete l;
+		l = nullptr;
+	}
+
+	m_sbvh.Destroy();
+}
+
+Intersection 
+Scene::GetIntersection(const Ray& ray) 
+{
+	if (m_useSBVH) {
+		return m_sbvh.GetIntersection(ray);
+	} else {
+
+		// Loop through all objects in scene
+		float nearestT = INFINITY;
+		Intersection nearestIsx;
+		for (auto geo : geometries)
+		{
+			Intersection isx = geo->GetIntersection(ray);
+			if (isx.t > 0 && isx.t < nearestT)
+			{
+				nearestT = isx.t;
+				nearestIsx = isx;
+			}
+		}
+
+		return nearestIsx;
+	}
+}
+
+bool 
+Scene::DoesIntersect(const Ray& ray) 
+{
+	if (m_useSBVH) {
+		return m_sbvh.DoesIntersect(ray);
+	} else {
+		// Loop through all objects and find any intersection
+		for (auto geo : geometries)
+		{
+			Intersection isx = geo->GetIntersection(ray);
+			if (isx.t > 0)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 }

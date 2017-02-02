@@ -140,6 +140,7 @@ bool SBVH::DoesIntersect(
 		{
 			return true;
 		}
+		return false;
 	}
 
 	// Traverse children

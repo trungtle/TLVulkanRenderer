@@ -130,6 +130,9 @@
     <ClInclude Include="src\geometry\materials\Material.h" />
     <ClInclude Include="src\ImageUtil.h" />
     <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
+    <ClInclude Include="src\lights\Light.h" />
+    <ClInclude Include="src\lights\PointLight.h" />
+    <ClInclude Include="src\lights\AreaLight.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

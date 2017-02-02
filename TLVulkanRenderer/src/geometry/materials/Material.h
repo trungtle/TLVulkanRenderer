@@ -27,7 +27,7 @@ public:
 	virtual glm::vec3 EvaluateEnergy(
 		const Intersection& isx, 
 		const glm::vec3& in, 
-		const glm::vec3& out) = 0;
+		glm::vec3& out) = 0;
 
 
 	static void GetImageColor(glm::vec2 uv, Texture& texture) {

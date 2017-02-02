@@ -7,21 +7,34 @@
 #include <geometry/Geometry.h>
 #include <geometry/materials/LambertMaterial.h>
 #include <geometry/SBVH.h>
+#include "lights/Light.h"
+
 
 class Scene {
 public:
-	Scene(std::string fileName);
+	Scene(std::string fileName, std::map<std::string, std::string>& config);
 	~Scene();
 
+	Intersection GetIntersection(const Ray& ray);
+	bool DoesIntersect(const Ray& ray);
+
 	Camera camera;
-	std::vector<MeshData*> meshesData;
-	std::vector<MaterialPacked> materialPackeds;
-	std::vector<LambertMaterial> materials;
+	
 	std::vector<glm::ivec4> indices;
 	std::vector<glm::vec4> verticePositions;
 	std::vector<glm::vec4> verticeNormals;
 	std::vector<glm::vec2> verticeUVs;
+
+	std::vector<MeshData*> meshesData;
+	std::vector<MaterialPacked> materialPackeds;
+	std::vector<LambertMaterial*> materials;
 	std::vector<Mesh> meshes;
 	std::vector<Geometry*> geometries;
-	SBVH sbvh;
+	std::vector<Light*> lights;
+	SBVH m_sbvh;
+
+private:
+	
+	bool m_useSBVH;
+
 };
