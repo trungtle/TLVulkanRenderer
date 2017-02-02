@@ -18,7 +18,7 @@ public:
 	glm::vec3 centroid;
 	Transform m_transform;
 
-	Intersection GetIntersection(const Ray& r) const;
+	bool DoesIntersect(const Ray& r) const;
 
 	static glm::vec3 Centroid(
 		const glm::vec3& a,

@@ -75,7 +75,7 @@ Camera::RotateAboutRight(
 	float deg
 ) {
 	float rad = glm::radians(deg);
-	glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), rad, up);
+	glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), deg, up);
 	lookAt = lookAt - eye;
 	lookAt = glm::vec3(rotation * glm::vec4(lookAt, 1.0f));
 	lookAt = lookAt + eye;
@@ -87,7 +87,7 @@ Camera::RotateAboutUp(
 	float deg
 ) {
 	float rad = glm::radians(deg);
-	glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), rad, right);
+	glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), deg, right);
 	lookAt = lookAt - eye;
 	lookAt = glm::vec3(rotation * glm::vec4(lookAt, 1.0f));
 	lookAt = lookAt + eye;
@@ -126,14 +126,14 @@ Camera::TranslateAlongUp(
 
 Ray Camera::GenerateRay(int x, int y) const {
 
-	float tan_fovy = tan(fov / 2);
-	float len = glm::length(lookAt - eye);
-	glm::vec3 V = up * len * tan_fovy;
-	glm::vec3 H = right * len * aspect * tan_fovy;
+	float tan_fovy = tan(fov / 2.0f);
+	float pixelNDCx = (2.0f * ((x + 0.5f) / resolution.x) - 1.0f);
+	float pixelNDCy = (1.0f - 2.0f * ((y + 0.5f) / resolution.y));
 
-	float pixelNDCx = (2.0 * x / resolution.x - 1.0);
-	float pixelNDCy = (1.0 - 2.0 * y / resolution.y);
-	glm::vec3 P = lookAt + pixelNDCx * H + pixelNDCy * V;
+	float px = pixelNDCx * tan_fovy * aspect;
+	float py = pixelNDCy * tan_fovy;
+	vec3 P = vec3(px, py, -1);
+	P = glm::inverse(viewMat) * vec4(P, 1.0f);
 
 	return Ray(eye, normalize(P - eye));
 }

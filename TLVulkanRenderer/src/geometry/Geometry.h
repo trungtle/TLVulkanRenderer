@@ -33,6 +33,7 @@ public:
 
 	Transform m_transform;
 	LambertMaterial* m_material;
+	std::string m_name;
 };
 
 class Sphere : public Geometry

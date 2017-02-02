@@ -158,6 +158,7 @@
     </None>
     <None Include="shaders\raytracing\wireframe.vert" />
     <None Include="shaders\raytracing\wireframe.frag" />
+    <None Include="..\README.md" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

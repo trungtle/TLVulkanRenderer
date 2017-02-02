@@ -54,7 +54,8 @@ SBVH::BuildRecursive(std::vector<SBVHNode*>& leaves, int first, int last, size_t
 	auto dim = static_cast<int>((BBox::BBoxMaximumExtent(node->bbox)));
 
 	// Compute the bounds of all geometries within this subtree
-	for (auto i = first; i <= last; ++i)
+	node->bbox = leaves.at(first)->bbox;
+	for (auto i = first + 1; i <= last; ++i)
 	{
 		node->bbox = BBox::BBoxUnion(leaves.at(i)->bbox, node->bbox);
 	}
@@ -81,7 +82,7 @@ Intersection SBVH::GetIntersection(const Ray& r)
 	float nearestT = INFINITY;
 	Intersection nearestIsx; 
 
-	if (m_root->IsLeaf()) {
+	if (m_root->IsLeaf() && m_root->bbox.DoesIntersect(r)) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
 		for (auto prim : leaf->m_geoms)
 		{
@@ -114,7 +115,7 @@ void SBVH::GetIntersectionRecursive(
 		return;
 	}
 
-	if (node->IsLeaf()) {
+	if (node->IsLeaf() && node->bbox.DoesIntersect(r)) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
 
 		// Return nearest primitive
@@ -129,8 +130,7 @@ void SBVH::GetIntersectionRecursive(
 		return;
 	}
 
-	Intersection isx = node->bbox.GetIntersection(r);
-	if (isx.t > 0)
+	if (node->bbox.DoesIntersect(r))
 	{
 		// Traverse children
 		GetIntersectionRecursive(r, node->nearChild, nearestT, nearestIsx);
@@ -143,7 +143,7 @@ bool SBVH::DoesIntersect(
 	const Ray& r
 	)
 {
-	if (m_root->IsLeaf())
+	if (m_root->IsLeaf() && m_root->bbox.DoesIntersect(r))
 	{
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
 
@@ -174,20 +174,22 @@ bool SBVH::DoesIntersectRecursive(
 
 	if (node->IsLeaf())
 	{
-		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
-		for (auto prim : leaf->m_geoms)
-		{
-			Intersection isx = prim->GetIntersection(r);
-			if (isx.t > 0)
+		if (node->bbox.DoesIntersect(r) && node->bbox.DoesIntersect(r)) {
+			SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
+			for (auto prim : leaf->m_geoms)
 			{
-				return true;
+				Intersection isx = prim->GetIntersection(r);
+				if (isx.t > 0)
+				{
+					return true;
+				}
 			}
 		}
+
 		return false;
 	}
 
-	Intersection isx = node->bbox.GetIntersection(r);
-	if (isx.t > 0)
+	if (node->bbox.DoesIntersect(r))
 	{
 		// Traverse children
 		return DoesIntersectRecursive(r, node->nearChild) || DoesIntersectRecursive(r, node->farChild);

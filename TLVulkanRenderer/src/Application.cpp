@@ -192,8 +192,8 @@ void Application::Run() {
 
 		// Update camera
 		if (camchanged) {
-			m_scene->camera.RotateAboutRight(phi * 10.f);
-			m_scene->camera.RotateAboutUp(theta * 10.0f);
+			m_scene->camera.RotateAboutRight(phi);
+			m_scene->camera.RotateAboutUp(theta);
 			m_scene->camera.TranslateAlongRight(-translateX);
 			m_scene->camera.TranslateAlongUp(translateY);
 			m_scene->camera.Zoom(zoom);

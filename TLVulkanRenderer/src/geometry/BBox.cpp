@@ -2,11 +2,18 @@
 #include <glm/gtc/matrix_inverse.hpp>
 
 
-Intersection BBox::GetIntersection(const Ray& r) const 
+bool BBox::DoesIntersect(const Ray& r) const 
 {
 	//Transform the ray
 	Ray r_loc = r.GetTransformedCopy(m_transform.invT());
-	Intersection result;
+
+	// If ray origin is inside cube, return true
+	bool isInside = true;
+	for (int i = 0; i < 3; i++) {
+		isInside &= (r_loc.m_origin[i] < 0.5f && r_loc.m_origin[i] > -0.5f);
+	}
+
+	if (isInside) return true;
 
 	float t_n = -1000000;
 	float t_f = 1000000;
@@ -17,7 +24,7 @@ Intersection BBox::GetIntersection(const Ray& r) const
 		{
 			if (r_loc.m_origin[i] < -0.5f || r_loc.m_origin[i] > 0.5f)
 			{
-				return result;
+				return false;
 			}
 		}
 		//If not parallel, do slab intersect check
@@ -40,16 +47,10 @@ Intersection BBox::GetIntersection(const Ray& r) const
 	}
 	if (t_n < t_f && t_n >= 0)
 	{
-		//Lastly, transform the point found in object space by T
-		glm::vec4 P = glm::vec4(r_loc.m_origin + t_n*r_loc.m_direction, 1);
-		result.hitPoint = glm::vec3(m_transform.T() * P);
-		result.t = glm::distance(result.hitPoint, r.m_origin);
-		return result;
+		return true;
 	}
-	else
-	{//If t_near was greater than t_far, we did not hit the cube
-		return result;
-	}
+
+	return false;
 }
 
 glm::vec3 BBox::Centroid(

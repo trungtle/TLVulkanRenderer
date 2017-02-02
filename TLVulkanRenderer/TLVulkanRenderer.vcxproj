@@ -198,6 +198,7 @@
     <ClInclude Include="thirdparty\spdlog\include\spdlog\tweakme.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\README.md" />
     <None Include="shaders\fragShader.frag" />
     <None Include="shaders\raytracing\quad.frag" />
     <None Include="shaders\raytracing\quad.vert" />
