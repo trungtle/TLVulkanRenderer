@@ -24,9 +24,13 @@ For next week, I'm going to experiment with having the main thread render the ne
 
 ![](TLVulkanRenderer/renders/BVH_Multithread.gif)
 
-I also added a basic BVH structure to the scene. Since SBVH and BVH shares a similar structure and only differs in its construction phase, I opted to build and verified working for the normal BVH first before moving on to SBVH. 
+I also added a basic BVH structure to the scene. Since SBVH and BVH shares a similar structure and only differs in its construction phase, I opted to build and verified working for the normal BVH first before moving on to SBVH. The BVH currently splits along the maximum extent of the bounding box.
 
-The renderer also supports visualization of the BVH tree, which comes in handy for debugging. 
+Each leaf node can contains up to several primitives. Here, the image shows a maximum 3 primitives per leaf node. 
+
+![](TLVulkanRenderer/renders/BVH_MaxPrimitivesPerLeaf.png)
+
+_The leaf nodes are colored in teal, where other intermediate nodes are colored in red_
 
 ### Jan 24, 2017 - Preparation for CPU ray tracing
 

@@ -7,62 +7,33 @@
 #define MULTITHREAD
 #define USE_SBVH
 
-vec3 ShadeMaterial(const vector<vec3>& lights, Scene* scene, Ray& newRay) {
-	vec3 color;
+vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
+	vec3 color = vec3(1, 1, 1);
 	int depth = 1;
-	for (auto light : lights) {
+	for (auto light : scene->lights) {
 		for (int i = 0; i < depth; i++)
 		{
-			Intersection isx = scene->sbvh.GetIntersection(newRay);
+			Intersection isx = scene->GetIntersection(newRay);
 			if (isx.t > 0)
 			{
-				vec3 lightDirection = glm::normalize(light - isx.hitPoint);
+				vec3 lightDirection = glm::normalize(light->m_position - isx.hitPoint);
 
 				// Shade material
-				if (i == 0)
-				{
-					color = glm::clamp(glm::dot(isx.hitNormal, lightDirection), 0.1f, 1.0f) * isx.hitTextureColor * 255.0f;
-				}
-				else
-				{
-					color *= glm::clamp(glm::dot(isx.hitNormal, lightDirection), 0.1f, 1.0f) * isx.hitTextureColor * 255.0f;
-				}
+				color *= isx.hitObject->m_material->EvaluateEnergy(isx, lightDirection, newRay.m_direction);
+				color *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler
-				Ray shadowFeeler(isx.hitPoint, lightDirection);
-				if (scene->sbvh.DoesIntersect(shadowFeeler))
+				Ray shadowFeeler(isx.hitPoint + 0.001f * lightDirection, lightDirection);
+				if (scene->DoesIntersect(shadowFeeler))
 				{
 					color *= 0.1f;
+				} else {
+					color *= light->m_color;
 				}
-
-				// === Reflection === //
-				if (false)
-				{
-					vec3 reflected = normalize(reflect(newRay.m_direction, isx.hitNormal));
-					newRay = Ray(isx.hitPoint + reflected * 0.001f, reflected);
-				}
-
-				// === Refraction === //
-				if (false)
-				{
-					float ei = 1.0;
-					float et = 1.5;
-					float cosi = clamp(dot(newRay.m_direction, isx.hitNormal), -1.0f, 1.0f);
-					bool entering = cosi < 0;
-					if (!entering)
-					{
-						float t = ei;
-						ei = et;
-						et = t;
-					}
-					float eta = ei / et;
-					vec3 refracted = normalize(refract(newRay.m_direction, isx.hitNormal, eta));
-					newRay = Ray(isx.hitPoint + refracted * 0.001f, refracted);
-				}
-
 			}
 			else
 			{
+				color *= 0;
 				break;
 			}
 		}
@@ -77,47 +48,10 @@ void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
 	};
 
 	Ray newRay = scene->camera.GenerateRay(x, y);
-
-#ifdef USE_SBVH
-	
-	vec3 color = ShadeMaterial(lights, scene, newRay);
-
-	color = glm::clamp(color, 0.f, 255.f);
+	vec3 color = ShadeMaterial(scene, newRay);
+	color = glm::clamp(color * 255.0f, 0.f, 255.f);
 	film->SetPixel(x, y, glm::vec4(color, 1));
-#else
-	
-	for (auto light : lights) {
-		float nearestT = INFINITY;
-		Intersection nearestIsx;
-		for (auto geo : scene->geometries)
-		{ 
-			Intersection isx = geo->GetIntersection(newRay);
-			if (isx.t > 0 && isx.t < nearestT)
-			{
-				nearestT = isx.t;
-				nearestIsx = isx;
-			}
-		}
-		// Shade material
-		vec3 lightDirection = glm::normalize(light - nearestIsx.hitPoint);
-		vec3 color = glm::clamp(glm::dot(nearestIsx.hitNormal, lightDirection), 0.1f, 1.0f) * nearestIsx.hitTextureColor * 255.0f;
 
-		// Shadow feeler
-		Ray shadowFeeler(nearestIsx.hitPoint + lightDirection * 0.001f, lightDirection);
-		for (auto geo : scene->geometries)
-		{
-			Intersection isx = geo->GetIntersection(shadowFeeler);
-			if (isx.t > 0) {
-				color *= 0.1f;
-				break;
-			}
-		}
-
-		film->SetPixel(x, y, glm::vec4(color, 1));
-	}
-
-
-#endif
 }
 
 void Task(
@@ -159,8 +93,6 @@ VulkanCPURaytracer::VulkanCPURaytracer(
 
 VulkanCPURaytracer::~VulkanCPURaytracer()
 {
-	m_scene->sbvh.Destroy();
-
 	Destroy2DImage(m_vulkanDevice, m_displayImage);
 
 	vkDestroyImage(m_vulkanDevice->device, m_stagingImage.image, nullptr);
@@ -478,13 +410,19 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 			0, // location
 			VK_FORMAT_R32G32B32_SFLOAT,
 			0 // offset
+		),
+		MakeVertexInputAttributeDescription(
+			0, // binding
+			1, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			offsetof(SWireframe, color) // offset
 		)
 	};
 
 	bindingDesc = {
 		MakeVertexInputBindingDescription(
 			0, // binding
-			sizeof(glm::vec3), // stride
+			sizeof(SWireframe), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		)
 	};
@@ -998,27 +936,66 @@ void VulkanCPURaytracer::PrepareResources() {
 
 void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 
-	std::vector<glm::vec3> vertexBuffer;
+
+	std::vector<SWireframe> vertexBuffer;
 	std::vector<uint16_t> bbox_idx;
 
 	size_t verticeCount = 0;
-	for (auto node : m_scene->sbvh.m_nodes)
+	vec3 color;
+	for (auto node : m_scene->m_sbvh.m_nodes)
 	{
-
+		if (node->IsLeaf())
+		{
+			color = vec3(0, 1, 1);
+		}
+		else
+		{
+			color = vec3(1, 0, 0);
+		}
 		// Setup vertices
 		glm::vec3 centroid = node->bbox.centroid;
 		glm::vec3 translation = centroid;
 		glm::vec3 scale = glm::vec3(glm::vec3(node->bbox.max) - glm::vec3(node->bbox.min));
 		glm::mat4 transform = glm::translate(glm::mat4(1.0), translation) * glm::scale(glm::mat4(1.0f), scale);
 
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)));
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)),
+			color 
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)),
+			color
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)),
+			color
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)),
+			color
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)),
+			color
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)),
+			color
+		});
+		vertexBuffer.push_back({
+			glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)),
+			color
+		});
+		vertexBuffer.push_back({
+			glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)),
+			color
+		});
 
 		// Setup indices
 
@@ -1051,7 +1028,7 @@ void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 
 	}
 
-	VkDeviceSize bufferSize = vertexBuffer.size() * sizeof(glm::vec3);
+	VkDeviceSize bufferSize = vertexBuffer.size() * sizeof(SWireframe);
 	m_vulkanDevice->CreateBufferAndMemory(
 		bufferSize,
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,

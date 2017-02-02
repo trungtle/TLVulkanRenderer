@@ -17,8 +17,8 @@ public:
 	glm::vec3 hitNormal;
 	glm::vec3 hitTextureColor;
 	float t;
-	Geometry* objectHit;
-	Intersection() : t(-1), objectHit(nullptr) {};
+	Geometry* hitObject;
+	Intersection() : t(-1), hitObject(nullptr) {};
 };
 
 class Geometry
@@ -27,8 +27,8 @@ public:
 	Geometry();
 	virtual ~Geometry();
 
-	virtual Intersection GetIntersection(Ray r) = 0;
-	virtual vec2 GetUV(const vec3&) = 0;
+	virtual Intersection GetIntersection(const Ray& r) = 0;
+	virtual vec2 GetUV(const vec3&) const = 0;
 	virtual BBox GetBBox() = 0;
 
 	Transform m_transform;
@@ -51,7 +51,7 @@ public:
 
 	virtual ~Sphere() {};
 
-	Intersection GetIntersection(Ray r) override
+	Intersection GetIntersection(const Ray& r) override
 	{
 		//Transform the ray
 		Ray r_loc = r.GetTransformedCopy(m_transform.invT());
@@ -79,12 +79,12 @@ public:
 			result.hitNormal = glm::normalize(glm::vec3(m_transform.invTransT() * (P - glm::vec4(0, 0, 0, 1))));
 			result.hitTextureColor = m_material->m_colorDiffuse;
 			result.t = glm::distance(result.hitPoint, r.m_origin);
-			result.objectHit = this;
+			result.hitObject = this;
 		}
 		return result;
 	}
 
-	vec2 GetUV(const vec3& point) override {
+	vec2 GetUV(const vec3& point) const override {
 		glm::vec3 p = glm::normalize(point);
 		float phi = atan2f(p.z, p.x);//glm::atan(p.x/p.z);
 		if (phi < 0)
@@ -119,7 +119,7 @@ public:
 		return N;
 	}
 
-	Intersection GetIntersection(Ray r) override
+	Intersection GetIntersection(const Ray& r) override
 	{
 		//Transform the ray
 		Ray r_loc = r.GetTransformedCopy(m_transform.invT());
@@ -161,7 +161,7 @@ public:
 			glm::vec4 P = glm::vec4(r_loc.m_origin + t_n*r_loc.m_direction, 1);
 			result.hitPoint = glm::vec3(m_transform.T() * P);
 			result.hitNormal = glm::normalize(glm::vec3(m_transform.invTransT() * GetCubeNormal(P)));
-			result.objectHit = this;
+			result.hitObject = this;
 			result.t = glm::distance(result.hitPoint, r.m_origin);
 //			result.hitTextureColor = Material::GetImageColorInterp(GetUVCoordinates(glm::vec3(P)), material->texture);
 			result.hitTextureColor = m_material->m_colorDiffuse;
@@ -173,7 +173,7 @@ public:
 		}
 	}
 
-	vec2 GetUV(const vec3& point) override {
+	vec2 GetUV(const vec3& point) const override {
 		glm::vec3 abs = glm::min(glm::abs(point), 0.5f);
 		glm::vec2 UV;//Always offset lower-left corner
 		if (abs.x > abs.y && abs.x > abs.z)
@@ -258,7 +258,7 @@ public:
 		m_material = material;
 	}
 
-	Intersection GetIntersection(Ray r) override
+	Intersection GetIntersection(const Ray& r) override
 	{
 		Intersection isx;
 		// Compute fast intersection using Muller and Trumbore, this skips computing the plane's equation.
@@ -310,7 +310,7 @@ public:
 		isx.hitNormal = normalize(norm0 * (1 - u - v) + norm1 * u + norm2 * v);
 		isx.t = t;
 		isx.hitTextureColor = m_material->m_colorDiffuse;
-		isx.objectHit = this;
+		isx.hitObject = this;
 
 		return isx;
 	}
@@ -320,7 +320,7 @@ public:
 		return glm::length(glm::cross(p1 - p2, p3 - p2)) * 0.5f;
 	}
 
-	vec2 GetUV(const vec3& point) override {
+	vec2 GetUV(const vec3& point) const override {
 		float A = Area(vert0, vert1, vert2);
 		float A0 = Area(vert1, vert2, point);
 		float A1 = Area(vert0, vert2, point);
@@ -335,7 +335,7 @@ class Mesh : public Geometry {
 public:
 
 	std::vector<Triangle> triangles;
-	Intersection GetIntersection(Ray r) override {
+	Intersection GetIntersection(const Ray& r) override {
 
 		float nearestT = -1.0f;
 		Intersection nearestIsx;
@@ -353,7 +353,7 @@ public:
 		return nearestIsx;
 	}
 
-	vec2 GetUV(const vec3& point) override {
+	vec2 GetUV(const vec3& point) const override {
 		return vec2();
 	}
 

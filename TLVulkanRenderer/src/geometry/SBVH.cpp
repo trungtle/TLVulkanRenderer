@@ -83,10 +83,16 @@ Intersection SBVH::GetIntersection(const Ray& r)
 
 	if (m_root->IsLeaf()) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
-		Intersection isx = leaf->m_geoms[0]->GetIntersection(r);
-		if (isx.t > 0) {
-			return isx;
+		for (auto prim : leaf->m_geoms)
+		{
+			Intersection isx = prim->GetIntersection(r);
+			if (isx.t > 0 && isx.t < nearestT)
+			{
+				nearestT = isx.t;
+				nearestIsx = isx;
+			}
 		}
+		return nearestIsx;
 	}
 
 	// Traverse children
@@ -110,10 +116,15 @@ void SBVH::GetIntersectionRecursive(
 
 	if (node->IsLeaf()) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
-		Intersection isx = leaf->m_geoms[0]->GetIntersection(r);
-		if (isx.t > 0 && isx.t < nearestT) {
-			nearestT = isx.t;
-			nearestIsx = isx;
+
+		// Return nearest primitive
+		for (auto prim : leaf->m_geoms) {
+			Intersection isx = prim->GetIntersection(r);
+			if (isx.t > 0 && isx.t < nearestT)
+			{
+				nearestT = isx.t;
+				nearestIsx = isx;
+			}
 		}
 		return;
 	}
@@ -135,11 +146,16 @@ bool SBVH::DoesIntersect(
 	if (m_root->IsLeaf())
 	{
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
-		Intersection isx = leaf->m_geoms[0]->GetIntersection(r);
-		if (isx.t > 0)
+
+		for (auto prim : leaf->m_geoms)
 		{
-			return true;
+			Intersection isx = prim->GetIntersection(r);
+			if (isx.t > 0)
+			{
+				return true;
+			}
 		}
+		return false;
 	}
 
 	// Traverse children
@@ -159,11 +175,15 @@ bool SBVH::DoesIntersectRecursive(
 	if (node->IsLeaf())
 	{
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
-		Intersection isx = leaf->m_geoms[0]->GetIntersection(r);
-		if (isx.t > 0)
+		for (auto prim : leaf->m_geoms)
 		{
-			return true;
+			Intersection isx = prim->GetIntersection(r);
+			if (isx.t > 0)
+			{
+				return true;
+			}
 		}
+		return false;
 	}
 
 	Intersection isx = node->bbox.GetIntersection(r);

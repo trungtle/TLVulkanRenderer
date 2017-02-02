@@ -12,7 +12,7 @@ public:
 	glm::vec3 EvaluateEnergy(
 		const Intersection& isx,
 		const glm::vec3& in,
-		const glm::vec3& out
+		glm::vec3& out
 	) override;
 };
 

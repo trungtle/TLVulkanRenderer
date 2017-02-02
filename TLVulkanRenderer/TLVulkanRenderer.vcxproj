@@ -179,7 +179,10 @@
     <ClInclude Include="src\renderer\vulkan\VulkanRenderer.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanSwapchain.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanUtil.h" />
+    <ClInclude Include="src\lights\AreaLight.h" />
     <ClInclude Include="src\scene\Camera.h" />
+    <ClInclude Include="src\lights\Light.h" />
+    <ClInclude Include="src\lights\PointLight.h" />
     <ClInclude Include="src\scene\Scene.h" />
     <ClInclude Include="src\scene\SceneUtil.h" />
     <ClInclude Include="src\Typedef.h" />

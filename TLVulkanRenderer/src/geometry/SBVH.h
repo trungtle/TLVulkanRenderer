@@ -29,8 +29,10 @@ public:
 	SBVHLeaf(std::vector<Geometry*> geoms) : 
 		SBVHNode(), m_geoms(geoms)
 	{
-		for (auto g : geoms) {
-			BBox b = g->GetBBox();
+		bbox = geoms[0]->GetBBox();
+		for (int i = 1; i < geoms.size(); i++)
+		{
+			BBox b = geoms[i]->GetBBox();
 			bbox = BBox::BBoxUnion(b, bbox);
 		}
 	}
