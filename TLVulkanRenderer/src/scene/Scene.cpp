@@ -1069,18 +1069,18 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_sbvh = SBVH(
-		1,
+		3,
 		SBVH::SAH
 		);
 
 	// Turn meshes into triangles
-	for (int m = 0; m < meshes.size(); m++)
-	{
-		for (int t = 0; t < meshes[m].triangles.size(); t++)
-		{
-			geometries.push_back(&meshes[m].triangles[t]);
-		}
-	}
+//	for (int m = 0; m < meshes.size(); m++)
+//	{
+//		for (int t = 0; t < meshes[m].triangles.size(); t++)
+//		{
+//			geometries.push_back(&meshes[m].triangles[t]);
+//		}
+//	}
 
 	// Setup materials
 	LambertMaterial* reflectiveMat = new LambertMaterial();
@@ -1093,10 +1093,11 @@ Scene::Scene(
 	}
 
 	// Add spheres
-	for (int i = 0; i < 12; i++) {
+	int numSpheres = 12;
+	for (int i = 0; i < numSpheres; i++) {
 		Sphere* s = new Sphere(glm::vec3(
-			sin(glm::radians(360.0f * i / 12.0f)) * 2,
-			cos(glm::radians(360.0f * i / 12.0f)) * 2,
+			sin(glm::radians(360.0f * i / numSpheres)) * 2,
+			cos(glm::radians(360.0f * i / numSpheres)) * 2,
 			0), 0.5, materials[0]);
 		geometries.push_back(s);
 	}
@@ -1108,7 +1109,7 @@ Scene::Scene(
 	geometries.push_back(c);
 
 	// Add lights
-	PointLight* light = new PointLight(vec3(3, 5, 2), vec3(2, 2, 2), 10);
+	PointLight* light = new PointLight(vec3(3, 5, 2), vec3(1, 1, 1), 15);
 	lights.push_back(light);
 
 //	light = new PointLight(vec3(-10, 5, -10), vec3(1, 2, 1), 15);

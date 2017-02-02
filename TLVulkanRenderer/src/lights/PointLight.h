@@ -11,7 +11,8 @@ public:
 	}
 
 	float Attenuation(const vec3& point) override {
-		return m_radius - glm::distance(m_position, point);
+		float dist = glm::distance(m_position, point);
+		return m_radius / glm::pow(dist, 2.0f) + 1.0f;
 	}
 
 protected:

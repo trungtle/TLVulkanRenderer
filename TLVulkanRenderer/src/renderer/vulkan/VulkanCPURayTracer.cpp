@@ -410,13 +410,19 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 			0, // location
 			VK_FORMAT_R32G32B32_SFLOAT,
 			0 // offset
+		),
+		MakeVertexInputAttributeDescription(
+			0, // binding
+			1, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			offsetof(SWireframe, color) // offset
 		)
 	};
 
 	bindingDesc = {
 		MakeVertexInputBindingDescription(
 			0, // binding
-			sizeof(glm::vec3), // stride
+			sizeof(SWireframe), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		)
 	};
@@ -799,12 +805,12 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 
 		// -- Draw BVH tree
 #ifdef USE_SBVH
-//		VkDeviceSize offsets[1] = { 0 };
-//		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
-//		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
-//		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
-//		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
-//		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
+		VkDeviceSize offsets[1] = { 0 };
+		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
+		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
+		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
+		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
 #endif
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
@@ -930,27 +936,66 @@ void VulkanCPURaytracer::PrepareResources() {
 
 void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 
-	std::vector<glm::vec3> vertexBuffer;
+
+	std::vector<SWireframe> vertexBuffer;
 	std::vector<uint16_t> bbox_idx;
 
 	size_t verticeCount = 0;
+	vec3 color;
 	for (auto node : m_scene->m_sbvh.m_nodes)
 	{
-
+		if (node->IsLeaf())
+		{
+			color = vec3(0, 1, 1);
+		}
+		else
+		{
+			color = vec3(1, 0, 0);
+		}
 		// Setup vertices
 		glm::vec3 centroid = node->bbox.centroid;
 		glm::vec3 translation = centroid;
 		glm::vec3 scale = glm::vec3(glm::vec3(node->bbox.max) - glm::vec3(node->bbox.min));
 		glm::mat4 transform = glm::translate(glm::mat4(1.0), translation) * glm::scale(glm::mat4(1.0f), scale);
 
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)));
-		vertexBuffer.push_back(glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)));
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)),
+			color 
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)),
+			color
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)),
+			color
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)),
+			color
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)),
+			color
+		});
+		vertexBuffer.push_back(
+		{
+			glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)),
+			color
+		});
+		vertexBuffer.push_back({
+			glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)),
+			color
+		});
+		vertexBuffer.push_back({
+			glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)),
+			color
+		});
 
 		// Setup indices
 
@@ -983,7 +1028,7 @@ void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 
 	}
 
-	VkDeviceSize bufferSize = vertexBuffer.size() * sizeof(glm::vec3);
+	VkDeviceSize bufferSize = vertexBuffer.size() * sizeof(SWireframe);
 	m_vulkanDevice->CreateBufferAndMemory(
 		bufferSize,
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,

@@ -61,6 +61,13 @@ protected:
 		std::vector<vec2> uvs;
 	} m_quad;
 
+
+	struct SWireframe
+	{
+		glm::vec3 position;
+		glm::vec3 color;
+	};
+
 protected:
 	VulkanImage::Image m_stagingImage;
 	VulkanImage::Image m_displayImage;
