@@ -170,7 +170,9 @@
     <ClInclude Include="src\MathUtil.h" />
     <ClInclude Include="src\renderer\Film.h" />
     <ClInclude Include="src\geometry\Ray.h" />
+    <ClInclude Include="src\renderer\samplers\Sampler.h" />
     <ClInclude Include="src\renderer\Renderer.h" />
+    <ClInclude Include="src\renderer\samplers\UniformSampler.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanBuffer.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanCPURayTracer.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanDevice.h" />

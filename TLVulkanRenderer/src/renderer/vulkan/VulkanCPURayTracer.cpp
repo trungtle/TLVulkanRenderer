@@ -3,9 +3,9 @@
 #include "Utilities.h"
 #include "geometry/Geometry.h"
 #include "scene/Camera.h"
+#include "renderer/samplers/UniformSampler.h"
 
 #define MULTITHREAD
-#define USE_SBVH
 
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 	vec3 color = vec3(1, 1, 1);
@@ -47,8 +47,17 @@ void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
 		vec3(3, 5, 10)
 	};
 
-	Ray newRay = scene->camera.GenerateRay(x, y);
-	vec3 color = ShadeMaterial(scene, newRay);
+	UniformSampler sampler(ESamples::X1);
+	vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
+
+	vec3 color;
+	for (auto sample : samples) {
+		Ray newRay = scene->camera.GenerateRay(sample.x, sample.y);
+		color += ShadeMaterial(scene, newRay);
+
+	}
+
+	color /= samples.size();
 	color = glm::clamp(color * 255.0f, 0.f, 255.f);
 	film->SetPixel(x, y, glm::vec4(color, 1));
 
