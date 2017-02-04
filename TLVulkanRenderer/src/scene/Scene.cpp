@@ -1069,8 +1069,8 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_sbvh = SBVH(
-		12,
-		SBVH::SAH
+		3,
+		SBVH::EqualCounts
 		);
 
 	// Setup materials
@@ -1080,38 +1080,41 @@ Scene::Scene(
 	materials.push_back(reflectiveMat);
 
 	for (auto mat : materials) {
-		mat->m_colorAmbient = vec3(0.1, 0.1, 0.1);
+		mat->m_colorAmbient = vec3(0.5, 0.5, 0.5);
 	}
 
 
 	// Turn meshes into triangles
 	for (int m = 0; m < meshes.size(); m++)
 	{
+		meshes[m].SetTransform(Transform(glm::vec3(0, 0, 2), glm::vec3(0), glm::vec3(3, 3, 3)));
 		for (int t = 0; t < meshes[m].triangles.size(); t++)
 		{
-			meshes[m].triangles[t].m_name = "triangle" + t;
-			geometries.push_back(&meshes[m].triangles[t]);
+			std::string name = "triangle" + t;
+			meshes[m].triangles[t].SetName(name);
+			geometries.push_back(std::shared_ptr<Geometry>(&meshes[m].triangles[t]));
 		}
 	}
 	
 	// Add spheres
-	int numSpheres = 5;
+	int numSpheres = 12;
 	for (int i = 0; i < numSpheres; i++) {
-		Sphere* s = new Sphere(glm::vec3(
+		std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
 			sin(glm::radians(360.0f * i / numSpheres)) * 2,
 			cos(glm::radians(360.0f * i / numSpheres)) * 2,
-			0), 0.5, materials[0]);
+			0), 0.5, materials[0]));
+		std::string name = "Sphere" + i;
+		s.get()->SetName(name);
 		geometries.push_back(s);
 	}
 
 	// Add planes
-	Cube* c = new Cube;
-	c->m_transform = Transform(glm::vec3(0, -3, 0), glm::vec3(), glm::vec3(7, 0.2, 7));
-	c->m_material = materials[0];
+	std::shared_ptr<Cube> c(new Cube(vec3(0, -3, 0), vec3(7, 0.2, 7), reflectiveMat));
+	c.get()->SetName(std::string("Floor"));
 	geometries.push_back(c);
 
 	// Add lights
-	PointLight* light = new PointLight(vec3(0, 10, 0), vec3(1, 1, 1), 15);
+	PointLight* light = new PointLight(vec3(0, 10, -5), vec3(1, 1, 1), 20);
 	lights.push_back(light);
 
 //	light = new PointLight(vec3(-10, 5, -10), vec3(1, 2, 1), 15);
@@ -1119,7 +1122,8 @@ Scene::Scene(
 
 	m_sbvh.Build(geometries);
 
-	//Dump(scene);
+	std::cout << "Number of triangles: " << indices.size() << std::endl;
+//	Dump(scene);
 }
 
 
@@ -1132,11 +1136,6 @@ Scene::~Scene() {
 	for (Material* mat : materials) {
 		delete mat;
 		mat = nullptr;
-	}
-
-	for (Geometry* geo: geometries) {
-		delete geo;
-		geo = nullptr;
 	}
 
 	for (Light* l : lights) {

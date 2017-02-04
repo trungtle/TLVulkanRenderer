@@ -7,72 +7,183 @@ struct CompareCentroid
 	CompareCentroid(int dim) : dim(dim) {};
 
 	int dim;
-	bool operator()(const SBVHNode* node1, const SBVHNode* node2) const {
-		return node1->bbox.centroid[dim] < node2->bbox.centroid[dim];
+	bool operator()(const SBVHGeometryInfo node1, SBVHGeometryInfo node2) const {
+		return node1.bbox.m_centroid[dim] < node2.bbox.m_centroid[dim];
 	}
 };
 
 void 
 SBVH::Build(
-	const std::vector<Geometry*>& geoms
+	std::vector<std::shared_ptr<Geometry>>& geoms
 )
 {
-	std::vector<SBVHNode*> leaves;
-	for (int i = 0; i < geoms.size(); i += m_maxPrimInNode)
+	m_geoms = geoms;
+
+	// Initialize geom info
+	std::vector<SBVHGeometryInfo> geomInfos(geoms.size());
+	for (size_t i = 0; i < geomInfos.size(); i++)
 	{
-		std::vector<Geometry*> primitives;
-		for (int j = 0; j < m_maxPrimInNode & (j + i) < geoms.size(); j++)
-		{
-			primitives.push_back(geoms[i + j]);
-		}
-		SBVHLeaf* leaf = new SBVHLeaf(primitives);
-		leaves.push_back(leaf);
+		geomInfos[i] = { i, geoms[i]->GetBBox() };
 	}
 
-	m_root = BuildRecursive(leaves, 0, leaves.size() - 1, geoms.size());
+	size_t totalNodes = 0;
+
+	std::vector<std::shared_ptr<Geometry>> orderedGeoms;
+	m_root = BuildRecursive(geomInfos, 0, geomInfos.size(), totalNodes, orderedGeoms);
+	m_geoms.swap(orderedGeoms);
 	Flatten();
 }
 
+void PartitionEqualCounts(int dim, int first, int last, int& mid, std::vector<SBVHGeometryInfo>& geomInfos) {
+	// Partial sorting along the maximum extent and split at the middle
+	// Sort evenly to each half
+	mid = (first + last) / 2;
+	std::nth_element(&geomInfos[first], &geomInfos[mid], &geomInfos[last - 1] + 1, CompareCentroid(dim));
+
+}
+
 SBVHNode*
-SBVH::BuildRecursive(std::vector<SBVHNode*>& leaves, int first, int last, size_t nodeCount) {
+SBVH::BuildRecursive(
+	std::vector<SBVHGeometryInfo>& geomInfos, 
+	int first, 
+	int last, 
+	size_t& nodeCount,
+	std::vector<std::shared_ptr<Geometry>>& orderedGeoms
+	) 
+{
 	if (last < first || last < 0 || first < 0)
 	{
 		return nullptr;
 	}
 
-	if (last == first)
-	{
-		// We're at a leaf node
-		return leaves.at(first);
+	// Compute bounds of all geometries in node
+	BBox bboxAllGeoms;
+	for (int i = first; i < last; i++) {
+		bboxAllGeoms = BBox::BBoxUnion(bboxAllGeoms, geomInfos[i].bbox);
 	}
 
-	auto node = new SBVHNode();
-	node->nodeIdx = nodeCount;
-	++nodeCount;
+	int numPrimitives = last - first;
+	
+	if (numPrimitives == 1) {
+		// Create a leaf node
+		size_t firstGeomOffset = orderedGeoms.size();
+
+		for (int i = first; i < last; i++) {
+			int geomIdx = geomInfos[i].geometryId;
+			orderedGeoms.push_back(m_geoms[geomIdx]);
+		}
+		SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
+		nodeCount++;
+		return leaf;
+	}
 
 	// Choose a dimension to split
-	auto dim = static_cast<int>((BBox::BBoxMaximumExtent(node->bbox)));
+	BBox bboxCentroids;
+	for (int i = first; i < last; i++) {
+		bboxCentroids = BBox::BBoxUnion(bboxCentroids, geomInfos[i].bbox.m_centroid);
+	}
+	auto dim = static_cast<int>((BBox::BBoxMaximumExtent(bboxCentroids)));
+	// If all centroids are the same, create leafe since there's no effective way to split the tree
+	if (bboxCentroids.m_max[dim] == bboxCentroids.m_min[dim]) {
+		// Create a leaf node
+		size_t firstGeomOffset = orderedGeoms.size();
 
-	// Compute the bounds of all geometries within this subtree
-	node->bbox = leaves.at(first)->bbox;
-	for (auto i = first + 1; i <= last; ++i)
-	{
-		node->bbox = BBox::BBoxUnion(leaves.at(i)->bbox, node->bbox);
+		for (int i = first; i < last; i++)
+		{
+			int geomIdx = geomInfos[i].geometryId;
+			orderedGeoms.push_back(m_geoms[geomIdx]);
+		}
+		SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
+		nodeCount++;
+		return leaf;
 	}
 
-	// Partial sorting along the maximum extent and split at the middle
-	int mid = (first + last) / 2;
-	std::nth_element(&leaves[first], &leaves[mid], &leaves[last], CompareCentroid(dim));
+	int mid;
+	switch(m_splitMethod) {
+		case SAH: // Partition based on surface area heuristics
+			if (numPrimitives <= 4)
+			{
+				PartitionEqualCounts(dim, first, last, mid, geomInfos);
+			} else {
+				// Create 12 buckets (based from pbrt)
+				const int NUM_BUCKET = 12;
+				struct BucketInfo {
+					int count = 0;
+					BBox bbox;
+				};
+
+				BucketInfo buckets[NUM_BUCKET];
+
+				// For each primitive in range, determine which bucket it falls into
+				for (int i = first; i < last; i++) {
+					int b = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
+					assert(b < NUM_BUCKET);
+					if (b == NUM_BUCKET) b = NUM_BUCKET - 1;
+					
+					buckets[b].count++;
+					buckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, geomInfos.at(i).bbox);
+				}
+
+				// Compute cost for splitting after each bucket
+				float costs[NUM_BUCKET - 1];
+				for (int i = 0; i < NUM_BUCKET - 1; i++) {
+					BBox bbox0, bbox1;
+					int count0 = 0, count1 = 0;
+
+					// Compute cost for buckets before split candidate
+					for (int j = 0; j <= i ; j++) {
+						bbox0 = BBox::BBoxUnion(bbox0, buckets[j].bbox);
+						count0 += buckets[j].count;
+					}
+
+					// Compute cost for buckets after split candidate
+					for (int j = i  + 1; j < NUM_BUCKET; j++)
+					{
+						bbox1 = BBox::BBoxUnion(bbox1, buckets[j].bbox);
+						count1 += buckets[j].count;
+					}
+
+					const float COST_TRAVERSAL = 0.125f;
+					const float COST_INTERSECTION = 1.0f;
+					costs[i] = COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) / bboxAllGeoms.GetSurfaceArea();
+				}
+
+				// Now that we have the costs, we can loop through our buckets and find
+				// which bucket has the lowest cost
+				float minCost = costs[0];
+				int minCostBucket = 0;
+				for (int i = 1; i < NUM_BUCKET - 1; i++) {
+					if (costs[i] < minCost) {
+						minCost = costs[i];
+						minCostBucket = i;
+					}
+				}
+
+				// Either create a leaf or split
+				float leafCost = numPrimitives;
+				if (numPrimitives > m_maxGeomsInNode || minCost < leafCost) {
+					// Split node
+					//std::partition()
+
+				}
+			}
+			break;
+
+		case EqualCounts: // Partition based on equal counts
+		default:
+			PartitionEqualCounts(dim, first, last, mid, geomInfos);
+			break;
+	}
 
 	// Build near child
-	node->nearChild = BuildRecursive(leaves, first, mid, nodeCount);
-	node->nearChild->parent = node;
-	node->nearChild->splitAxis = static_cast<BBox::EAxis>(dim);
+	BBox::EAxis splitAxis = static_cast<BBox::EAxis>(dim);;
+	SBVHNode* nearChild = BuildRecursive(geomInfos, first, mid, nodeCount, orderedGeoms);
 
 	// Build far child
-	node->farChild = BuildRecursive(leaves, mid + 1, last, nodeCount);
-	node->farChild->parent = node;
-	node->farChild->splitAxis = static_cast<BBox::EAxis>(dim);
+	SBVHNode* farChild = BuildRecursive(geomInfos, mid, last, nodeCount, orderedGeoms);
+
+	SBVHNode* node = new SBVHNode(nearChild, farChild, nodeCount, splitAxis);
+	nodeCount++;
 	return node;
 }
 
@@ -82,11 +193,12 @@ Intersection SBVH::GetIntersection(const Ray& r)
 	float nearestT = INFINITY;
 	Intersection nearestIsx; 
 
-	if (m_root->IsLeaf() && m_root->bbox.DoesIntersect(r)) {
+	if (m_root->IsLeaf()) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
-		for (auto prim : leaf->m_geoms)
+		for (int i = 0; i < leaf->m_numGeoms; i++)
 		{
-			Intersection isx = prim->GetIntersection(r);
+			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0 && isx.t < nearestT)
 			{
 				nearestT = isx.t;
@@ -97,8 +209,8 @@ Intersection SBVH::GetIntersection(const Ray& r)
 	}
 
 	// Traverse children
-	GetIntersectionRecursive(r, m_root->nearChild, nearestT, nearestIsx);
-	GetIntersectionRecursive(r, m_root->farChild, nearestT, nearestIsx);
+	GetIntersectionRecursive(r, m_root->m_nearChild, nearestT, nearestIsx);
+	GetIntersectionRecursive(r, m_root->m_farChild, nearestT, nearestIsx);
 
 	return nearestIsx;
 }
@@ -115,12 +227,14 @@ void SBVH::GetIntersectionRecursive(
 		return;
 	}
 
-	if (node->IsLeaf() && node->bbox.DoesIntersect(r)) {
+	if (node->IsLeaf()) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
 
 		// Return nearest primitive
-		for (auto prim : leaf->m_geoms) {
-			Intersection isx = prim->GetIntersection(r);
+		for (int i = 0; i < leaf->m_numGeoms; i++)
+		{
+			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0 && isx.t < nearestT)
 			{
 				nearestT = isx.t;
@@ -130,11 +244,11 @@ void SBVH::GetIntersectionRecursive(
 		return;
 	}
 
-	if (node->bbox.DoesIntersect(r))
+	if (node->m_bbox.DoesIntersect(r))
 	{
 		// Traverse children
-		GetIntersectionRecursive(r, node->nearChild, nearestT, nearestIsx);
-		GetIntersectionRecursive(r, node->farChild, nearestT, nearestIsx);
+		GetIntersectionRecursive(r, node->m_nearChild, nearestT, nearestIsx);
+		GetIntersectionRecursive(r, node->m_farChild, nearestT, nearestIsx);
 	}
 }
 
@@ -143,13 +257,14 @@ bool SBVH::DoesIntersect(
 	const Ray& r
 	)
 {
-	if (m_root->IsLeaf() && m_root->bbox.DoesIntersect(r))
+	if (m_root->IsLeaf())
 	{
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
 
-		for (auto prim : leaf->m_geoms)
+		for (int i = 0; i < leaf->m_numGeoms; i++)
 		{
-			Intersection isx = prim->GetIntersection(r);
+			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0)
 			{
 				return true;
@@ -159,7 +274,7 @@ bool SBVH::DoesIntersect(
 	}
 
 	// Traverse children
-	return DoesIntersectRecursive(r, m_root->nearChild) || DoesIntersectRecursive(r, m_root->farChild);
+	return DoesIntersectRecursive(r, m_root->m_nearChild) || DoesIntersectRecursive(r, m_root->m_farChild);
 }
 
 bool SBVH::DoesIntersectRecursive(
@@ -174,25 +289,24 @@ bool SBVH::DoesIntersectRecursive(
 
 	if (node->IsLeaf())
 	{
-		if (node->bbox.DoesIntersect(r) && node->bbox.DoesIntersect(r)) {
-			SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
-			for (auto prim : leaf->m_geoms)
+		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
+		for (int i = 0; i < leaf->m_numGeoms; i++)
+		{
+			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+			Intersection isx = geom->GetIntersection(r);
+			if (isx.t > 0)
 			{
-				Intersection isx = prim->GetIntersection(r);
-				if (isx.t > 0)
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 
 		return false;
 	}
 
-	if (node->bbox.DoesIntersect(r))
+	if (node->m_bbox.DoesIntersect(r))
 	{
 		// Traverse children
-		return DoesIntersectRecursive(r, node->nearChild) || DoesIntersectRecursive(r, node->farChild);
+		return DoesIntersectRecursive(r, node->m_nearChild) || DoesIntersectRecursive(r, node->m_farChild);
 	}
 	return false;
 }
@@ -212,8 +326,8 @@ SBVH::DestroyRecursive(SBVHNode* node) {
 		node = nullptr;
 	}
 
-	DestroyRecursive(node->nearChild);
-	DestroyRecursive(node->farChild);
+	DestroyRecursive(node->m_nearChild);
+	DestroyRecursive(node->m_farChild);
 
 	delete node;
 	node == nullptr;
@@ -229,11 +343,12 @@ void SBVH::FlattenRecursive(
 	}
 
 	m_nodes.push_back(node);
-	FlattenRecursive(node->nearChild);
-	FlattenRecursive(node->farChild);
+	FlattenRecursive(node->m_nearChild);
+	FlattenRecursive(node->m_farChild);
 }
 
 void SBVH::Flatten() {
 
 	FlattenRecursive(m_root);
 }
+

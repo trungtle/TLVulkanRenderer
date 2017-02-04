@@ -53,6 +53,20 @@ bool BBox::DoesIntersect(const Ray& r) const
 	return false;
 }
 
+glm::vec3 BBox::Offset(const glm::vec3& point) const 
+{
+	glm::vec3 out = point - m_min;
+	if (m_min.x < m_max.x) out.x /= (m_max.x - m_min.x);
+	if (m_min.y < m_max.y) out.y /= (m_max.y - m_min.y);
+	if (m_min.z < m_max.z) out.z /= (m_max.z - m_min.z);
+	return out; 
+}
+
+float BBox::GetSurfaceArea() const {
+	vec3 scale = m_max - m_min;
+	return 2.0f * (scale.x * scale.y + scale.x * scale.z + scale.y * scale.z);
+}
+
 glm::vec3 BBox::Centroid(
 	const glm::vec3& a,
 	const glm::vec3& b
@@ -67,19 +81,33 @@ glm::vec3 BBox::Centroid(
 
 BBox BBox::BBoxUnion(const BBox& a, const BBox& b) {
 	BBox ret;
-	ret.max.x = glm::max(a.max.x, b.max.x);
-	ret.max.y = glm::max(a.max.y, b.max.y);
-	ret.max.z = glm::max(a.max.z, b.max.z);
-	ret.min.x = glm::min(a.min.x, b.min.x);
-	ret.min.y = glm::min(a.min.y, b.min.y);
-	ret.min.z = glm::min(a.min.z, b.min.z);
-	ret.centroid = BBox::Centroid(ret.max, ret.min);
-	ret.m_transform = Transform(ret.centroid, glm::vec3(0), ret.max - ret.min);
+	ret.m_max.x = glm::max(a.m_max.x, b.m_max.x);
+	ret.m_max.y = glm::max(a.m_max.y, b.m_max.y);
+	ret.m_max.z = glm::max(a.m_max.z, b.m_max.z);
+	ret.m_min.x = glm::min(a.m_min.x, b.m_min.x);
+	ret.m_min.y = glm::min(a.m_min.y, b.m_min.y);
+	ret.m_min.z = glm::min(a.m_min.z, b.m_min.z);
+	ret.m_centroid = BBox::Centroid(ret.m_max, ret.m_min);
+	ret.m_transform = Transform(ret.m_centroid, glm::vec3(0), ret.m_max - ret.m_min);
+	return ret;
+}
+
+BBox BBox::BBoxUnion(const BBox& a, const vec3& point) 
+{
+	BBox ret;
+	ret.m_max.x = glm::max(a.m_max.x, point.x);
+	ret.m_max.y = glm::max(a.m_max.y, point.y);
+	ret.m_max.z = glm::max(a.m_max.z, point.z);
+	ret.m_min.x = glm::min(a.m_min.x, point.x);
+	ret.m_min.y = glm::min(a.m_min.y, point.y);
+	ret.m_min.z = glm::min(a.m_min.z, point.z);
+	ret.m_centroid = BBox::Centroid(ret.m_max, ret.m_min);
+	ret.m_transform = Transform(ret.m_centroid, glm::vec3(0), ret.m_max - ret.m_min);
 	return ret;
 }
 
 BBox::EAxis BBox::BBoxMaximumExtent(const BBox& bbox) {
-	glm::vec3 diag = bbox.max - bbox.min;
+	glm::vec3 diag = bbox.m_max - bbox.m_min;
 	if (diag.x > diag.y && diag.x > diag.z)
 	{
 		return EAxis::X;
