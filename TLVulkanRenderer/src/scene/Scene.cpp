@@ -1069,7 +1069,7 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_sbvh = SBVH(
-		3,
+		100,
 		SBVH::EqualCounts
 		);
 
@@ -1123,6 +1123,7 @@ Scene::Scene(
 	m_sbvh.Build(geometries);
 
 	std::cout << "Number of triangles: " << indices.size() << std::endl;
+	std::cout << "Number of BVH nodes: " << m_sbvh.m_nodes.size() << std::endl;
 //	Dump(scene);
 }
 

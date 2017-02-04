@@ -116,12 +116,12 @@ SBVH::BuildRecursive(
 
 				// For each primitive in range, determine which bucket it falls into
 				for (int i = first; i < last; i++) {
-					int b = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
-					assert(b < NUM_BUCKET);
-					if (b == NUM_BUCKET) b = NUM_BUCKET - 1;
+					int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
+					assert(whichBucket <= NUM_BUCKET);
+					if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
 					
-					buckets[b].count++;
-					buckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, geomInfos.at(i).bbox);
+					buckets[whichBucket].count++;
+					buckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
 				}
 
 				// Compute cost for splitting after each bucket
@@ -163,8 +163,31 @@ SBVH::BuildRecursive(
 				float leafCost = numPrimitives;
 				if (numPrimitives > m_maxGeomsInNode || minCost < leafCost) {
 					// Split node
-					//std::partition()
+					SBVHGeometryInfo *pmid = std::partition(
+						&geomInfos[first], &geomInfos[last - 1] + 1,
+						[=](const SBVHGeometryInfo& gi)
+					{
+						// Partition geometry into two halves, before and after the split
+						int whichBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
+						assert(whichBucket <= NUM_BUCKET);
+						if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
+						return whichBucket <= minCostBucket;
+					});
+					mid = pmid - &geomInfos[0];
 
+				} else {
+
+					// Cost of splitting buckets is too high, create a leaf node instead
+					size_t firstGeomOffset = orderedGeoms.size();
+
+					for (int i = first; i < last; i++)
+					{
+						int geomIdx = geomInfos[i].geometryId;
+						orderedGeoms.push_back(m_geoms[geomIdx]);
+					}
+					SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
+					nodeCount++;
+					return leaf;
 				}
 			}
 			break;

@@ -4,6 +4,7 @@
 #include "geometry/Geometry.h"
 #include "scene/Camera.h"
 #include "renderer/samplers/UniformSampler.h"
+#include <iostream>
 
 #define MULTITHREAD
 
@@ -134,7 +135,9 @@ VulkanCPURaytracer::Render() {
 	m_film.Clear();
 
 	VkDeviceSize imageSize = m_width * m_height * 4;
-
+	
+	static int profileCount = 0;
+	static auto startTime = std::chrono::high_resolution_clock::now();
 #ifdef MULTITHREAD
 	// Generate 4x4 threads
 	for (int i = 0; i < 16; i++)
@@ -154,6 +157,14 @@ VulkanCPURaytracer::Render() {
 		}
 	}
 #endif
+	if (++profileCount >= 100) {
+		profileCount = 0;
+		auto endTime = std::chrono::high_resolution_clock::now();
+		float ms = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+		ms /= 100.0f;
+		startTime = endTime;
+		std::cout << ms << std::endl;
+	}
 
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,
@@ -814,12 +825,12 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 
 		// -- Draw BVH tree
 
-		//VkDeviceSize offsets[1] = { 0 };
-		//vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
-		//vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
-		//vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
-		//vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
-		//vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
+//		VkDeviceSize offsets[1] = { 0 };
+//		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
+//		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
+//		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
+//		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
+//		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
