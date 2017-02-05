@@ -46,7 +46,7 @@ the result is:
 | # frames     | 300  | 300  |
 | ms / frame   | 193.04 | 130.33 |
 
-This confirms to me that in fact using `SAH` splitting method is an improvemance from using `EqualCounts` method.
+This confirms to me that in fact using `SAH` splitting method is an improvemance from using `EqualCounts` method. With the duck scene, the application was running 8-12 FPS. While a bit slow, this is a lot faster than my GPU ray tracing implementation.
 
 #### Uniform SSAA
 
