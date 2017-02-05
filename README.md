@@ -12,6 +12,19 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
+### Feb 4, 2017 - SAH for BVH and uniform SSAA
+
+#### SAH for BVH
+
+#### Uniform SSAA
+
+The ray tracer takes in a `Sampler` class that generate samples based on the pixel coordinates. For now, there is only one derived `UniformSampler`that generates X4, X8, and X6 samples. Running a SSAA sampler does reduce the performance of the ray tracer significantly. In the future, likely this will be swapped out for MSAA or TXAA to improve speed.
+
+| No SSAA | SSAA X16 |
+|---|---|
+|![](TLVulkanRenderer/renders/No_AA.png)|![](TLVulkanRenderer/renders/Uniform_AA_X16.png)|
+
+
 ### Jan 30, 2017 - CPU ray tracer with BVH and multithreading
 
 #### Multithreading
