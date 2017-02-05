@@ -40,6 +40,7 @@ The result of SAH does in fact increased the speed of tree traversal. For the fo
 the result is:
 
 |  | Equal counts | SAH |
+| --- | --- | --- |
 | # Primitives | 4212 | 4212 |
 | # BVH nodes  | 8449 | 8447 |
 | # frames     | 300  | 300  |
