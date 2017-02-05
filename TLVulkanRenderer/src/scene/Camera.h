@@ -19,7 +19,7 @@ struct Camera {
 	void Zoom(float amount);
 	void TranslateAlongRight(float amount);
 	void TranslateAlongUp(float amount);
-	Ray GenerateRay(int x, int y) const;
+	Ray GenerateRay(float x, float y) const;
 
 	// -- Attributes
 	glm::ivec2 resolution;

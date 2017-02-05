@@ -3,9 +3,10 @@
 #include "Utilities.h"
 #include "geometry/Geometry.h"
 #include "scene/Camera.h"
+#include "renderer/samplers/UniformSampler.h"
+#include <iostream>
 
 #define MULTITHREAD
-#define USE_SBVH
 
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 	vec3 color = vec3(1, 1, 1);
@@ -19,11 +20,11 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 				vec3 lightDirection = glm::normalize(light->m_position - isx.hitPoint);
 
 				// Shade material
-				color *= isx.hitObject->m_material->EvaluateEnergy(isx, lightDirection, newRay.m_direction);
+				color *= isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay.m_direction);
 				color *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler
-				Ray shadowFeeler(isx.hitPoint + 0.001f * lightDirection, lightDirection);
+				Ray shadowFeeler(isx.hitPoint + 0.01f * lightDirection, lightDirection);
 				if (scene->DoesIntersect(shadowFeeler))
 				{
 					color *= 0.1f;
@@ -47,8 +48,17 @@ void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
 		vec3(3, 5, 10)
 	};
 
-	Ray newRay = scene->camera.GenerateRay(x, y);
-	vec3 color = ShadeMaterial(scene, newRay);
+	UniformSampler sampler(ESamples::X1);
+	vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
+
+	vec3 color;
+	for (auto sample : samples) {
+		Ray newRay = scene->camera.GenerateRay(sample.x, sample.y);
+		color += ShadeMaterial(scene, newRay);
+
+	}
+
+	color /= samples.size();
 	color = glm::clamp(color * 255.0f, 0.f, 255.f);
 	film->SetPixel(x, y, glm::vec4(color, 1));
 
@@ -125,7 +135,9 @@ VulkanCPURaytracer::Render() {
 	m_film.Clear();
 
 	VkDeviceSize imageSize = m_width * m_height * 4;
-
+	
+	static int profileCount = 0;
+	static auto startTime = std::chrono::high_resolution_clock::now();
 #ifdef MULTITHREAD
 	// Generate 4x4 threads
 	for (int i = 0; i < 16; i++)
@@ -145,6 +157,14 @@ VulkanCPURaytracer::Render() {
 		}
 	}
 #endif
+	if (++profileCount >= 100) {
+		profileCount = 0;
+		auto endTime = std::chrono::high_resolution_clock::now();
+		float ms = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+		ms /= 100.0f;
+		startTime = endTime;
+		std::cout << ms << std::endl;
+	}
 
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,
@@ -804,14 +824,14 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 
 
 		// -- Draw BVH tree
-#ifdef USE_SBVH
-		VkDeviceSize offsets[1] = { 0 };
-		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
-		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
-		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
-		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
-		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
-#endif
+
+//		VkDeviceSize offsets[1] = { 0 };
+//		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
+//		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
+//		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
+//		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
+//		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
+
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
 
@@ -953,9 +973,9 @@ void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 			color = vec3(1, 0, 0);
 		}
 		// Setup vertices
-		glm::vec3 centroid = node->bbox.centroid;
+		glm::vec3 centroid = node->m_bbox.m_centroid;
 		glm::vec3 translation = centroid;
-		glm::vec3 scale = glm::vec3(glm::vec3(node->bbox.max) - glm::vec3(node->bbox.min));
+		glm::vec3 scale = glm::vec3(glm::vec3(node->m_bbox.m_max) - glm::vec3(node->m_bbox.m_min));
 		glm::mat4 transform = glm::translate(glm::mat4(1.0), translation) * glm::scale(glm::mat4(1.0f), scale);
 
 		vertexBuffer.push_back(

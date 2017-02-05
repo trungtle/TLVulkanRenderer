@@ -29,7 +29,7 @@ public:
 	std::vector<MaterialPacked> materialPackeds;
 	std::vector<LambertMaterial*> materials;
 	std::vector<Mesh> meshes;
-	std::vector<Geometry*> geometries;
+	std::vector<std::shared_ptr<Geometry>> geometries;
 	std::vector<Light*> lights;
 	SBVH m_sbvh;
 

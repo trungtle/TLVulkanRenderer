@@ -133,6 +133,8 @@
     <ClInclude Include="src\lights\Light.h" />
     <ClInclude Include="src\lights\PointLight.h" />
     <ClInclude Include="src\lights\AreaLight.h" />
+    <ClInclude Include="src\renderer\samplers\Sampler.h" />
+    <ClInclude Include="src\renderer\samplers\UniformSampler.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">
@@ -158,6 +160,7 @@
     </None>
     <None Include="shaders\raytracing\wireframe.vert" />
     <None Include="shaders\raytracing\wireframe.frag" />
+    <None Include="..\README.md" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

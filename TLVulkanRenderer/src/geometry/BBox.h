@@ -13,12 +13,17 @@ public:
 		Z
 	} EAxis;
 
-	glm::vec3 min;
-	glm::vec3 max;
-	glm::vec3 centroid;
+	glm::vec3 m_min;
+	glm::vec3 m_max;
+	glm::vec3 m_centroid;
 	Transform m_transform;
 
-	Intersection GetIntersection(const Ray& r) const;
+	BBox() : m_min(INFINITY, INFINITY, INFINITY), m_max(-INFINITY, -INFINITY, -INFINITY)
+	{}
+
+	bool DoesIntersect(const Ray& r) const;
+	glm::vec3 Offset(const glm::vec3& point) const;
+	float GetSurfaceArea() const;
 
 	static glm::vec3 Centroid(
 		const glm::vec3& a,
@@ -32,6 +37,7 @@ public:
 	* \return the union bounding box
 	*/
 	static BBox BBoxUnion(const BBox& a, const BBox& b);
+	static BBox BBoxUnion(const BBox& a, const vec3& point);
 
 	/**
 	* \brief Return the maximum extent axis of the bounding box. This is used to sort the BVH tree
