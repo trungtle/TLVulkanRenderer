@@ -67,6 +67,43 @@ float BBox::GetSurfaceArea() const {
 	return 2.0f * (scale.x * scale.y + scale.x * scale.z + scale.y * scale.z);
 }
 
+BBox BBox::ClipGeometry(std::shared_ptr<Geometry> geom, EAxis dim) 
+{
+	BBox clippedBox;
+	Triangle* tri = static_cast<Triangle*>(geom.get());
+	Ray rays[3];
+	vec3 edge0 = normalize(tri->vert1 - tri->vert0);
+	rays[0] = Ray(tri->vert0, edge0);
+	vec3 edge1 = tri->vert2 - tri->vert0;
+	rays[1] = Ray(tri->vert0, edge1);
+	vec3 edge2 = tri->vert2 - tri->vert1;
+	rays[2] = Ray(tri->vert1, edge2);
+
+	EPlane clippingPlane;
+	BBoxFace nearFace, farFace;
+	nearFace.m_point = m_min;
+	nearFace.m_normal[dim] = -1;
+	farFace.m_point = m_max;
+	farFace.m_normal[dim] = 1;
+
+	// Find intersection with each clipping planes
+	float t;
+	for (auto i = 0; i < 3; i++) {
+		float denom = dot(nearFace.m_normal, rays[i].m_direction);
+		if (denom > 1e-6) {
+			vec3 d = nearFace.m_point - rays[i].m_origin;
+			t = dot(d, nearFace.m_normal) / denom;
+		}
+	}
+	return clippedBox;
+}
+
+bool BBox::IsInside(const vec3& point) const {
+	return (point.x < m_max.x && point.x > m_min.x &&
+		point.y < m_max.y && point.y > m_min.y &&
+		point.z < m_max.z && point.z > m_min.z);
+}
+
 glm::vec3 BBox::Centroid(
 	const glm::vec3& a,
 	const glm::vec3& b
@@ -106,7 +143,39 @@ BBox BBox::BBoxUnion(const BBox& a, const vec3& point)
 	return ret;
 }
 
-BBox::EAxis BBox::BBoxMaximumExtent(const BBox& bbox) {
+BBox BBox::BBoxOverlap(const BBox& a, const BBox& b) 
+{
+	BBox ret;
+	ret.m_max.x = glm::min(glm::max(a.m_max.x, b.m_min.x), glm::max(a.m_min.x, b.m_max.x));
+	ret.m_max.y = glm::min(glm::max(a.m_max.y, b.m_min.y), glm::max(a.m_min.y, b.m_max.y));
+	ret.m_max.z = glm::min(glm::max(a.m_max.z, b.m_min.z), glm::max(a.m_min.z, b.m_max.z));
+	ret.m_min.x = glm::max(glm::min(a.m_max.x, b.m_min.x), glm::min(a.m_min.x, b.m_max.x));
+	ret.m_min.y = glm::max(glm::min(a.m_max.x, b.m_min.x), glm::min(a.m_min.x, b.m_max.x));
+	ret.m_min.z = glm::max(glm::min(a.m_max.x, b.m_min.x), glm::min(a.m_min.x, b.m_max.x));
+	ret.m_centroid = BBox::Centroid(ret.m_max, ret.m_min);
+	ret.m_transform = Transform(ret.m_centroid, glm::vec3(0), ret.m_max - ret.m_min);
+	return ret;
+}
+
+BBox BBox::BBoxFromPoints(std::vector<vec3>& points) 
+{
+	BBox ret;
+
+	for (auto point : points) {
+		ret.m_max.x = glm::max(ret.m_max.x, point.x);
+		ret.m_max.y = glm::max(ret.m_max.y, point.y);
+		ret.m_max.z = glm::max(ret.m_max.z, point.z);
+		ret.m_min.x = glm::min(ret.m_min.x, point.x);
+		ret.m_min.y = glm::min(ret.m_min.y, point.y);
+		ret.m_min.z = glm::min(ret.m_min.z, point.z);
+	}
+	ret.m_centroid = BBox::Centroid(ret.m_max, ret.m_min);
+	ret.m_transform = Transform(ret.m_centroid, glm::vec3(0), ret.m_max - ret.m_min);
+
+	return ret;
+}
+
+EAxis BBox::BBoxMaximumExtent(const BBox& bbox) {
 	glm::vec3 diag = bbox.m_max - bbox.m_min;
 	if (diag.x > diag.y && diag.x > diag.z)
 	{

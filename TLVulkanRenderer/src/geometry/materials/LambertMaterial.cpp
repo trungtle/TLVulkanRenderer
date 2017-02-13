@@ -28,8 +28,10 @@ glm::vec3 LambertMaterial::EvaluateEnergy(const Intersection& isx, const glm::ve
 		out = normalize(refract(in, isx.hitNormal, eta));
 	}
 
+	// Use half lambert here to pop up the color
+	float lambert = glm::dot(in, isx.hitNormal) * 0.5 + 0.5;
 	color = glm::clamp(
-		glm::dot(in, isx.hitNormal), 0.0f, 1.0f) * m_colorDiffuse * isx.hitTextureColor + m_colorAmbient;
+		lambert, 0.0f, 1.0f) * m_colorDiffuse * isx.hitTextureColor + m_colorAmbient;
 
 	if (m_reflectivity > 0) {
 		color *= m_colorReflective;

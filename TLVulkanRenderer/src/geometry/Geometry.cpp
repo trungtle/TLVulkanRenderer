@@ -8,6 +8,11 @@ Geometry::Geometry() {
 Geometry::~Geometry() {
 }
 
+BBox SquarePlane::GetBBox() 
+{
+	return BBox();
+}
+
 Intersection Sphere::GetIntersection(const Ray& r) {
 	//Transform the ray
 	Ray r_loc = r.GetTransformedCopy(m_transform.invT());

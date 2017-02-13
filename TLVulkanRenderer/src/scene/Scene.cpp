@@ -1069,8 +1069,8 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_sbvh = SBVH(
-		100,
-		SBVH::EqualCounts
+		10,
+		SBVH::SpatialSplit_SAH
 		);
 
 	// Setup materials
