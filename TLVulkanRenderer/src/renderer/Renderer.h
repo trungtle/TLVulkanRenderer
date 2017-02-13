@@ -30,8 +30,9 @@ class Renderer {
 public:
 	Renderer(
 		GLFWwindow* window,
-		Scene* scene
-	) : m_window(window), m_scene(scene) {
+		Scene* scene,
+		std::shared_ptr<std::map<string, string>> config
+	) : m_window(window), m_scene(scene), m_config(config) {
 	};
 
 	virtual ~Renderer() {
@@ -49,6 +50,8 @@ protected:
 	 * \brief Handle to scene
 	 */
 	Scene* m_scene;
+
+	std::shared_ptr<std::map<string, string>> m_config;
 
 	uint32_t m_width;
 	uint32_t m_height;

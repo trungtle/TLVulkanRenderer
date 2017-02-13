@@ -7,7 +7,8 @@ class VulkanGPURaytracer : public VulkanRenderer {
 public:
 	VulkanGPURaytracer(
 		GLFWwindow* window,
-		Scene* scene
+		Scene* scene,
+		std::shared_ptr<std::map<string, string>> config
 	);
 
 	virtual void

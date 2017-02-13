@@ -11,7 +11,8 @@ class VulkanCPURaytracer : public VulkanRenderer
 public:
 	VulkanCPURaytracer(
 		GLFWwindow* window,
-		Scene* scene
+		Scene* scene,
+		std::shared_ptr<std::map<string, string>> config
 	);
 
 	virtual ~VulkanCPURaytracer() final;

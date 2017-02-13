@@ -4,7 +4,9 @@
 
 VulkanGPURaytracer::VulkanGPURaytracer(
 	GLFWwindow* window,
-	Scene* scene): VulkanRenderer(window, scene) {
+	Scene* scene,
+	std::shared_ptr<std::map<string, string>> config
+	): VulkanRenderer(window, scene, config) {
 
 	PrepareCompute();
 	PrepareGraphics();

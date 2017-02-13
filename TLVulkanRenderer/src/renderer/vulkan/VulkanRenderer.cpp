@@ -14,10 +14,11 @@
 
 VulkanRenderer::VulkanRenderer(
 	GLFWwindow* window,
-	Scene* scene
+	Scene* scene,
+	std::shared_ptr<std::map<string, string>> config
 )
 	:
-	Renderer(window, scene) {
+	Renderer(window, scene, config) {
 	// -- Initialize logger
 
 	// Combine console and file logger
