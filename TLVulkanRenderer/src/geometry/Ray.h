@@ -6,6 +6,8 @@ class Ray
 public:
 	glm::vec3 m_origin;
 	glm::vec3 m_direction;
+	Ray() : m_origin(glm::vec3(0)), m_direction(glm::vec3(0)) {}
+
 	Ray(glm::vec3 origin, glm::vec3 direction) :
 		m_origin(origin), m_direction(direction)
 	{}

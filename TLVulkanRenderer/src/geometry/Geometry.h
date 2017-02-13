@@ -58,6 +58,29 @@ protected:
 	float m_area;
 };
 
+class SquarePlane : public Geometry {
+public:
+	SquarePlane(glm::vec3 center, glm::vec3 scale, glm::vec3 normal, Material* material) :
+	m_center(center), m_scale(scale), m_normal(normal) {
+		m_transform = Transform(center, glm::vec3(0), scale);
+		m_material = material;
+		m_area = scale.x * scale.y;
+	}
+
+	glm::vec3 m_center;
+	glm::vec3 m_scale;
+	glm::vec3 m_normal;
+
+	Intersection GetIntersection(const Ray& r) override;
+
+	vec2 GetUV(const vec3& point) const override {
+		return vec2(point.x + 0.5f, point.y + 0.5f);
+	}
+
+	BBox GetBBox() override;
+
+};
+
 class Sphere : public Geometry
 {
 public:

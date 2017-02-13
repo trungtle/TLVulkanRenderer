@@ -17,10 +17,8 @@ public:
 		std::vector<glm::vec2> samples;
 		switch(m_uniformSamples) {
 			case X4:
-				// Return 4 corners and also the origin point
 				samples.push_back({ point.x + 0.25f, point.y + 0.25f });
 				samples.push_back({ point.x + 0.25f, point.y + 0.75f });
-				samples.push_back({ point.x + 0.5f, point.y + 0.5f });
 				samples.push_back({ point.x + 0.75f, point.y + 0.25f });
 				samples.push_back({ point.x + 0.75f, point.y + 0.75f });
 				break;
@@ -33,7 +31,6 @@ public:
 				}
 				break;
 			case X16:
-				samples.push_back({ point.x + 0.5f, point.y + 0.5f });
 				for (float x = 0.2f; x <= 0.8f; x += .2f)
 				{
 					for (float y = 0.2f; y <= 0.8f; y += .2f)

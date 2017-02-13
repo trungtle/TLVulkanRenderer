@@ -6,6 +6,7 @@
 struct SBVHGeometryInfo {
 	size_t geometryId;
 	BBox bbox;
+	bool straddling;
 };
 
 class SBVHNode {
@@ -15,7 +16,7 @@ public:
 		SBVHNode* nearChild, 
 		SBVHNode* farChild, 
 		size_t nodeIdx, 
-		BBox::EAxis splitAxis) : 
+		EAxis splitAxis) : 
 		m_parent(nullptr), 
 		m_nearChild(nearChild),
 		m_farChild(farChild),
@@ -40,7 +41,7 @@ public:
 	SBVHNode* m_farChild;
 	BBox m_bbox;
 	size_t m_nodeIdx;
-	BBox::EAxis m_splitAxis;
+	EAxis m_splitAxis;
 };
 
 class SBVHLeaf : public SBVHNode {
@@ -51,7 +52,7 @@ public:
 		size_t firstGeomOffset, 
 		size_t numGeoms, 
 		const BBox& bbox) : 
-		SBVHNode(nullptr, nullptr, nodeIdx, BBox::EAxis::X),
+		SBVHNode(nullptr, nullptr, nodeIdx, EAxis::X),
 		m_firstGeomOffset(firstGeomOffset), 
 		m_numGeoms(numGeoms)
 	{
@@ -72,7 +73,8 @@ public:
 	enum ESplitMethod
 	{
 		EqualCounts,
-		SAH
+		SAH,
+		SpatialSplit_SAH
 	};
 
 	SBVH() : m_root(nullptr), m_maxGeomsInNode(1), m_splitMethod(SAH)
@@ -128,5 +130,6 @@ protected:
 	int m_maxGeomsInNode;
 	ESplitMethod m_splitMethod;
 	std::vector<std::shared_ptr<Geometry>> m_geoms;
+
 };
 
