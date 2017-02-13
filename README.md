@@ -12,6 +12,57 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
+### Feb 4, 2017 - SAH for BVH and uniform SSAA
+
+#### SAH for BVH
+
+Previously, the BVH only supported splitting using the `EqualCounts` method. This method partition evenly the number of geometries for each child node of a BVH interior node. While simple to implement and easy to understand, `EqualCounts` isn't the most efficient way to construct BVH tree. So this week I implemented the Surface Area Heuristics method, or `SAH`. Ray tracing speed is constrained by the cost of ray-triangle intersection, so the more we can skip irrelevant triangles, the better. `SAH` uses the surface area of primitive's bounding box to compute to probability the ray can intersect that bounding box, and decide whether to split a BVH node at that point, or generate a leaf node. We can think of the cost of splitting a node along a plane as:
+
+`TotalCost = C_t + C_i * numTrisA * Area(childA) / Area(parent) + C_i * numTrisB * Area(childB) / Area(parent)`, where
+
+* C_t: cost of traversal. The assumption here is that C_t = C_i / 8 (based on pbrt)
+* C_i: cost of ray-triangle intersection
+* numTrisA: number of triangles in child node A
+* numTrisB: number of triangles in child node B
+
+Based on the implementation in pbrt book, I first divided the splitting plane into 12 buckets to minimize searching for all possible splitting points. The buckets look like this:
+
+![](TLVulkanRenderer/renders/charts/SAH_buckets.png)
+
+The for each bucket, I computed the cost of splitting plane versus the cost of ray-triangle intersections for all primitives in that node. If the cost of doing the intersection test is cheaper, the turn this node into a leaf node instead, otherwise, split the node in half along the minimal cost bucket's centroid.
+
+The result of SAH does in fact increased the speed of tree traversal. For the following test scene of the glTF duck:
+
+| Equal counts | SAH |
+|---|---|
+|![](TLVulkanRenderer/renders/BVH_EqualCounts.png)|![](TLVulkanRenderer/renders/BVH_SAH.png)|
+
+the result is:
+
+|  | Equal counts | SAH |
+| --- | --- | --- |
+| # Primitives | 4212 | 4212 |
+| # BVH nodes  | 8449 | 8447 |
+| # frames     | 300  | 300  |
+| ms / frame   | 193.04 | 130.33 |
+
+This confirms to me that in fact using `SAH` splitting method is an improvemance from using `EqualCounts` method. With the duck scene, the application was running 8-12 FPS. While a bit slow, this is a lot faster than my GPU ray tracing implementation.
+
+#### Uniform SSAA
+
+The ray tracer takes in a `Sampler` class that generate samples based on the pixel coordinates. For now, there is only one derived `UniformSampler`that generates X4, X8, and X6 samples. Running a SSAA sampler does reduce the performance of the ray tracer significantly. In the future, likely this will be swapped out for MSAA or TXAA to improve speed.
+
+| No SSAA | SSAA X16 |
+|---|---|
+|![](TLVulkanRenderer/renders/No_AA.png)|![](TLVulkanRenderer/renders/Uniform_AA_X16.png)|
+
+
+#### Plan
+
+To fully finish the acceleration structure, I still need to add spatial splitting to the BVH structure. The idea of an SBVH is to compare the cost of object splitting, the cost of spatial splitting, and the cost of generating a new leaf. This spatial splitting is similar to kd-tree, so I need to review again how kd-tree is implemented.
+
+I also have mentioned using a queue of rays for multhreading tasks. With the queue implemented, free threads would be able to perform work instead of sitting idle. Going to also take a look of that next.
+
 ### Jan 30, 2017 - CPU ray tracer with BVH and multithreading
 
 #### Multithreading
@@ -22,9 +73,9 @@ For next week, I'm going to experiment with having the main thread render the ne
 
 #### BVH
 
-![](TLVulkanRenderer/renders/SBVH_debug.png)
+![](TLVulkanRenderer/renders/BVH_Multithread.gif)
 
-I also added a basic BVH structure to the scene. Since SBVH and BVH shares a similar structure and only differs in its construction phase, I opted to build and verified working for the normal BVH first before moving on to SBVH. The BVH currently splits along the maximum extent of the bounding box.
+I also added a basic BVH structure to the scene. Since SBVH and BVH shares a similar structure and only differs in its construction phase, I opted to build and verified working for the normal BVH first before moving on to SBVH. The BVH currently splits along the maximum extent of the bounding box and not using SAH.
 
 Each leaf node can contains up to several primitives. Here, the image shows a maximum 3 primitives per leaf node. 
 
