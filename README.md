@@ -12,7 +12,7 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
-### Deb 12, 2017 - SBVH
+### Feb 12, 2017 - SBVH
 
 This week, I implemented the full [SBVH (spatial splitting)](http://www.nvidia.com/docs/IO/77714/sbvh.pdf) for accelerating ray tracing. The structure follows this algorithm:
 
