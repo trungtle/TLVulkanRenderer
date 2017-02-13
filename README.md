@@ -12,6 +12,80 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
+### Deb 12, 2017 - SBVH
+
+This week, I implemented the full [SBVH (spatial splitting)](http://www.nvidia.com/docs/IO/77714/sbvh.pdf) for accelerating ray tracing. The structure follows this algorithm:
+
+```
+BuildNode :=
+	divide node by 12 buckets along the maximum extend of the current node's AABB	
+	// Each side of the bucket is considered a splitting plane
+
+	// 1. Compute all object split candidates at each splitting plane
+	for each reference in node
+		find which bucket the reference's centroid is in, then put it there
+		grow bucket's AABB by the reference's AABB
+
+	for each bucket
+		compute cost of splitting node based on SAH, and store the cheapest cost
+		// objectSplitCost = cost_traversal + cost_intersection * num_ref_child1 * SA(child1) / SA(node) + cost_intersectino * num_ref_child2 * SA(child2) / SA(node)
+
+	// Restricting spatial split if it doesn't benefit us 
+	if SA(child1 overlapping child2) / SA(node) > alpha: skip steps 2 
+
+	// 2. Compute spatial split candidate
+	for each reference in node
+		for each bucket the reference straddles
+			// Finding clipped AABB is done by finding the splitting's plane,
+			// then using similar triangles to compute the intersection points on the plane
+			// The clipped AABB is then a union of the intersection points and the triangle vertices inside the bucket
+			compute the smallest bounding box of reference clipped by bucket's boundaries
+			
+			grow bucket with this clipped bounding box
+			
+			// For retrieving the clipped reference
+			insert new clipped AABB into geometry's info list
+
+	for each bucket
+		compute cost of splitting node based on SAH, and store the cheapest cost
+		// spatialSplitCost = cost_traversal + cost_intersection * num_ref_child1 * SA(child1) / SA(node) + cost_intersectino * num_ref_child2 * SA(child2) / SA(node)
+
+	// 3. Compare cost of object split candidate and spatial split candidate
+	
+	// 4. If split cost is cheaper than cost of making leaf node, then split, otherwise, create leaf node
+```
+
+There is a step referenced in the [paper](http://www.nvidia.com/docs/IO/77714/sbvh.pdf) about unsplitting references, but I haven't had yet a chance to implement it.
+
+When testing SBVH versus just regular BVH with the following scene: 
+
+| | |
+|---|---|
+| Scene |![](TLVulkanRenderer/renders/BVH_SAH.png)|
+| # Primitives | 4212 | 
+| # frames     | 300  | 
+
+the result is roughly similar to full BVH:
+
+|  | No spatial split | With spatial split |
+| --- | --- | --- |
+| ms / frame   | 130.33 | 127.26 |
+
+It could be that this isn't the right scene to benefit from spatial split, or something is incorrect in my implementation. I'm going to test around with a couple different scenes also.
+
+#### Bug
+
+I tested with a large mesh, and seemed to have a bug either with the visual debugging, or with storing primitives inside leaf node. In the scene below, half of all the leaf nodes disappeared!
+
+![](TLVulkanRenderer/renders/SBVH_missingHalf.png)
+
+#### Plan
+
+- Play some more with other scenes
+- Implement unsplitting references for cases that spatial split doesn't outweight object split
+- Fixing the bug mentioned above. Also, I would like to have some way to visualize that the spatial split works properly.
+- Moving this code into GPU ray tracing? That's a thought, but it might seems to be a lot of work
+
 ### Feb 4, 2017 - SAH for BVH and uniform SSAA
 
 #### SAH for BVH
