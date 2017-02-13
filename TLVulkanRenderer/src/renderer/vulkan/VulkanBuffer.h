@@ -13,6 +13,7 @@ namespace VulkanBuffer {
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 		VkDescriptorBufferInfo descriptor;
+		VulkanDevice* device;
 
 		void Create(
 			const VulkanDevice* device,
@@ -33,6 +34,12 @@ namespace VulkanBuffer {
 			descriptor.offset = 0;
 			descriptor.range = size;
 		};
+
+		void Destroy(
+		) {
+			vkDestroyBuffer(device->device, buffer, nullptr);
+			vkFreeMemory(device->device, memory, nullptr);
+		}
 	};
 
 	// ===================

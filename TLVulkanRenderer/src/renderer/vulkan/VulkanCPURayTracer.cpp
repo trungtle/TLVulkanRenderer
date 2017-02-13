@@ -42,33 +42,17 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 	return color;
 }
 
-void Raytrace(uint32_t x, uint32_t y, Scene* scene, Film* film) {
+vec3 Raytrace(Ray& ray, Scene* scene) {
 
-	vector<vec3> lights = {
-		vec3(3, 5, 10)
-	};
-
-	UniformSampler sampler(ESamples::X1);
-	vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
-
-	vec3 color;
-	for (auto sample : samples) {
-		Ray newRay = scene->camera.GenerateRay(sample.x, sample.y);
-		color += ShadeMaterial(scene, newRay);
-
-	}
-
-	color /= samples.size();
-	color = glm::clamp(color * 255.0f, 0.f, 255.f);
-	film->SetPixel(x, y, glm::vec4(color, 1));
-
+	return ShadeMaterial(scene, ray);
 }
 
 void Task(
 	uint32_t tileX,
 	uint32_t tileY,
 	Scene* scene,
-	Film* film
+	Film* film,
+	queue<Ray>& raysQueue
 )
 {
 	uint32_t width = scene->camera.resolution.x;
@@ -87,7 +71,21 @@ void Task(
 	{
 		for (uint32_t y = startY; y < endY; y++)
 		{
-			Raytrace(x, y, scene, film);
+			UniformSampler sampler(ESamples::X1);
+			vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
+
+			vec3 color;
+			for (auto sample : samples)
+			{
+				Ray newRay = scene->camera.GenerateRay(sample.x, sample.y);
+				raysQueue.push(newRay);
+				color += Raytrace(newRay, scene);
+
+			}
+
+			color /= samples.size();
+			color = glm::clamp(color * 255.0f, 0.f, 255.f);
+			film->SetPixel(x, y, glm::vec4(color, 1));
 		}
 	}
 }
@@ -104,6 +102,9 @@ VulkanCPURaytracer::VulkanCPURaytracer(
 VulkanCPURaytracer::~VulkanCPURaytracer()
 {
 	Destroy2DImage(m_vulkanDevice, m_displayImage);
+
+	m_wireframeUniform.Destroy();
+	m_quadUniform.Destroy();
 
 	vkDestroyImage(m_vulkanDevice->device, m_stagingImage.image, nullptr);
 	vkFreeMemory(m_vulkanDevice->device, m_stagingImage.imageMemory, nullptr);
@@ -142,7 +143,7 @@ VulkanCPURaytracer::Render() {
 	// Generate 4x4 threads
 	for (int i = 0; i < 16; i++)
 	{
-		m_threads[i] = std::thread(Task, i / 4, i % 4, m_scene, &m_film);
+		m_threads[i] = std::thread(Task, i / 4, i % 4, m_scene, &m_film, m_raysQueue);
 	}
 	for (int i = 0; i < 16; i++)
 	{
@@ -611,6 +612,15 @@ VkResult VulkanCPURaytracer::PrepareGraphicsUniformBuffer()
 {
 	VulkanRenderer::PrepareGraphicsUniformBuffer();
 
+	// === Quad === //
+	m_quadUniform.Create(
+		m_vulkanDevice,
+		sizeof(glm::ivec2),
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	);
+
+	// === Wireframe === //
 	m_wireframeUniform.Create(
 		m_vulkanDevice,
 		sizeof(glm::mat4),
@@ -624,7 +634,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsUniformBuffer()
 VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorPool() {
 	std::array<VkDescriptorPoolSize, 2> poolSizes = {
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
-		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)
+		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2)
 	};
 
 	VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = MakeDescriptorPoolCreateInfo(poolSizes.size(), poolSizes.data(), 5);
@@ -644,6 +654,11 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSetLayout()
 		MakeDescriptorSetLayoutBinding(
 			0,
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_FRAGMENT_BIT
+		),
+		MakeDescriptorSetLayoutBinding(
+			1,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
 		),
 	};
@@ -716,8 +731,15 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
 	);
 
 	m_displayImage.descriptor = imageInfo;
+	
+	// write to quad uniform
+	uint8_t *pData;
+	vkMapMemory(m_vulkanDevice->device, m_quadUniform.memory, 0, sizeof(glm::ivec2), 0, (void **)&pData);
+	memcpy(pData, &m_scene->camera.resolution, sizeof(glm::ivec2));
+	vkUnmapMemory(m_vulkanDevice->device, m_quadUniform.memory);
 
-	std::array<VkWriteDescriptorSet, 1> descriptorWrites = 
+
+	std::vector<VkWriteDescriptorSet> descriptorWrites = 
 	{
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -726,6 +748,14 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
 			1,
 			nullptr,
 			&m_displayImage.descriptor
+		),
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			m_graphics.descriptorSets,
+			1,
+			1,
+			&m_quadUniform.descriptor,
+			nullptr
 		),
 	};
 
@@ -856,7 +886,7 @@ void VulkanCPURaytracer::PrepareResources() {
 #ifdef MULTITHREAD
 	// Generate 4x4 threads
 	for (int i = 0; i < 16; i++) {
-		m_threads[i] = std::thread(Task, i / 4, i % 4, m_scene, &m_film);
+		m_threads[i] = std::thread(Task, i / 4, i % 4, m_scene, &m_film, m_raysQueue);
 	}
 	for (int i = 0; i < 16; i++)
 	{

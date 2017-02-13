@@ -3,6 +3,7 @@
 #include "VulkanBuffer.h"
 #include "renderer/Film.h"
 #include <thread>
+#include <queue>
 
 class VulkanCPURaytracer : public VulkanRenderer
 {
@@ -71,6 +72,7 @@ protected:
 protected:
 	VulkanImage::Image m_stagingImage;
 	VulkanImage::Image m_displayImage;
+	VulkanBuffer::StorageBuffer m_quadUniform;
 	VulkanBuffer::StorageBuffer m_wireframeBVHVertices;
 	VulkanBuffer::StorageBuffer m_wireframeBVHIndices;
 	VulkanBuffer::StorageBuffer m_wireframeUniform;
@@ -83,6 +85,7 @@ protected:
 	Film m_film;
 
 	std::array<std::thread, 16> m_threads;
+	queue<Ray> m_raysQueue;
 
 	void
 	PrepareResources();
