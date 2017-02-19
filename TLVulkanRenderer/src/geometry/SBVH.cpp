@@ -163,6 +163,27 @@ SBVH::BuildRecursive(
 						// Geometry straddles across multiple buckets, split it
 						geomInfos[i].straddling = true;
 
+						spatialSplitBuckets[startEdgeBucket].enter++;
+						spatialSplitBuckets[endEdgeBucket].exit++;
+						// Naively split into equal sized bboxes
+						for (auto b = startEdgeBucket; b <= endEdgeBucket; b++)
+						{
+							BBox bbox = geomInfos.at(i).bbox;
+							bbox.m_min[dim] = max(bbox.m_min[dim], (b - startEdgeBucket) * bucketSize + bboxAllGeoms.m_min[dim]);
+							bbox.m_max[dim] = min(bbox.m_max[dim], bbox.m_min[dim] + bucketSize);
+
+							// Create a new geom info to hold the splitted geometry
+							SBVHGeometryInfo newGeomInfo;
+							newGeomInfo.bbox = bbox;
+							newGeomInfo.straddling = false;
+							newGeomInfo.geometryId = geomInfos.at(i).geometryId;
+							geomInfos.push_back(newGeomInfo);
+
+							// Pushed back
+							spatialSplitBuckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, bbox);
+						}
+
+#ifdef TIGHT_BBOX
 						vec3 pointOnSplittingPlane = bboxAllGeoms.m_min;
 						for (auto bucket = startEdgeBucket; bucket < endEdgeBucket; bucket++) {
 							// Get the primitive reference from geometry info, then clip it against the splitting plane
@@ -284,6 +305,7 @@ SBVH::BuildRecursive(
 						// Increment entering and exiting reference counts
 						spatialSplitBuckets[startEdgeBucket].enter++;
 						spatialSplitBuckets[endEdgeBucket].exit++;
+#endif
 					} else {
 						// Geometry reference completely falls inside bucket
 						int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];

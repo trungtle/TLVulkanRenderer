@@ -185,7 +185,9 @@
     <ClInclude Include="src\scene\Camera.h" />
     <ClInclude Include="src\lights\Light.h" />
     <ClInclude Include="src\lights\PointLight.h" />
+    <ClInclude Include="src\scene\sceneLoaders\gltfLoader.h" />
     <ClInclude Include="src\scene\Scene.h" />
+    <ClInclude Include="src\scene\sceneLoaders\SceneLoader.h" />
     <ClInclude Include="src\scene\SceneUtil.h" />
     <ClInclude Include="src\Typedef.h" />
     <ClInclude Include="src\Utilities.h" />
@@ -228,6 +230,7 @@
     <ClCompile Include="src\renderer\vulkan\VulkanUtil.cpp" />
     <ClCompile Include="src\scene\Camera.cpp" />
     <ClCompile Include="src\scene\Scene.cpp" />
+    <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

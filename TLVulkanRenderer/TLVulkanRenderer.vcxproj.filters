@@ -44,6 +44,7 @@
     <ClCompile Include="src\geometry\BBox.cpp" />
     <ClCompile Include="src\geometry\SBVH.cpp" />
     <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
+    <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -135,6 +136,8 @@
     <ClInclude Include="src\lights\AreaLight.h" />
     <ClInclude Include="src\renderer\samplers\Sampler.h" />
     <ClInclude Include="src\renderer\samplers\UniformSampler.h" />
+    <ClInclude Include="src\scene\sceneLoaders\gltfLoader.h" />
+    <ClInclude Include="src\scene\sceneLoaders\SceneLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">
