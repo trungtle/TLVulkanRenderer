@@ -13,7 +13,7 @@ namespace VulkanBuffer {
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 		VkDescriptorBufferInfo descriptor;
-		VulkanDevice* device;
+		const VulkanDevice* m_device;
 
 		void Create(
 			const VulkanDevice* device,
@@ -21,7 +21,7 @@ namespace VulkanBuffer {
 			const VkBufferUsageFlags usage,
 			const VkMemoryPropertyFlags memoryProperties
 		) {
-
+			m_device = device;
 			device->CreateBufferAndMemory(
 				size,
 				usage,
@@ -37,8 +37,8 @@ namespace VulkanBuffer {
 
 		void Destroy(
 		) {
-			vkDestroyBuffer(device->device, buffer, nullptr);
-			vkFreeMemory(device->device, memory, nullptr);
+			vkDestroyBuffer(m_device->device, buffer, nullptr);
+			vkFreeMemory(m_device->device, memory, nullptr);
 		}
 	};
 

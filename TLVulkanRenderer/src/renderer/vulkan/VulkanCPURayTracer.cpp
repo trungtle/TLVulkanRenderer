@@ -9,7 +9,7 @@
 #define MULTITHREAD
 
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
-	vec3 color = vec3(1, 1, 1);
+	vec3 color;
 	int depth = 1;
 	for (auto light : scene->lights) {
 		for (int i = 0; i < depth; i++)
@@ -19,22 +19,26 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 			{
 				vec3 lightDirection = glm::normalize(light->m_position - isx.hitPoint);
 
+				if (i == 0) {
+					color = vec3(1, 1, 1);
+				}
+
 				// Shade material
 				color *= isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay.m_direction);
 				color *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler
-				Ray shadowFeeler(isx.hitPoint + 0.01f * lightDirection, lightDirection);
-				if (scene->DoesIntersect(shadowFeeler))
-				{
-					color *= 0.1f;
-				} else {
-					color *= light->m_color;
-				}
+				//Ray shadowFeeler(isx.hitPoint + 0.01f * lightDirection, lightDirection);
+				//if (scene->DoesIntersect(shadowFeeler))
+				//{
+				//	color *= 0.1f;
+				//} else {
+				//	color *= light->m_color;
+				//}
 			}
 			else
 			{
-				color *= 0;
+				color *= 0.0f;
 				break;
 			}
 		}
@@ -73,6 +77,7 @@ void Task(
 		{
 			UniformSampler sampler(ESamples::X1);
 			vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
+			//vector<vec2> samples = sampler.Get2DSamples(vec2(547, 311));
 
 			vec3 color;
 			for (auto sample : samples)
@@ -102,10 +107,17 @@ VulkanCPURaytracer::VulkanCPURaytracer(
 
 VulkanCPURaytracer::~VulkanCPURaytracer()
 {
+	Destroy2DImage(m_vulkanDevice, m_stagingImage);
 	Destroy2DImage(m_vulkanDevice, m_displayImage);
-
+	
+	m_wireframeBVHVertices.Destroy();
+	m_wireframeBVHIndices.Destroy();
 	m_wireframeUniform.Destroy();
 	m_quadUniform.Destroy();
+
+	vkDestroyDescriptorSetLayout(m_vulkanDevice->device, m_wireframeDescriptorLayout, nullptr);
+	vkDestroyPipeline(m_vulkanDevice->device, m_wireframePipeline, nullptr);
+	vkDestroyPipelineLayout(m_vulkanDevice->device, m_wireframePipelineLayout, nullptr);
 
 	vkDestroyImage(m_vulkanDevice->device, m_stagingImage.image, nullptr);
 	vkFreeMemory(m_vulkanDevice->device, m_stagingImage.imageMemory, nullptr);

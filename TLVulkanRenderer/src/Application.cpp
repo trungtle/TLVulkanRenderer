@@ -132,7 +132,7 @@ Application::Application(
 
 	std::map<std::string, std::string> config = {
 		{ "USE_SBVH", "true" },
-		{ "VISUALIZE_SBVH", "false"}
+		{ "VISUALIZE_SBVH", "true"}
 	};
 	m_scene = new Scene(sceneFile, config);
 

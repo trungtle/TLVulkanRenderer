@@ -1,4 +1,4 @@
-#pragma once
+ #pragma once
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
 #include "renderer/Film.h"
@@ -22,7 +22,7 @@ public:
 
 	void
 	Render() override final;
-
+	 
 protected:
 
 	// -----------

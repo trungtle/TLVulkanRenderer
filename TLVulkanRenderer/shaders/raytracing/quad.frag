@@ -36,5 +36,5 @@ void main()
 	p.x *= -iResolution.x / iResolution.y;
 
 	vec4 color = texture(samplerColor, vec2(inUV.s, inUV.t));
-	outFragColor = hatchingColor(p, color);
+	outFragColor = color;
 }

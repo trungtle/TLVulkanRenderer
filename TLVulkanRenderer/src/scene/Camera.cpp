@@ -10,12 +10,12 @@ Camera::Camera(
 	float height
 ) : resolution(glm::ivec2(width, height)),
     fov(45),
-    eye(glm::vec3(0.0f, 0.0f, 7.0f)),
+    eye(glm::vec3(1.0f, 3.0f, 20.0f)),
     lookAt(glm::vec3(0.0f, 0.0f, 0.0f)),
     up(glm::vec3(0.0f, 1.0f, 0.0f)),
     right(glm::vec3(1.0f, 0.0f, 0.0f)),
-    nearClip(0.0001f),
-    farClip(100000.0f),
+    nearClip(0.01f),
+    farClip(1000.0f),
     isPerspective(true),
     aspect(float(width) / height) {
 	RecomputeAttributes();
@@ -129,11 +129,10 @@ Ray Camera::GenerateRay(float x, float y) const {
 	float tan_fovy = tan(fov / 2.0f);
 	float pixelNDCx = (2.0f * (float(x) / float(resolution.x)) - 1.0f);
 	float pixelNDCy = (1.0f - 2.0f * (float(y) / float(resolution.y)));
-
 	float px = pixelNDCx * tan_fovy * aspect;
 	float py = pixelNDCy * tan_fovy;
 	vec3 P = vec3(px, py, -1);
-	P = glm::inverse(viewMat) * vec4(P, 1.0f);
+	P = glm::inverse(viewMat) * (vec4(P, 1.0f));
 
 	return Ray(eye, normalize(P - eye));
 }
