@@ -15,7 +15,7 @@ Camera::Camera(
     up(glm::vec3(0.0f, 1.0f, 0.0f)),
     right(glm::vec3(1.0f, 0.0f, 0.0f)),
     nearClip(0.01f),
-    farClip(1000.0f),
+    farClip(10000.0f),
     isPerspective(true),
     aspect(float(width) / height) {
 	RecomputeAttributes();
@@ -68,6 +68,16 @@ Camera::RecomputeAttributes() {
 glm::mat4
 Camera::GetViewProj() const {
 	return projMat * viewMat;
+}
+
+glm::mat4 Camera::GetView() const
+{
+	return viewMat;
+}
+
+glm::mat4 Camera::GetProj() const
+{
+	return projMat;
 }
 
 void

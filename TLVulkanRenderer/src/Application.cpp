@@ -131,8 +131,8 @@ Application::Application(
 	glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
 	std::map<std::string, std::string> config = {
-		{ "USE_SBVH", "true" },
-		{ "VISUALIZE_SBVH", "true"}
+		{ "USE_SBVH", "false" },
+		{ "VISUALIZE_SBVH", "false"}
 	};
 	m_scene = new Scene(sceneFile, config);
 

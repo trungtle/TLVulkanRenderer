@@ -46,7 +46,7 @@ namespace VulkanBuffer {
 	// GEOMETRIES
 	// ===================
 	struct GeometryBufferOffset {
-		std::map<EVertexAttributeType, VkDeviceSize> vertexBufferOffsets;
+		std::map<EVertexAttribute, VkDeviceSize> vertexBufferOffsets;
 	};
 
 	struct GeometryBuffer {

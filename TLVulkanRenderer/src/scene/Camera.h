@@ -10,6 +10,8 @@ struct Camera {
 
 	// -- Camera attributes
 	glm::mat4 GetViewProj() const;
+	glm::mat4 GetView() const;
+	glm::mat4 GetProj() const;
 	void EnablePerspective(bool enabled);
 	void RecomputeAttributes();
 

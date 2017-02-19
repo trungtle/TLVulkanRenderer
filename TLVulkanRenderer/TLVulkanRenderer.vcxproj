@@ -205,6 +205,7 @@
   <ItemGroup>
     <None Include="..\README.md" />
     <None Include="shaders\fragShader.frag" />
+    <None Include="shaders\fragShader.spv" />
     <None Include="shaders\raytracing\quad.frag" />
     <None Include="shaders\raytracing\quad.vert" />
     <None Include="shaders\raytracing\raytrace.comp" />
@@ -212,6 +213,7 @@
     <None Include="shaders\raytracing\raytrace.vert" />
     <None Include="shaders\raytracing\wireframe.frag" />
     <None Include="shaders\raytracing\wireframe.vert" />
+    <None Include="shaders\vertShader.spv" />
     <None Include="shaders\vertShader.vert" />
   </ItemGroup>
   <ItemGroup>

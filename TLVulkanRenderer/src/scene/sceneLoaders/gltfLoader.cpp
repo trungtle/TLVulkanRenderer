@@ -821,7 +821,6 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 	// Can't find file
 	if (!err.empty()) {
 		printf("Err: %s\n", err.c_str());
-		return false;
 	}
 
 	if (!ret) {
@@ -879,8 +878,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 						componentLength,
 						componentTypeByteSize
 					};
-					geom->vertexAttributes.insert(std::make_pair(EVertexAttributeType::INDEX, attributeInfo));
-					geom->vertexData.insert(std::make_pair(EVertexAttributeType::INDEX, data));
+					geom->attribInfo.insert(std::make_pair(EVertexAttribute::INDEX, attributeInfo));
+					geom->vertexData.insert(std::make_pair(EVertexAttribute::INDEX, data));
 
 					int indicesCount = indexAccessor.count;
 					uint16_t* in = reinterpret_cast<uint16_t*>(data.data());
@@ -907,12 +906,12 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					auto last = buffer.data.begin() + bufferOffset + bufferLength;
 					std::vector<Byte> data = std::vector<Byte>(first, last);
 
-					EVertexAttributeType attributeType;
+					EVertexAttribute attributeType;
 
 					// -------- Position attribute -----------
 
 					if (attribute.first.compare("POSITION") == 0) {
-						attributeType = EVertexAttributeType::POSITION;
+						attributeType = EVertexAttribute::POSITION;
 						int positionCount = accessor.count;
 						glm::vec3* positions = reinterpret_cast<glm::vec3*>(data.data());
 						for (auto p = 0; p < positionCount; ++p) {
@@ -924,7 +923,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					// -------- Normal attribute -----------
 
 					else if (attribute.first.compare("NORMAL") == 0) {
-						attributeType = EVertexAttributeType::NORMAL;
+						attributeType = EVertexAttribute::NORMAL;
 						int normalCount = accessor.count;
 						glm::vec3* normals = reinterpret_cast<glm::vec3*>(data.data());
 						for (auto p = 0; p < normalCount; ++p) {
@@ -936,7 +935,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					// -------- Texcoord attribute -----------
 
 					else if (attribute.first.compare("TEXCOORD_0") == 0) {
-						attributeType = EVertexAttributeType::TEXCOORD;
+						attributeType = EVertexAttribute::TEXCOORD;
 						int uvCount = accessor.count;
 						glm::vec2* uvs = reinterpret_cast<glm::vec2*>(data.data());
 						for (auto p = 0; p < uvCount; ++p)
@@ -951,7 +950,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 						componentLength,
 						componentTypeByteSize
 					};
-					geom->vertexAttributes.insert(std::make_pair(attributeType, attributeInfo));
+					geom->attribInfo.insert(std::make_pair(attributeType, attributeInfo));
 					geom->vertexData.insert(std::make_pair(attributeType, data));
 
 					// ----------Materials-------------

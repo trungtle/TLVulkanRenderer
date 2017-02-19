@@ -13,14 +13,13 @@ typedef enum {
 	POSITION,
 	NORMAL,
 	TEXCOORD
-} EVertexAttributeType;
+} EVertexAttribute;
 
 typedef struct VertexAttributeInfoTyp {
 	size_t byteStride;
 	size_t count;
 	int componentLength;
 	int componentTypeByteSize;
-
 } VertexAttributeInfo;
 
 // ---------
@@ -28,8 +27,8 @@ typedef struct VertexAttributeInfoTyp {
 // ----------
 
 struct MeshData {
-	std::map<EVertexAttributeType, std::vector<Byte>> vertexData;
-	std::map<EVertexAttributeType, VertexAttributeInfo> vertexAttributes;
+	std::map<EVertexAttribute, std::vector<Byte>> vertexData;
+	std::map<EVertexAttribute, VertexAttributeInfo> attribInfo;
 };
 
 // ---------

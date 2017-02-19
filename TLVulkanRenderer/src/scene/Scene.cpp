@@ -96,6 +96,9 @@ Scene::DoesIntersect(const Ray& ray)
 
 void Scene::PrepareTestScene()
 {
+	camera.eye = vec3(0, 5, 20);
+	camera.RecomputeAttributes();
+
 	// Setup materials
 	LambertMaterial* reflectiveMat = new LambertMaterial();
 	reflectiveMat->m_colorDiffuse = vec3(0.2, 0.3, 0.6);
@@ -177,7 +180,10 @@ void Scene::PrepareTestScene()
 	//light = new PointLight(vec3(0, -2.1, 2), vec3(1, 2, 1), 10);
 	//lights.push_back(light);
 
-	m_accel->Build(geometries);
+	if (m_useAccel)
+	{
+		m_accel->Build(geometries);
+	}
 
 	std::cout << "Number of triangles: " << indices.size() << std::endl;
 }
