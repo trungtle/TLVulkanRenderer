@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AccelStructure.h"
 #include <geometry/BBox.h>
 #include <memory>
 
@@ -67,7 +68,7 @@ public:
 	size_t m_numGeoms;
 };
 
-class SBVH {
+class SBVH : public AccelStructure {
 
 public:
 	enum ESplitMethod
@@ -77,7 +78,7 @@ public:
 		SpatialSplit_SAH
 	};
 
-	SBVH() : m_root(nullptr), m_maxGeomsInNode(1), m_splitMethod(SAH)
+	SBVH() : m_root(nullptr), m_maxGeomsInNode(1), m_splitMethod(SpatialSplit_SAH)
 	{};
 
 	SBVH(
@@ -90,12 +91,13 @@ public:
 
 	void Build(
 		std::vector<std::shared_ptr<Geometry>>& geoms
-	);
+	) override;
 
-	Intersection GetIntersection(const Ray& r);
-	bool DoesIntersect(const Ray& r);
+	void GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices) override;
+	Intersection GetIntersection(const Ray& r) override;
+	bool DoesIntersect(const Ray& r) override;
 
-	void Destroy();
+	void Destroy() override;
 
 	std::vector<SBVHNode*> m_nodes;
 

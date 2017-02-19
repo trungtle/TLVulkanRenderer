@@ -1003,99 +1003,12 @@ void VulkanCPURaytracer::PrepareResources() {
 
 void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 
+	std::vector<SWireframe> vertices;
+	std::vector<uint16_t> indices;
 
-	std::vector<SWireframe> vertexBuffer;
-	std::vector<uint16_t> bbox_idx;
+	m_scene->m_accel->GenerateVertices(indices, vertices);
 
-	size_t verticeCount = 0;
-	vec3 color;
-	for (auto node : m_scene->m_sbvh.m_nodes)
-	{
-		if (node->IsLeaf())
-		{
-			color = vec3(0, 1, 1);
-		}
-		else
-		{
-			color = vec3(1, 0, 0);
-		}
-		// Setup vertices
-		glm::vec3 centroid = node->m_bbox.m_centroid;
-		glm::vec3 translation = centroid;
-		glm::vec3 scale = glm::vec3(glm::vec3(node->m_bbox.m_max) - glm::vec3(node->m_bbox.m_min));
-		glm::mat4 transform = glm::translate(glm::mat4(1.0), translation) * glm::scale(glm::mat4(1.0f), scale);
-
-		vertexBuffer.push_back(
-		{
-			glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)),
-			color 
-		});
-		vertexBuffer.push_back(
-		{
-			glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)),
-			color
-		});
-		vertexBuffer.push_back(
-		{
-			glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)),
-			color
-		});
-		vertexBuffer.push_back(
-		{
-			glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)),
-			color
-		});
-		vertexBuffer.push_back(
-		{
-			glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)),
-			color
-		});
-		vertexBuffer.push_back(
-		{
-			glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)),
-			color
-		});
-		vertexBuffer.push_back({
-			glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)),
-			color
-		});
-		vertexBuffer.push_back({
-			glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)),
-			color
-		});
-
-		// Setup indices
-
-		bbox_idx.push_back(0 + verticeCount);
-		bbox_idx.push_back(1 + verticeCount);
-		bbox_idx.push_back(1 + verticeCount);
-		bbox_idx.push_back(3 + verticeCount);
-		bbox_idx.push_back(3 + verticeCount);
-		bbox_idx.push_back(2 + verticeCount);
-		bbox_idx.push_back(2 + verticeCount);
-		bbox_idx.push_back(0 + verticeCount);
-		bbox_idx.push_back(0 + verticeCount);
-		bbox_idx.push_back(4 + verticeCount);
-		bbox_idx.push_back(4 + verticeCount);
-		bbox_idx.push_back(6 + verticeCount);
-		bbox_idx.push_back(6 + verticeCount);
-		bbox_idx.push_back(2 + verticeCount);
-		bbox_idx.push_back(3 + verticeCount);
-		bbox_idx.push_back(7 + verticeCount);
-		bbox_idx.push_back(7 + verticeCount);
-		bbox_idx.push_back(6 + verticeCount);
-		bbox_idx.push_back(1 + verticeCount);
-		bbox_idx.push_back(5 + verticeCount);
-		bbox_idx.push_back(5 + verticeCount);
-		bbox_idx.push_back(4 + verticeCount);
-		bbox_idx.push_back(5 + verticeCount);
-		bbox_idx.push_back(7 + verticeCount);
-
-		verticeCount += 8;
-
-	}
-
-	VkDeviceSize bufferSize = vertexBuffer.size() * sizeof(SWireframe);
+	VkDeviceSize bufferSize = vertices.size() * sizeof(SWireframe);
 	m_vulkanDevice->CreateBufferAndMemory(
 		bufferSize,
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -1105,13 +1018,13 @@ void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 	);
 
 	m_vulkanDevice->MapMemory(
-		vertexBuffer.data(),
+		vertices.data(),
 		m_wireframeBVHVertices.memory,
 		bufferSize,
 		0
 	);
 
-	bufferSize = bbox_idx.size() * sizeof(uint16_t);
+	bufferSize = indices.size() * sizeof(uint16_t);
 	m_vulkanDevice->CreateBufferAndMemory(
 		bufferSize,
 		VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
@@ -1121,11 +1034,11 @@ void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 	);
 
 	m_vulkanDevice->MapMemory(
-		bbox_idx.data(),
+		indices.data(),
 		m_wireframeBVHIndices.memory,
 		bufferSize,
 		0
 	);
 
-	m_wireframeIndexCount = bbox_idx.size();
+	m_wireframeIndexCount = indices.size();
 }

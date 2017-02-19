@@ -4,7 +4,7 @@
 #include "scene/Camera.h"
 #include <geometry/Geometry.h>
 #include <geometry/materials/LambertMaterial.h>
-#include <geometry/SBVH.h>
+#include <accel/AccelStructure.h>
 #include "lights/Light.h"
 #include "sceneLoaders/SceneLoader.h"
 
@@ -31,7 +31,7 @@ public:
 	std::vector<Mesh> meshes;
 	std::vector<std::shared_ptr<Geometry>> geometries;
 	std::vector<Light*> lights;
-	SBVH m_sbvh;
+	std::unique_ptr<AccelStructure> m_accel;
 
 
 private:
@@ -39,6 +39,6 @@ private:
 	void PrepareTestScene();
 
 	std::unique_ptr<SceneLoader> m_sceneLoader;	
-	bool m_useSBVH;
+	bool m_useAccel;
 
 };

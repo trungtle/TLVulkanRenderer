@@ -159,12 +159,13 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\accel\AccelStructure.h" />
     <ClInclude Include="src\Application.h" />
     <ClInclude Include="src\geometry\BBox.h" />
     <ClInclude Include="src\geometry\Geometry.h" />
     <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
     <ClInclude Include="src\geometry\materials\Material.h" />
-    <ClInclude Include="src\geometry\SBVH.h" />
+    <ClInclude Include="src\accel\SBVH.h" />
     <ClInclude Include="src\geometry\Transform.h" />
     <ClInclude Include="src\ImageUtil.h" />
     <ClInclude Include="src\MathUtil.h" />
@@ -218,7 +219,7 @@
     <ClCompile Include="src\geometry\BBox.cpp" />
     <ClCompile Include="src\geometry\Geometry.cpp" />
     <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
-    <ClCompile Include="src\geometry\SBVH.cpp" />
+    <ClCompile Include="src\accel\SBVH.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanCPURayTracer.cpp" />

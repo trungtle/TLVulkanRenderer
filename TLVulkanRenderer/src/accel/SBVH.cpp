@@ -1,5 +1,6 @@
 #include "SBVH.h"
 #include <algorithm>
+#include <iostream>
 
 // This comparator is used to sort bvh nodes based on its centroid's maximum extent
 struct CompareCentroid
@@ -32,6 +33,97 @@ SBVH::Build(
 	m_root = BuildRecursive(geomInfos, 0, geomInfos.size(), totalNodes, orderedGeoms);
 	m_geoms.swap(orderedGeoms);
 	Flatten();
+}
+
+void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices)
+{
+	size_t verticeCount = 0;
+	vec3 color;
+	for (auto node : m_nodes)
+	{
+		if (node->IsLeaf())
+		{
+			color = vec3(0, 1, 1);
+		}
+		else
+		{
+			color = vec3(1, 0, 0);
+		}
+		// Setup vertices
+		glm::vec3 centroid = node->m_bbox.m_centroid;
+		glm::vec3 translation = centroid;
+		glm::vec3 scale = glm::vec3(glm::vec3(node->m_bbox.m_max) - glm::vec3(node->m_bbox.m_min));
+		glm::mat4 transform = glm::translate(glm::mat4(1.0), translation) * glm::scale(glm::mat4(1.0f), scale);
+
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)),
+			color
+		});
+		vertices.push_back({
+			glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)),
+			color
+		});
+		vertices.push_back({
+			glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)),
+			color
+		});
+
+		// Setup indices
+
+		indices.push_back(0 + verticeCount);
+		indices.push_back(1 + verticeCount);
+		indices.push_back(1 + verticeCount);
+		indices.push_back(3 + verticeCount);
+		indices.push_back(3 + verticeCount);
+		indices.push_back(2 + verticeCount);
+		indices.push_back(2 + verticeCount);
+		indices.push_back(0 + verticeCount);
+		indices.push_back(0 + verticeCount);
+		indices.push_back(4 + verticeCount);
+		indices.push_back(4 + verticeCount);
+		indices.push_back(6 + verticeCount);
+		indices.push_back(6 + verticeCount);
+		indices.push_back(2 + verticeCount);
+		indices.push_back(3 + verticeCount);
+		indices.push_back(7 + verticeCount);
+		indices.push_back(7 + verticeCount);
+		indices.push_back(6 + verticeCount);
+		indices.push_back(1 + verticeCount);
+		indices.push_back(5 + verticeCount);
+		indices.push_back(5 + verticeCount);
+		indices.push_back(4 + verticeCount);
+		indices.push_back(5 + verticeCount);
+		indices.push_back(7 + verticeCount);
+
+		verticeCount += 8;
+
+	}
 }
 
 void PartitionEqualCounts(int dim, int first, int last, int& mid, std::vector<SBVHGeometryInfo>& geomInfos) {
@@ -721,5 +813,6 @@ void SBVH::FlattenRecursive(
 void SBVH::Flatten() {
 
 	FlattenRecursive(m_root);
+	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
 }
 

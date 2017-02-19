@@ -2,24 +2,25 @@
 #include "lights/PointLight.h"
 #include "sceneLoaders/gltfLoader.h"
 #include <iostream>
+#include "accel/SBVH.h"
 
 Scene::Scene(
 	std::string fileName,
 	std::map<std::string, std::string>& config	
-) : m_useSBVH(false) 
+) : m_useAccel(false) 
 {
 	m_sceneLoader.reset(new gltfLoader());
 
 	// Parse scene config
 	if (config.find("USE_SBVH") != config.end()) {
-		m_useSBVH = config["USE_SBVH"].compare("true") == 0;
+		m_useAccel = config["USE_SBVH"].compare("true") == 0;
 	}
 
 	// Construct SBVH
-	m_sbvh = SBVH(
+	m_accel.reset(new SBVH(
 		1,
 		SBVH::SAH
-		);
+		));
 
 	ParseSceneFile(fileName);
 	PrepareTestScene();
@@ -42,7 +43,7 @@ Scene::~Scene() {
 		l = nullptr;
 	}
 
-	m_sbvh.Destroy();
+	m_accel->Destroy();
 }
 
 void Scene::ParseSceneFile(std::string fileName)
@@ -53,8 +54,8 @@ void Scene::ParseSceneFile(std::string fileName)
 Intersection 
 Scene::GetIntersection(const Ray& ray) 
 {
-	if (m_useSBVH) {
-		return m_sbvh.GetIntersection(ray);
+	if (m_useAccel) {
+		return m_accel->GetIntersection(ray);
 	} else {
 
 		// Loop through all objects in scene
@@ -77,8 +78,8 @@ Scene::GetIntersection(const Ray& ray)
 bool 
 Scene::DoesIntersect(const Ray& ray) 
 {
-	if (m_useSBVH) {
-		return m_sbvh.DoesIntersect(ray);
+	if (m_useAccel) {
+		return m_accel->DoesIntersect(ray);
 	} else {
 		// Loop through all objects and find any intersection
 		for (auto geo : geometries)
@@ -176,8 +177,7 @@ void Scene::PrepareTestScene()
 	//light = new PointLight(vec3(0, -2.1, 2), vec3(1, 2, 1), 10);
 	//lights.push_back(light);
 
-	m_sbvh.Build(geometries);
+	m_accel->Build(geometries);
 
 	std::cout << "Number of triangles: " << indices.size() << std::endl;
-	std::cout << "Number of BVH nodes: " << m_sbvh.m_nodes.size() << std::endl;
 }
