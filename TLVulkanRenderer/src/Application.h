@@ -18,7 +18,7 @@ public:
 		int width = 800,
 		int height = 600,
 		EGraphicsAPI useAPI = EGraphicsAPI::Vulkan, /* Default with Vulkan */
-		ERenderingMode renderindMode = ERenderingMode::FORWARD
+		ERenderingMode renderindMode = ERenderingMode::HYBRID
 	);
 
 	static Application* GetInstanced();
