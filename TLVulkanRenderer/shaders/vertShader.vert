@@ -1,5 +1,4 @@
 #version 450
-#extension GL_ARB_separate_objects : enable
 
 out gl_PerVertex {
 	vec4 gl_Position;
@@ -21,11 +20,12 @@ layout(location = 3) out vec3 fragPosition;
 
 void main() {
 	vec4 position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
+	vec4 positionW = ubo.model * vec4(inPosition, 1.0);
 	
 	// -- Out
 	fragNormal = inNormal;
-	fragPosition = inPosition;
-	lightDirection = normalize(vec3(-5.0, 2.0, 5.0) - vec3(position));
+	fragPosition = vec3(positionW);
+	lightDirection = normalize(vec3(10.0, 20.0, 20.0) - vec3(positionW));
 
 	// -- Position
 	gl_Position = position;

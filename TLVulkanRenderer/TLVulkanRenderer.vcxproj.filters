@@ -42,8 +42,9 @@
       <Filter>Sources\scene</Filter>
     </ClCompile>
     <ClCompile Include="src\geometry\BBox.cpp" />
-    <ClCompile Include="src\geometry\SBVH.cpp" />
     <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
+    <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
+    <ClCompile Include="src\accel\SBVH.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -126,7 +127,6 @@
       <Filter>Headers\scene</Filter>
     </ClInclude>
     <ClInclude Include="src\geometry\BBox.h" />
-    <ClInclude Include="src\geometry\SBVH.h" />
     <ClInclude Include="src\geometry\materials\Material.h" />
     <ClInclude Include="src\ImageUtil.h" />
     <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
@@ -135,6 +135,10 @@
     <ClInclude Include="src\lights\AreaLight.h" />
     <ClInclude Include="src\renderer\samplers\Sampler.h" />
     <ClInclude Include="src\renderer\samplers\UniformSampler.h" />
+    <ClInclude Include="src\scene\sceneLoaders\gltfLoader.h" />
+    <ClInclude Include="src\scene\sceneLoaders\SceneLoader.h" />
+    <ClInclude Include="src\accel\SBVH.h" />
+    <ClInclude Include="src\accel\AccelStructure.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">
@@ -161,6 +165,8 @@
     <None Include="shaders\raytracing\wireframe.vert" />
     <None Include="shaders\raytracing\wireframe.frag" />
     <None Include="..\README.md" />
+    <None Include="shaders\fragShader.spv" />
+    <None Include="shaders\vertShader.spv" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

@@ -14,10 +14,11 @@
 
 VulkanRenderer::VulkanRenderer(
 	GLFWwindow* window,
-	Scene* scene
+	Scene* scene,
+	std::shared_ptr<std::map<string, string>> config
 )
 	:
-	Renderer(window, scene) {
+	Renderer(window, scene, config) {
 	// -- Initialize logger
 
 	// Combine console and file logger
@@ -230,26 +231,26 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
 	VkShaderModule vertShader;
-	PrepareShaderModule("shaders/vert.spv", vertShader);
+	PrepareShaderModule("shaders/vertShader.spv", vertShader);
 	VkShaderModule fragShader;
-	PrepareShaderModule("shaders/frag.spv", fragShader);
+	PrepareShaderModule("shaders/fragShader.spv", fragShader);
 
 	// -- VERTEX INPUT STAGE
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// Input binding description
-	VertexAttributeInfo positionAttrib = m_scene->meshesData[0]->vertexAttributes.at(POSITION);
-	VertexAttributeInfo normalAttrib = m_scene->meshesData[0]->vertexAttributes.at(NORMAL);
+	VertexAttributeInfo positionAttrib = m_scene->meshesData[0]->attribInfo.at(POSITION);
+	VertexAttributeInfo normalAttrib = m_scene->meshesData[0]->attribInfo.at(NORMAL);
 	std::vector<VkVertexInputBindingDescription> bindingDesc = {
 		MakeVertexInputBindingDescription(
 			0, // binding
-			positionAttrib.byteStride,
+			sizeof(glm::vec3),
 			VK_VERTEX_INPUT_RATE_VERTEX
 		),
 		MakeVertexInputBindingDescription(
 			1, // binding
-			normalAttrib.byteStride,
+			sizeof(glm::vec3),
 			VK_VERTEX_INPUT_RATE_VERTEX
-		)
+		),
 	};
 
 
@@ -262,7 +263,7 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 			0 // offset
 		),
 		MakeVertexInputAttributeDescription(
-			1, // binding
+			0, // binding
 			1, // location
 			VK_FORMAT_R32G32B32_SFLOAT,
 			0 // offset
@@ -640,7 +641,7 @@ VulkanRenderer::PrepareGraphicsCommandBuffers() {
 			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSets, 0, nullptr);
 
 			// Record draw command for the triangle!
-			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_scene->meshesData[b]->vertexAttributes.at(INDEX).count, 1, 0, 0, 0);
+			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_scene->meshesData[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
 		}
 
 		// Record end renderpass
@@ -743,8 +744,8 @@ VulkanRenderer::Update() {
 	GraphicsUniformBufferObject ubo = {};
 	ubo.model = glm::rotate(glm::mat4(1.0f), timeSeconds * glm::radians(60.0f), glm::vec3(0.0f, 1.0f, 0.0f)) *
 			glm::scale(glm::mat4(1.0f), glm::vec3(1, 1, 1));
-	ubo.view = glm::lookAt(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_vulkanDevice->m_swapchain.extent.width / (float)m_vulkanDevice->m_swapchain.extent.height, 0.001f, 10000.0f);
+	ubo.view = m_scene->camera.GetView();
+	ubo.proj = m_scene->camera.GetProj();
 
 	// The Vulkan's Y coordinate is flipped from OpenGL (glm design), so we need to invert that
 	ubo.proj[1][1] *= -1;

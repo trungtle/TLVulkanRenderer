@@ -13,6 +13,7 @@ namespace VulkanBuffer {
 		VkBuffer buffer;
 		VkDeviceMemory memory;
 		VkDescriptorBufferInfo descriptor;
+		const VulkanDevice* m_device;
 
 		void Create(
 			const VulkanDevice* device,
@@ -20,7 +21,7 @@ namespace VulkanBuffer {
 			const VkBufferUsageFlags usage,
 			const VkMemoryPropertyFlags memoryProperties
 		) {
-
+			m_device = device;
 			device->CreateBufferAndMemory(
 				size,
 				usage,
@@ -33,13 +34,19 @@ namespace VulkanBuffer {
 			descriptor.offset = 0;
 			descriptor.range = size;
 		};
+
+		void Destroy(
+		) {
+			vkDestroyBuffer(m_device->device, buffer, nullptr);
+			vkFreeMemory(m_device->device, memory, nullptr);
+		}
 	};
 
 	// ===================
 	// GEOMETRIES
 	// ===================
 	struct GeometryBufferOffset {
-		std::map<EVertexAttributeType, VkDeviceSize> vertexBufferOffsets;
+		std::map<EVertexAttribute, VkDeviceSize> vertexBufferOffsets;
 	};
 
 	struct GeometryBuffer {

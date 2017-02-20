@@ -104,12 +104,12 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)thirdparty;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\include;$(ProjectDir)thirdparty\VulkanSDK\1.0.33.0\Include;$(ProjectDir)thirdparty\glm</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)thirdparty;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\include;$(ProjectDir)thirdparty\VulkanSDK\1.0.39.1\Include;$(ProjectDir)thirdparty\glm</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)thirdparty\VulkanSDK\1.0.33.0\lib;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)thirdparty\VulkanSDK\1.0.39.1\lib;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
@@ -143,14 +143,14 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)thirdparty;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\include;$(ProjectDir)thirdparty\VulkanSDK\1.0.33.0\Include;$(ProjectDir)thirdparty\glm</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)thirdparty;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\include;$(ProjectDir)thirdparty\VulkanSDK\1.0.39.1\Include;$(ProjectDir)thirdparty\glm</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(ProjectDir)thirdparty\VulkanSDK\1.0.33.0\lib;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)thirdparty\VulkanSDK\1.0.39.1\lib;$(ProjectDir)thirdparty\glfw-3.2.1.WIN64\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
@@ -159,12 +159,13 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\accel\AccelStructure.h" />
     <ClInclude Include="src\Application.h" />
     <ClInclude Include="src\geometry\BBox.h" />
     <ClInclude Include="src\geometry\Geometry.h" />
     <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
     <ClInclude Include="src\geometry\materials\Material.h" />
-    <ClInclude Include="src\geometry\SBVH.h" />
+    <ClInclude Include="src\accel\SBVH.h" />
     <ClInclude Include="src\geometry\Transform.h" />
     <ClInclude Include="src\ImageUtil.h" />
     <ClInclude Include="src\MathUtil.h" />
@@ -185,7 +186,9 @@
     <ClInclude Include="src\scene\Camera.h" />
     <ClInclude Include="src\lights\Light.h" />
     <ClInclude Include="src\lights\PointLight.h" />
+    <ClInclude Include="src\scene\sceneLoaders\gltfLoader.h" />
     <ClInclude Include="src\scene\Scene.h" />
+    <ClInclude Include="src\scene\sceneLoaders\SceneLoader.h" />
     <ClInclude Include="src\scene\SceneUtil.h" />
     <ClInclude Include="src\Typedef.h" />
     <ClInclude Include="src\Utilities.h" />
@@ -202,6 +205,7 @@
   <ItemGroup>
     <None Include="..\README.md" />
     <None Include="shaders\fragShader.frag" />
+    <None Include="shaders\fragShader.spv" />
     <None Include="shaders\raytracing\quad.frag" />
     <None Include="shaders\raytracing\quad.vert" />
     <None Include="shaders\raytracing\raytrace.comp" />
@@ -209,6 +213,7 @@
     <None Include="shaders\raytracing\raytrace.vert" />
     <None Include="shaders\raytracing\wireframe.frag" />
     <None Include="shaders\raytracing\wireframe.vert" />
+    <None Include="shaders\vertShader.spv" />
     <None Include="shaders\vertShader.vert" />
   </ItemGroup>
   <ItemGroup>
@@ -216,7 +221,7 @@
     <ClCompile Include="src\geometry\BBox.cpp" />
     <ClCompile Include="src\geometry\Geometry.cpp" />
     <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
-    <ClCompile Include="src\geometry\SBVH.cpp" />
+    <ClCompile Include="src\accel\SBVH.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanCPURayTracer.cpp" />
@@ -228,6 +233,7 @@
     <ClCompile Include="src\renderer\vulkan\VulkanUtil.cpp" />
     <ClCompile Include="src\scene\Camera.cpp" />
     <ClCompile Include="src\scene\Scene.cpp" />
+    <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

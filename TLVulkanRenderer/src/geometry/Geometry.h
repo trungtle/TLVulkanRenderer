@@ -31,7 +31,7 @@ public:
 	virtual vec2 GetUV(const vec3&) const = 0;
 	virtual BBox GetBBox() = 0;
 
-	void SetTransform(Transform xform) {
+	virtual void SetTransform(const Transform& xform) {
 		m_transform = xform;
 	}
 
@@ -246,6 +246,13 @@ public:
 	}
 
 	BBox GetBBox() override;
+
+	void SetTransform(const Transform& xform) {
+		m_transform = xform;
+		vert0 = xform.T() * vec4(vert0, 1);
+		vert1 = xform.T() * vec4(vert1, 1);
+		vert2 = xform.T() * vec4(vert2, 1);
+	}
 };
 
 class Mesh : public Geometry {
@@ -259,4 +266,11 @@ public:
 	}
 
 	BBox GetBBox() override;
+
+	void SetTransform(const Transform& xform) {
+		Geometry::SetTransform(xform);
+		for (auto& tri : triangles) {
+			tri.SetTransform(xform);
+		}
+	}
 };

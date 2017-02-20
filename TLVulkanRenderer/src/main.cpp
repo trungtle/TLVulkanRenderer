@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 	}
 
 	// Launch our application using the Vulkan API
-	Application::PreInitialize(sceneFile, 800, 600, EGraphicsAPI::Vulkan);
+	Application::PreInitialize(sceneFile, 800, 600, EGraphicsAPI::Vulkan, ERenderingMode::RAYTRACING_CPU);
 	Application::GetInstanced()->Run();
 	Application::Destroy();
 }

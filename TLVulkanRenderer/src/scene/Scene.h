@@ -1,13 +1,12 @@
 #pragma once
 
-#include <map>
-#include "tinygltfloader/tiny_gltf_loader.h"
 #include "SceneUtil.h"
 #include "scene/Camera.h"
 #include <geometry/Geometry.h>
 #include <geometry/materials/LambertMaterial.h>
-#include <geometry/SBVH.h>
+#include <accel/AccelStructure.h>
 #include "lights/Light.h"
+#include "sceneLoaders/SceneLoader.h"
 
 
 class Scene {
@@ -15,8 +14,9 @@ public:
 	Scene(std::string fileName, std::map<std::string, std::string>& config);
 	~Scene();
 
-	Intersection GetIntersection(const Ray& ray);
-	bool DoesIntersect(const Ray& ray);
+	void ParseSceneFile(std::string fileName);
+	Intersection GetIntersection(Ray& ray);
+	bool DoesIntersect(Ray& ray);
 
 	Camera camera;
 	
@@ -31,10 +31,14 @@ public:
 	std::vector<Mesh> meshes;
 	std::vector<std::shared_ptr<Geometry>> geometries;
 	std::vector<Light*> lights;
-	SBVH m_sbvh;
+	std::unique_ptr<AccelStructure> m_accel;
+
 
 private:
-	
-	bool m_useSBVH;
+
+	void PrepareTestScene();
+
+	std::unique_ptr<SceneLoader> m_sceneLoader;	
+	bool m_useAccel;
 
 };

@@ -3,12 +3,19 @@
 
 glm::vec3 LambertMaterial::EvaluateEnergy(const Intersection& isx, const glm::vec3& in, glm::vec3& out) 
 {
-
 	vec3 color;
+
+	// Back face culling
+	if (dot(in, isx.hitNormal) < 0)
+	{
+		return color;
+	}
+
 	// === Reflection === //
 	if (m_reflectivity > 0)
 	{
 		out = normalize(reflect(out, isx.hitNormal));
+		return m_colorReflective;
 	}
 
 	// === Refraction === //
@@ -27,7 +34,7 @@ glm::vec3 LambertMaterial::EvaluateEnergy(const Intersection& isx, const glm::ve
 		float eta = ei / et;
 		out = normalize(refract(in, isx.hitNormal, eta));
 	}
-
+	
 	// Use half lambert here to pop up the color
 	float lambert = glm::dot(in, isx.hitNormal) * 0.5 + 0.5;
 	color = glm::clamp(

@@ -12,6 +12,58 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
+### Feb 19, 2017 - SBVH debugging, profiling, and code clean up
+
+#### Ray traversal heat map
+
+To determine the cost of traversing my SBVH, I appended to the `Ray` object a traversal cost. When ray tracing through the scene, each time the ray enters a node, its cost is increased by **0.25** for just entering the node, and by **1.0** for each ray-primitive intersection test inside the leaf node. The total cost is then used to color the scene with more red is equivalent to higher cost, and green means low cost.
+
+I mocked up a simple test scene in Maya, with 456 primnitives. 
+
+![](TLVulkanRenderer/renders/Ray_cost_temple_scene.png)
+
+For each BVH implementation, the following renders show the ray traversal heat map for each splitting method:
+
+| Equal counts | SAH | SBVH |
+|---|---|---|
+|![](TLVulkanRenderer/renders/Ray_cost_BVH_EqualCounts.png)|![](TLVulkanRenderer/renders/Ray_cost_BVH_SAH.png)|![](TLVulkanRenderer/renders/Ray_cost_BVH_SBVH.png)|
+
+One neat thing we can see now is that `SAH` and `SBVH` are superior to `EqualCounts`. This visualization, however, led me to believe that there is **DEFINITELY** a bug somewhere in my code. The spatial split (3rd column) should have shown a different heat map. There must be something wrong.
+
+So to dig futher, I put together two additional scenes from Maya to test spatial splitting (whether it did occur at the splitting plane or not). To enforce spatial splitting, I simply ignore computing the cost for object split.
+
+a) **Triangles**
+
+This scene contains solely triangles, built into quads. Each triangle primitive should be subdivided if a spatial split occurs. 
+
+| Diffuse | Heat map |
+|---|---|
+|![](TLVulkanRenderer/renders/scene_triangles.png)|![](TLVulkanRenderer/renders/scene_triangles_heatmap.png)|
+
+b) **Cuboid**
+
+This scene is a highly subdivided cuboid shape, with random faces extruded for visibility. With a high density of such a geometry when triangulated, I suspect that I should be able to see even clearer spatial splitting.
+
+| Diffuse | Heat map |
+|---|---|
+|![](TLVulkanRenderer/renders/scene_cuboid.png)|![](TLVulkanRenderer/renders/scene_cuboid_heatmap.png)|
+
+By visual inspection, I could see that the spatial split **DID NOT** occur along the maximum extent for primitives that straddle multiple splitting planes. This confirmed to me that I should re-examined my code. In conclusion, there is a bug that new bounding boxes created by these spatial splits are currently not inserted at the right position, and that I did not take care of growing the bounding box list properly. For this week, I haven't had enough time to fix this error, so it is going to be in the next week's planning!
+
+#### Misc. work
+
+- In preparation for more robust scenes, I also cleaned up the scene loader for glTF (hoping for glTF 2.0).
+- Added `VulkanHybridRenderer` boilerplate. Prepping for porting the hybrid renderer from my school project in GPU Programming.
+- Cleaned up `SBVH` and `AccelStructure` interfaces to allow future extensions.
+- Updated VulkanSDK from 1.0.33 to 1.0.39.1 (latest as of Feb 19, 2017). We're back to the modern day!
+- Configured the graphics lab machine at Penn so that I can work from the lab now. Faster machines, and also easier to demo the project.
+
+#### Plan
+
+- Fixed the bug with new bounding boxes created from spatial splitting not inserted correctly into the SBVH tree.
+- Start prepping for porting hybrind rendering over to be used with SBVH.
+- I also would prefer having better GUI to quickly toggle on/off SBVH and switching between different modes. 
+
 ### Feb 12, 2017 - SBVH
 
 This week, I implemented the full [SBVH (spatial splitting)](http://www.nvidia.com/docs/IO/77714/sbvh.pdf) for accelerating ray tracing. The structure follows this algorithm:

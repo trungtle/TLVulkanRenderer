@@ -37,7 +37,8 @@ class VulkanRenderer : public Renderer {
 public:
 	VulkanRenderer(
 		GLFWwindow* window,
-		Scene* scene
+		Scene* scene,
+		std::shared_ptr<std::map<string, string>> config
 	);
 
 	virtual ~VulkanRenderer() override;

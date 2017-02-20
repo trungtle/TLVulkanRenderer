@@ -75,7 +75,7 @@ string Application::sceneFile = "";
 int Application::width = 0;
 int Application::height = 0;
 EGraphicsAPI Application::useAPI = EGraphicsAPI::Vulkan;
-ERenderingMode Application::renderingMode = ERenderingMode::FORWARD;
+ERenderingMode Application::renderingMode = ERenderingMode::RAYTRACING_CPU;
 
 void Application::PreInitialize(
 	std::string sceneFile,
@@ -131,9 +131,13 @@ Application::Application(
 	glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
 	std::map<std::string, std::string> config = {
-		{ "USE_SBVH", "true" }
+		{ "USE_SBVH", "true" },
+		{ "VISUALIZE_SBVH", "false"},
+		{ "VISUALIZE_RAY_COST", "true"}
 	};
 	m_scene = new Scene(sceneFile, config);
+
+	std::shared_ptr<map<string, string>> configPtr(&config);
 
 	switch (useAPI) {
 	case EGraphicsAPI::Vulkan:
@@ -141,13 +145,13 @@ Application::Application(
 
 		switch (renderingMode) {
 		case ERenderingMode::RAYTRACING_GPU:
-			m_renderer = new VulkanGPURaytracer(m_window, m_scene);
+			m_renderer = new VulkanGPURaytracer(m_window, m_scene, configPtr);
 			break;
 		case ERenderingMode::RAYTRACING_CPU:
-			m_renderer = new VulkanCPURaytracer(m_window, m_scene);
+			m_renderer = new VulkanCPURaytracer(m_window, m_scene, configPtr);
 			break;
 		default:
-			m_renderer = new VulkanRenderer(m_window, m_scene);
+			m_renderer = new VulkanRenderer(m_window, m_scene, configPtr);
 			break;
 		}
 		break;
