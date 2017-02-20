@@ -18,8 +18,8 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_accel.reset(new SBVH(
-		1,
-		SBVH::SAH
+		100,
+		SBVH::SpatialSplit_SAH
 		));
 
 	ParseSceneFile(fileName);
@@ -52,7 +52,7 @@ void Scene::ParseSceneFile(std::string fileName)
 }
 
 Intersection 
-Scene::GetIntersection(const Ray& ray) 
+Scene::GetIntersection(Ray& ray) 
 {
 	if (m_useAccel) {
 		return m_accel->GetIntersection(ray);
@@ -76,7 +76,7 @@ Scene::GetIntersection(const Ray& ray)
 }
 
 bool 
-Scene::DoesIntersect(const Ray& ray) 
+Scene::DoesIntersect(Ray& ray) 
 {
 	if (m_useAccel) {
 		return m_accel->DoesIntersect(ray);
@@ -96,7 +96,7 @@ Scene::DoesIntersect(const Ray& ray)
 
 void Scene::PrepareTestScene()
 {
-	camera.eye = vec3(0, 5, 20);
+	camera.eye = vec3(0, 0, 10);
 	camera.RecomputeAttributes();
 
 	// Setup materials

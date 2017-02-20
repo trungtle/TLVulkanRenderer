@@ -18,7 +18,7 @@ public:
 		int width = 800,
 		int height = 600,
 		EGraphicsAPI useAPI = EGraphicsAPI::Vulkan, /* Default with Vulkan */
-		ERenderingMode renderindMode = ERenderingMode::HYBRID
+		ERenderingMode renderindMode = ERenderingMode::RAYTRACING_CPU
 	);
 
 	static Application* GetInstanced();
@@ -36,10 +36,10 @@ private:
 
 	Application(
 		std::string sceneFile,
-		int width = 800,
-		int height = 600,
-		EGraphicsAPI useAPI = EGraphicsAPI::Vulkan, /* Default with Vulkan */
-		ERenderingMode renderindMode = ERenderingMode::RAYTRACING_CPU
+		int width,
+		int height,
+		EGraphicsAPI useAPI,
+		ERenderingMode renderindMode
 	);
 	~Application();
 

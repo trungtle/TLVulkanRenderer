@@ -15,8 +15,8 @@ public:
 	~Scene();
 
 	void ParseSceneFile(std::string fileName);
-	Intersection GetIntersection(const Ray& ray);
-	bool DoesIntersect(const Ray& ray);
+	Intersection GetIntersection(Ray& ray);
+	bool DoesIntersect(Ray& ray);
 
 	Camera camera;
 	

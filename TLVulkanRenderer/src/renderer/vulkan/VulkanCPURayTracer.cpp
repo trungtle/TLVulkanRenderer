@@ -77,18 +77,26 @@ void Task(
 		{
 			UniformSampler sampler(ESamples::X1);
 			vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
-			//vector<vec2> samples = sampler.Get2DSamples(vec2(547, 311));
 
 			vec3 color;
+			float rayTraversalCost = 0.0f;
 			for (auto sample : samples)
 			{
 				Ray newRay = scene->camera.GenerateRay(sample.x, sample.y);
 				raysQueue.push(newRay);
 				color += Raytrace(newRay, scene);
+				rayTraversalCost += newRay.m_traversalCost;
 
 			}
 
 			color /= samples.size();
+
+			rayTraversalCost /= samples.size();
+			vec3 costColor = vec3(0, 0, 0);
+			costColor.r = rayTraversalCost / 20.0f;
+			costColor.g = std::max((10.0f - rayTraversalCost) / 20.0f, 0.0f);
+			//color = costColor;
+
 			color = glm::clamp(color * 255.0f, 0.f, 255.f);
 			film->SetPixel(x, y, glm::vec4(color, 1));
 		}
@@ -1007,6 +1015,11 @@ void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
 	std::vector<uint16_t> indices;
 
 	m_scene->m_accel->GenerateVertices(indices, vertices);
+
+	if (indices.size() == 0 || vertices.size() == 0)
+	{
+		return;
+	}
 
 	VkDeviceSize bufferSize = vertices.size() * sizeof(SWireframe);
 	m_vulkanDevice->CreateBufferAndMemory(

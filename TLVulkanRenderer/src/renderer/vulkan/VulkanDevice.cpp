@@ -10,7 +10,7 @@
 
 // This is the list of validation layers we want
 const std::vector<const char*> VALIDATION_LAYERS = {
-	"VK_LAYER_LUNARG_standard_validation"
+	"VK_LAYER_LUNARG_standard_validation",
 };
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallbackFn(

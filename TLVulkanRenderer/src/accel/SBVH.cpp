@@ -199,9 +199,6 @@ SBVH::BuildRecursive(
 		int exit = 0; // Number of exiting references 
 	};
 
-	const float COST_TRAVERSAL = 0.125f;
-	const float COST_INTERSECTION = 1.0f;
-
 	const int NUM_BUCKET = 12;
 	BucketInfo buckets[NUM_BUCKET];
 	BucketInfo spatialSplitBuckets[NUM_BUCKET];
@@ -222,7 +219,7 @@ SBVH::BuildRecursive(
 			}
 			else
 			{
-				const float RESTRICT_ALPHA = 0.2f;
+				const float RESTRICT_ALPHA = 1e-5;
 
 				// === FIND OBJECT SPLIT CANDIDATE
 				// For each primitive in range, determine which bucket it falls into
@@ -412,7 +409,7 @@ SBVH::BuildRecursive(
 
 				// Compute cost for splitting after each bucket
 				float minSplitCost = INFINITY;
-				float minSplitCostBucket = 0;
+				int minSplitCostBucket = 0;
 				float objectSplitCost = INFINITY;
 				float spatialSplitCost = INFINITY;
 				bool isSpatialSplit = false;
@@ -439,6 +436,7 @@ SBVH::BuildRecursive(
 
 					// Store children overlapping SA so we can use to restrict spatial split later
 					float SAChildrenOverlap = BBox::BBoxOverlap(bbox0, bbox1).GetSurfaceArea();
+					
 					// === RESTRICT SPATIAL SPLIT
 					// If the cost of B1 and B2 overlap is cheap enough, we can skip spatial splitting
 					// @todo: Maybe this value can be controlled with a GUI?
@@ -499,7 +497,7 @@ SBVH::BuildRecursive(
 				{
 					// Split node
 
-					if (isSpatialSplit) {
+					if (isSpatialSplit || true) {
 						SBVHGeometryInfo *pmid = std::partition(
 							&geomInfos[first], &geomInfos[last - 1] + 1,
 							[=](const SBVHGeometryInfo& gi)
@@ -646,15 +644,20 @@ SBVH::BuildRecursive(
 }
 
 
-Intersection SBVH::GetIntersection(const Ray& r) 
+Intersection SBVH::GetIntersection(Ray& r) 
 {
 	float nearestT = INFINITY;
 	Intersection nearestIsx; 
+
+	// Update ray's traversal cost for visual debugging
+	r.m_traversalCost += COST_TRAVERSAL;
 
 	if (m_root->IsLeaf()) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
 		for (int i = 0; i < leaf->m_numGeoms; i++)
 		{
+			r.m_traversalCost += COST_INTERSECTION;
+			
 			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
 			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0 && isx.t < nearestT)
@@ -675,12 +678,15 @@ Intersection SBVH::GetIntersection(const Ray& r)
 
 
 void SBVH::GetIntersectionRecursive(
-	const Ray& r, 
+	Ray& r, 
 	SBVHNode* node, 
 	float& nearestT, 
 	Intersection& nearestIsx
 	) 
 {
+	// Update ray's traversal cost for visual debugging
+	r.m_traversalCost += COST_TRAVERSAL;
+
 	if (node == nullptr) {
 		return;
 	}
@@ -691,6 +697,8 @@ void SBVH::GetIntersectionRecursive(
 		// Return nearest primitive
 		for (int i = 0; i < leaf->m_numGeoms; i++)
 		{
+			r.m_traversalCost += COST_INTERSECTION;
+
 			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
 			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0 && isx.t < nearestT)
@@ -712,7 +720,7 @@ void SBVH::GetIntersectionRecursive(
 
 
 bool SBVH::DoesIntersect(
-	const Ray& r
+	Ray& r
 	)
 {
 	if (m_root->IsLeaf())
@@ -736,7 +744,7 @@ bool SBVH::DoesIntersect(
 }
 
 bool SBVH::DoesIntersectRecursive(
-	const Ray& r, 
+	Ray& r, 
 	SBVHNode* node
 	)
 {

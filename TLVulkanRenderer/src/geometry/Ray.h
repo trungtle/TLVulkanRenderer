@@ -1,15 +1,20 @@
 #pragma once
 #include <glm/glm.hpp>
 
+const float COST_TRAVERSAL = 0.125f;
+const float COST_INTERSECTION = 1.0f;
+
 class Ray
 {
 public:
 	glm::vec3 m_origin;
 	glm::vec3 m_direction;
-	Ray() : m_origin(glm::vec3(0)), m_direction(glm::vec3(0)) {}
+	float m_traversalCost;
+
+	Ray() : m_origin(glm::vec3(0)), m_direction(glm::vec3(0)), m_traversalCost(0.0f) {}
 
 	Ray(glm::vec3 origin, glm::vec3 direction) :
-		m_origin(origin), m_direction(direction)
+		m_origin(origin), m_direction(direction), m_traversalCost(0.0f)
 	{}
 
 	Ray GetTransformedCopy(glm::mat4 transform) const {

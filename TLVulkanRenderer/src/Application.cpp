@@ -75,7 +75,7 @@ string Application::sceneFile = "";
 int Application::width = 0;
 int Application::height = 0;
 EGraphicsAPI Application::useAPI = EGraphicsAPI::Vulkan;
-ERenderingMode Application::renderingMode = ERenderingMode::FORWARD;
+ERenderingMode Application::renderingMode = ERenderingMode::RAYTRACING_CPU;
 
 void Application::PreInitialize(
 	std::string sceneFile,
@@ -131,8 +131,9 @@ Application::Application(
 	glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
 	std::map<std::string, std::string> config = {
-		{ "USE_SBVH", "false" },
-		{ "VISUALIZE_SBVH", "false"}
+		{ "USE_SBVH", "true" },
+		{ "VISUALIZE_SBVH", "true"},
+		{ "VISUALIZE_RAY_COST", "true"}
 	};
 	m_scene = new Scene(sceneFile, config);
 
