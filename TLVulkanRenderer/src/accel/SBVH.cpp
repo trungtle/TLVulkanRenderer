@@ -213,7 +213,7 @@ SBVH::BuildRecursive(
 			// Restrict spatial split of crossed threshold
 			// 2. Find spatial split candidate
 			// 3. Select winner candidate
-			if (numPrimitives <= 4)
+			if (numPrimitives <= 0)
 			{
 				PartitionEqualCounts(dim, first, last, mid, geomInfos);
 			}
@@ -238,6 +238,7 @@ SBVH::BuildRecursive(
 				// If a primitive straddles across multiple buckets, chop it into
 				// multiple tight bounding boxes that only fits inside each bucket
 				float bucketSize = (bboxAllGeoms.m_max[dim] - bboxAllGeoms.m_min[dim]) / NUM_BUCKET;
+				int expandedLast = last;
 				for (int i = first; i < last; i++)
 				{
 					// Check if geometry straddles across buckets
@@ -266,9 +267,9 @@ SBVH::BuildRecursive(
 							newGeomInfo.bbox = bbox;
 							newGeomInfo.straddling = false;
 							newGeomInfo.geometryId = geomInfos.at(i).geometryId;
-							geomInfos.push_back(newGeomInfo);
+							geomInfos.insert(geomInfos.begin() + i, newGeomInfo);
+							expandedLast++;
 
-							// Pushed back
 							spatialSplitBuckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, bbox);
 						}
 
