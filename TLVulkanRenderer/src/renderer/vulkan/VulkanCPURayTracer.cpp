@@ -75,7 +75,7 @@ void Task(
 	{
 		for (uint32_t y = startY; y < endY; y++)
 		{
-			UniformSampler sampler(ESamples::X1);
+			UniformSampler sampler(ESamples::X8);
 			vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
 
 			vec3 color;

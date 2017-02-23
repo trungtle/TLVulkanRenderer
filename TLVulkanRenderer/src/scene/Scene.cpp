@@ -96,7 +96,7 @@ Scene::DoesIntersect(Ray& ray)
 
 void Scene::PrepareTestScene()
 {
-	camera.eye = vec3(0, 0, 10);
+	camera.eye = vec3(0, 5, 15);
 	camera.RecomputeAttributes();
 
 	// Setup materials

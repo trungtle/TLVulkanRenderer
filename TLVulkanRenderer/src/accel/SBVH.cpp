@@ -270,6 +270,11 @@ SBVH::BuildRecursive(
 							geomInfos.insert(geomInfos.begin() + i, newGeomInfo);
 							expandedLast++;
 
+							//@todo: this is wrong! Need to insert into the middle and increment last
+							//geomInfos.insert(geomInfos.begin() + i, newGeomInfo);
+							//++expandedLast;
+							geomInfos.push_back(newGeomInfo);
+
 							spatialSplitBuckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, bbox);
 						}
 
@@ -407,6 +412,7 @@ SBVH::BuildRecursive(
 
 					}
 				}
+				last = expandedLast;
 
 				// Compute cost for splitting after each bucket
 				float minSplitCost = INFINITY;
@@ -486,7 +492,7 @@ SBVH::BuildRecursive(
 
 				// Do a pass to remove straddling geominfos
 				if (isSpatialSplit) {
-					std::remove_if(&geomInfos[first], &geomInfos[last], [=](SBVHGeometryInfo& gi)
+					std::remove_if(&geomInfos[first], &geomInfos[last], [&](SBVHGeometryInfo& gi)
 					{
 						return gi.straddling == true;
 					});
@@ -498,7 +504,8 @@ SBVH::BuildRecursive(
 				{
 					// Split node
 
-					if (isSpatialSplit || true) {
+					// @todo: this seems suspiciously incorrect
+					if (isSpatialSplit) {
 						SBVHGeometryInfo *pmid = std::partition(
 							&geomInfos[first], &geomInfos[last - 1] + 1,
 							[=](const SBVHGeometryInfo& gi)
