@@ -24,7 +24,7 @@ SBVH::Build(
 	std::vector<SBVHGeometryInfo> geomInfos(geoms.size());
 	for (size_t i = 0; i < geomInfos.size(); i++)
 	{
-		geomInfos[i] = { i, geoms[i]->GetBBox() };
+		geomInfos[i] = { i, geoms[i]->GetBBox(), false };
 	}
 
 	size_t totalNodes = 0;
@@ -213,12 +213,15 @@ SBVH::BuildRecursive(
 			// Restrict spatial split of crossed threshold
 			// 2. Find spatial split candidate
 			// 3. Select winner candidate
-			if (numPrimitives <= 0)
+			if (numPrimitives <= 4)
 			{
 				PartitionEqualCounts(dim, first, last, mid, geomInfos);
 			}
 			else
 			{
+				// Update maximum extend to be all bounding boxes, not just the centroids
+				dim = static_cast<int>((BBox::BBoxMaximumExtent(bboxAllGeoms)));
+
 				const float RESTRICT_ALPHA = 1e-5;
 
 				// === FIND OBJECT SPLIT CANDIDATE
@@ -259,16 +262,16 @@ SBVH::BuildRecursive(
 						for (auto b = startEdgeBucket; b <= endEdgeBucket; b++)
 						{
 							BBox bbox = geomInfos.at(i).bbox;
-							bbox.m_min[dim] = max(bbox.m_min[dim], (b - startEdgeBucket) * bucketSize + bboxAllGeoms.m_min[dim]);
-							bbox.m_max[dim] = min(bbox.m_max[dim], bbox.m_min[dim] + bucketSize);
+							float nearSplitPlane = (b - startEdgeBucket) * bucketSize + bboxAllGeoms.m_min[dim];
+							float farSplitPlane = nearSplitPlane + bucketSize;
+							bbox.m_min[dim] = max(bbox.m_min[dim], nearSplitPlane);
+							bbox.m_max[dim] = min(bbox.m_max[dim], farSplitPlane);
 
 							// Create a new geom info to hold the splitted geometry
 							SBVHGeometryInfo newGeomInfo;
 							newGeomInfo.bbox = bbox;
 							newGeomInfo.straddling = false;
 							newGeomInfo.geometryId = geomInfos.at(i).geometryId;
-							geomInfos.insert(geomInfos.begin() + i, newGeomInfo);
-							expandedLast++;
 
 							//@todo: this is wrong! Need to insert into the middle and increment last
 							//geomInfos.insert(geomInfos.begin() + i, newGeomInfo);
@@ -490,6 +493,8 @@ SBVH::BuildRecursive(
 					}
 				}
 
+				// @todo: for debugging
+				//isSpatialSplit = true;
 				// Do a pass to remove straddling geominfos
 				if (isSpatialSplit) {
 					std::remove_if(&geomInfos[first], &geomInfos[last], [&](SBVHGeometryInfo& gi)
