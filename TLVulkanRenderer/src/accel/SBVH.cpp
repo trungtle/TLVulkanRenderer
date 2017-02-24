@@ -462,14 +462,14 @@ SBVH::BuildRecursive(
 						for (int j = 0; j <= i; j++)
 						{
 							bbox0 = BBox::BBoxUnion(bbox0, spatialSplitBuckets[j].bbox);
-							count0 += spatialSplitBuckets[j].count;
+							count0 += spatialSplitBuckets[j].enter;
 						}
 
 						// Compute cost for buckets after split candidate
 						for (int j = i + 1; j < NUM_BUCKET; j++)
 						{
 							bbox1 = BBox::BBoxUnion(bbox1, spatialSplitBuckets[j].bbox);
-							count1 += spatialSplitBuckets[j].count;
+							count1 += spatialSplitBuckets[j].exit;
 						}
 
 						spatialSplitCost = COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;

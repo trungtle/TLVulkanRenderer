@@ -95,7 +95,7 @@ void Task(
 			vec3 costColor = vec3(0, 0, 0);
 			costColor.r = rayTraversalCost / 20.0f;
 			costColor.g = std::max((10.0f - rayTraversalCost) / 20.0f, 0.0f);
-			//color = costColor;
+			color = costColor;
 
 			color = glm::clamp(color * 255.0f, 0.f, 255.f);
 			film->SetPixel(x, y, glm::vec4(color, 1));
