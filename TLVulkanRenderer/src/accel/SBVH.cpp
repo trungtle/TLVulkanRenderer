@@ -274,9 +274,9 @@ SBVH::BuildRecursive(
 							newGeomInfo.geometryId = geomInfos.at(i).geometryId;
 
 							//@todo: this is wrong! Need to insert into the middle and increment last
-							//geomInfos.insert(geomInfos.begin() + i, newGeomInfo);
-							//++expandedLast;
-							geomInfos.push_back(newGeomInfo);
+							geomInfos.insert(geomInfos.begin() + i, newGeomInfo);
+							++expandedLast;
+							//geomInfos.push_back(newGeomInfo);
 
 							spatialSplitBuckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, bbox);
 						}
@@ -497,7 +497,7 @@ SBVH::BuildRecursive(
 				//isSpatialSplit = true;
 				// Do a pass to remove straddling geominfos
 				if (isSpatialSplit) {
-					std::remove_if(&geomInfos[first], &geomInfos[last], [&](SBVHGeometryInfo& gi)
+					std::remove_if(&geomInfos[first], &geomInfos[last-1], [&](SBVHGeometryInfo& gi)
 					{
 						return gi.straddling == true;
 					});
