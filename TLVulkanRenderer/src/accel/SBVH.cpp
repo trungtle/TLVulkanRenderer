@@ -497,7 +497,7 @@ SBVH::BuildRecursive(
 				//isSpatialSplit = true;
 				// Do a pass to remove straddling geominfos
 				if (isSpatialSplit) {
-					std::remove_if(&geomInfos[first], &geomInfos[last-1], [&](SBVHGeometryInfo& gi)
+					std::remove_if(&geomInfos[first], &geomInfos[last-1] + 1, [&](SBVHGeometryInfo& gi)
 					{
 						return gi.straddling == true;
 					});
@@ -698,7 +698,7 @@ void SBVH::GetIntersectionRecursive(
 	) 
 {
 	// Update ray's traversal cost for visual debugging
-	r.m_traversalCost += COST_TRAVERSAL;
+	//r.m_traversalCost += COST_TRAVERSAL;
 
 	if (node == nullptr) {
 		return;
@@ -710,12 +710,13 @@ void SBVH::GetIntersectionRecursive(
 		// Return nearest primitive
 		for (int i = 0; i < leaf->m_numGeoms; i++)
 		{
-			r.m_traversalCost += COST_INTERSECTION;
+			//r.m_traversalCost += COST_INTERSECTION;
 
 			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
 			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0 && isx.t < nearestT)
 			{
+				r.m_traversalCost = COST_INTERSECTION;
 				nearestT = isx.t;
 				nearestIsx = isx;
 			}

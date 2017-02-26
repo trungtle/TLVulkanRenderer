@@ -142,10 +142,10 @@ Intersection Triangle::GetIntersection(const Ray& r) {
 	vec3 pvec = cross(r.m_direction, edge2);
 	// If determinant is 0, ray lies in plane of triangle
 	float det = dot(pvec, edge1);
-	if (abs(det) < EPSILON) {
+	if (fabs(det) < EPSILON) {
 		return Intersection();
 	}
-	float inv_det = 1.0 / det;
+	float inv_det = 1.0f / det;
 	vec3 tvec = r.m_origin - vert0;
 
 	// u, v are the barycentric coordinates of the intersection point in the triangle

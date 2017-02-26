@@ -19,7 +19,7 @@ Scene::Scene(
 	// Construct SBVH
 	m_accel.reset(new SBVH(
 		5,
-		SBVH::SpatialSplit_SAH
+		SBVH::EqualCounts
 		));
 
 	ParseSceneFile(fileName);
@@ -96,7 +96,7 @@ Scene::DoesIntersect(Ray& ray)
 
 void Scene::PrepareTestScene()
 {
-	camera.eye = vec3(0, 5, 15);
+	camera.eye = vec3(0, 5, 45);
 	camera.RecomputeAttributes();
 
 	// Setup materials
@@ -130,7 +130,7 @@ void Scene::PrepareTestScene()
 	// Turn meshes into triangles
 	for (int m = 0; m < meshes.size(); m++)
 	{
-		meshes[m].SetTransform(Transform(glm::vec3(0, 0, 0), glm::vec3(0), glm::vec3(1, 1, 1)));
+		//meshes[m].SetTransform(Transform(glm::vec3(0, 0, 0), glm::vec3(0), glm::vec3(1, 1, 1)));
 		for (int t = 0; t < meshes[m].triangles.size(); t++)
 		{
 			std::string name = "triangle" + t;
