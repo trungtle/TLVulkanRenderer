@@ -31,8 +31,8 @@ I have added a concept of "sub geometry", as in a geometry info struct that cont
 ### Plan
 
 A couple of issues:
-- The SBVH happens to run into stack overflow at larger scene with thousands of geometries, so there's still work to do here. I'm going to focus on this next.
-- Also, SBVH is expected to contain more nodes than BVH, but in some test scenes, my implementation of SBVH contains less nodes than a BVH. In some cases, the number of nodes were 33 vs 97 for SBVH and BVH. This seems strange, so I need to look into this to understand why.
+- The SBVH happens to run into stack overflow for a larger scene with thousands of geometries, so there's still work to do here. I'm going to focus on this next.
+- Also, SBVH is expected to contain more nodes than BVH, but in some test scenes, my implementation of SBVH contains fewer nodes than a BVH. In some cases, the number of nodes was 33 vs. 97 for SBVH and BVH, respectively. This seems strange, so I need to look into this to understand why.
 
 With GDC and interviews coming up, I might be limitted in time to get some work in next week, but will likely to resume progress the week after.
 
