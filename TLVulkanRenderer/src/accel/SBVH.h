@@ -5,9 +5,11 @@
 #include <memory>
 
 struct SBVHGeometryInfo {
-	size_t geometryId;
+	GeomId geometryId;
 	BBox bbox;
 	bool straddling;
+	int where;
+	bool isSubGeom;
 };
 
 class SBVHNode {
@@ -16,7 +18,7 @@ public:
 	SBVHNode(
 		SBVHNode* nearChild, 
 		SBVHNode* farChild, 
-		size_t nodeIdx, 
+		SBVHNodeId nodeIdx, 
 		EAxis splitAxis) : 
 		m_parent(nullptr), 
 		m_nearChild(nearChild),
@@ -66,6 +68,7 @@ public:
 
 	size_t m_firstGeomOffset;
 	size_t m_numGeoms;
+	std::vector<GeomId> m_geomIds;
 };
 
 class SBVH : public AccelStructure {
@@ -108,7 +111,8 @@ protected:
 			int first,
 			int last,
 			size_t& nodeCount,
-			std::vector<std::shared_ptr<Geometry>>& orderedGeoms
+			std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
+			int depth
 		);
 	
 	void GetIntersectionRecursive(

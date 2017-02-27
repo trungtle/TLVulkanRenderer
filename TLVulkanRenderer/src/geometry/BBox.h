@@ -55,13 +55,21 @@ public:
 	glm::vec3 m_max;
 	glm::vec3 m_centroid;
 	Transform m_transform;
+	float m_area;
+	bool m_isDirty;
 
-	BBox() : m_min(INFINITY, INFINITY, INFINITY), m_max(-INFINITY, -INFINITY, -INFINITY)
+	BBox() : 
+		m_min(INFINITY, INFINITY, INFINITY), 
+		m_max(-INFINITY, -INFINITY, -INFINITY), 
+		m_centroid(vec3(0, 0, 0)),
+		m_transform(Transform()),
+		m_area(-1),
+		m_isDirty(false)
 	{}
 
 	bool DoesIntersect(const Ray& r) const;
 	glm::vec3 Offset(const glm::vec3& point) const;
-	float GetSurfaceArea() const;
+	float GetSurfaceArea();
 
 
 	/**

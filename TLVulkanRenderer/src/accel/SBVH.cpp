@@ -1,6 +1,7 @@
 #include "SBVH.h"
 #include <algorithm>
 #include <iostream>
+#include <unordered_set>
 
 // This comparator is used to sort bvh nodes based on its centroid's maximum extent
 struct CompareCentroid
@@ -19,19 +20,22 @@ SBVH::Build(
 )
 {
 	m_geoms = geoms;
+	if (geoms.size() == 0) {
+		return;
+	}
 
 	// Initialize geom info
 	std::vector<SBVHGeometryInfo> geomInfos(geoms.size());
 	for (size_t i = 0; i < geomInfos.size(); i++)
 	{
-		geomInfos[i] = { i, geoms[i]->GetBBox() };
+		geomInfos[i] = { i, geoms[i]->GetBBox(), false, -1, false };
 	}
 
 	size_t totalNodes = 0;
 
 	std::vector<std::shared_ptr<Geometry>> orderedGeoms;
-	m_root = BuildRecursive(geomInfos, 0, geomInfos.size(), totalNodes, orderedGeoms);
-	m_geoms.swap(orderedGeoms);
+	m_root = BuildRecursive(geomInfos, 0, geomInfos.size(), totalNodes, orderedGeoms, 0);
+	//m_geoms.swap(orderedGeoms);
 	Flatten();
 }
 
@@ -140,54 +144,87 @@ SBVH::BuildRecursive(
 	int first, 
 	int last, 
 	size_t& nodeCount,
-	std::vector<std::shared_ptr<Geometry>>& orderedGeoms
+	std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
+	int depth
 	) 
 {
-	if (last < first || last < 0 || first < 0)
+	if (last <= first || last < 0 || first < 0)
 	{
 		return nullptr;
 	}
 
-	// Compute bounds of all geometries in node
+	// == COMPUTE BOUNDS OF ALL GEOMETRIES
 	BBox bboxAllGeoms;
 	for (int i = first; i < last; i++) {
 		bboxAllGeoms = BBox::BBoxUnion(bboxAllGeoms, geomInfos[i].bbox);
 	}
 
-	int numPrimitives = last - first;
+	// Num primitive should only reflect unique IDs
+	int numPrimitives = 0;
+	std::unordered_set<GeomId> uniqueGeomIds;
+	for (int i = first; i < last; i++) {
+		if (uniqueGeomIds.find(geomInfos[i].geometryId) == uniqueGeomIds.end()) {
+			++numPrimitives;
+			uniqueGeomIds.insert(geomInfos[i].geometryId);
+		}
+	}
 	
+	// == GENERATE SINGLE GEOMETRY LEAF NODE
 	if (numPrimitives == 1) {
 		// Create a leaf node
 		size_t firstGeomOffset = orderedGeoms.size();
 
-		for (int i = first; i < last; i++) {
-			int geomIdx = geomInfos[i].geometryId;
+		GeomId geomIdx = geomInfos[first].geometryId;
+		// If this geometry has been added to order list, add it now
+		if (std::find(orderedGeoms.begin(), orderedGeoms.end(), m_geoms[geomIdx]) == orderedGeoms.end())
+		{
 			orderedGeoms.push_back(m_geoms[geomIdx]);
 		}
 		SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
+		leaf->m_geomIds.push_back(geomIdx);
 		nodeCount++;
 		return leaf;
 	}
 
-	// Choose a dimension to split
+	// COMPUTE BOUNDS OF ALL CENTROIDS
 	BBox bboxCentroids;
 	for (int i = first; i < last; i++) {
 		bboxCentroids = BBox::BBoxUnion(bboxCentroids, geomInfos[i].bbox.m_centroid);
 	}
+
+	// Get maximum extent
 	auto dim = static_cast<int>((BBox::BBoxMaximumExtent(bboxCentroids)));
+
+	// === GENERATE PLANAR LEAF NODE
 	// If all centroids are the same, create leafe since there's no effective way to split the tree
 	if (bboxCentroids.m_max[dim] == bboxCentroids.m_min[dim]) {
 		// Create a leaf node
 		size_t firstGeomOffset = orderedGeoms.size();
 
+		bool nonStraddling = false;
+		std::vector<GeomId> geomIds;
 		for (int i = first; i < last; i++)
 		{
+			// Skipping straddling objects
+			if (geomInfos[i].straddling) continue;
+			nonStraddling = true;
+
 			int geomIdx = geomInfos[i].geometryId;
-			orderedGeoms.push_back(m_geoms[geomIdx]);
+			// If this geometry has been added to order list, add it now
+			if (std::find(orderedGeoms.begin(), orderedGeoms.end(), m_geoms[geomIdx]) == orderedGeoms.end())
+			{
+				orderedGeoms.push_back(m_geoms[geomIdx]);
+				geomIds.push_back(geomIdx);
+			}
 		}
-		SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
-		nodeCount++;
-		return leaf;
+		if (nonStraddling) {
+			SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
+			leaf->m_geomIds = geomIds;
+			nodeCount++;
+			return leaf;
+		} else {
+			return nullptr;
+		}
 	}
 
 	// Create 12 buckets (based from pbrt)
@@ -219,12 +256,20 @@ SBVH::BuildRecursive(
 			}
 			else
 			{
+				std::vector<SBVHGeometryInfo> subGeomInfos;
+
+				// Update maximum extend to be all bounding boxes, not just the centroids
+				dim = static_cast<int>((BBox::BBoxMaximumExtent(bboxAllGeoms)));
+
 				const float RESTRICT_ALPHA = 1e-5;
 
 				// === FIND OBJECT SPLIT CANDIDATE
 				// For each primitive in range, determine which bucket it falls into
 				for (int i = first; i < last; i++)
 				{
+					// Skipping subgeominfo objects
+					if (geomInfos[i].isSubGeom) continue;
+
 					int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
 					assert(whichBucket <= NUM_BUCKET);
 					if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
@@ -238,9 +283,11 @@ SBVH::BuildRecursive(
 				// If a primitive straddles across multiple buckets, chop it into
 				// multiple tight bounding boxes that only fits inside each bucket
 				float bucketSize = (bboxAllGeoms.m_max[dim] - bboxAllGeoms.m_min[dim]) / NUM_BUCKET;
-				int expandedLast = last;
 				for (int i = first; i < last; i++)
 				{
+					// Skipping straddling objects
+					if (geomInfos[i].straddling) continue;
+
 					// Check if geometry straddles across buckets
 					int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(geomInfos.at(i).bbox.m_min)[dim];;
 					assert(startEdgeBucket <= NUM_BUCKET);
@@ -259,22 +306,24 @@ SBVH::BuildRecursive(
 						for (auto b = startEdgeBucket; b <= endEdgeBucket; b++)
 						{
 							BBox bbox = geomInfos.at(i).bbox;
-							bbox.m_min[dim] = max(bbox.m_min[dim], (b - startEdgeBucket) * bucketSize + bboxAllGeoms.m_min[dim]);
-							bbox.m_max[dim] = min(bbox.m_max[dim], bbox.m_min[dim] + bucketSize);
+							float nearSplitPlane = startEdgeBucket * bucketSize + bboxAllGeoms.m_min[dim];
+							float farSplitPlane = nearSplitPlane + bucketSize;
+							bbox.m_min[dim] = max(bbox.m_min[dim], nearSplitPlane);
+							bbox.m_max[dim] = min(bbox.m_max[dim], farSplitPlane);
+							assert(bbox.m_min[dim] < bbox.m_max[dim]);
+							bbox.m_centroid = BBox::Centroid(bbox.m_min, bbox.m_max);
+							bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);
 
 							// Create a new geom info to hold the splitted geometry
 							SBVHGeometryInfo newGeomInfo;
 							newGeomInfo.bbox = bbox;
 							newGeomInfo.straddling = false;
 							newGeomInfo.geometryId = geomInfos.at(i).geometryId;
+							newGeomInfo.where = i;
+							newGeomInfo.isSubGeom = true;
+							subGeomInfos.push_back(newGeomInfo);
 
-							//@todo: this is wrong! Need to insert into the middle and increment last
-							//geomInfos.insert(geomInfos.begin() + i, newGeomInfo);
-							//++expandedLast;
-							geomInfos.push_back(newGeomInfo);
-
-							// Pushed back
-							spatialSplitBuckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, bbox);
+							spatialSplitBuckets[b].bbox = BBox::BBoxUnion(spatialSplitBuckets[b].bbox, bbox);
 						}
 
 #ifdef TIGHT_BBOX
@@ -411,7 +460,6 @@ SBVH::BuildRecursive(
 
 					}
 				}
-				last = expandedLast;
 
 				// Compute cost for splitting after each bucket
 				float minSplitCost = INFINITY;
@@ -453,19 +501,21 @@ SBVH::BuildRecursive(
 
 						bbox0 = BBox();
 						bbox1 = BBox();
+						count0 = 0;
+						count1 = 0;
 
 						// Compute cost for buckets before split candidate
 						for (int j = 0; j <= i; j++)
 						{
 							bbox0 = BBox::BBoxUnion(bbox0, spatialSplitBuckets[j].bbox);
-							count0 += spatialSplitBuckets[j].count;
+							count0 += spatialSplitBuckets[j].enter;
 						}
 
 						// Compute cost for buckets after split candidate
 						for (int j = i + 1; j < NUM_BUCKET; j++)
 						{
 							bbox1 = BBox::BBoxUnion(bbox1, spatialSplitBuckets[j].bbox);
-							count1 += spatialSplitBuckets[j].count;
+							count1 += spatialSplitBuckets[j].exit;
 						}
 
 						spatialSplitCost = COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;
@@ -489,15 +539,17 @@ SBVH::BuildRecursive(
 					}
 				}
 
-				// Do a pass to remove straddling geominfos
 				if (isSpatialSplit) {
-					std::remove_if(&geomInfos[first], &geomInfos[last], [&](SBVHGeometryInfo& gi)
-					{
-						return gi.straddling == true;
-					});
+					// Insert new subGeomInfos
+					int offset = 0;
+					for (auto sg : subGeomInfos) {
+						geomInfos.insert(geomInfos.begin() + sg.where + offset, sg);
+						offset++;
+						last++;
+					}
 				}
 
-				// == CREATE LEAF OF SPLIT
+				// == CREATE LEAF OR SPLIT
 				float leafCost = numPrimitives * COST_INTERSECTION;
 				if (numPrimitives > m_maxGeomsInNode || minSplitCost < leafCost)
 				{
@@ -509,11 +561,21 @@ SBVH::BuildRecursive(
 							&geomInfos[first], &geomInfos[last - 1] + 1,
 							[=](const SBVHGeometryInfo& gi)
 						{
-							// Partition geometry into two halves, before and after the split
-							int whichBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
-							assert(whichBucket <= NUM_BUCKET);
-							if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-							return whichBucket <= minSplitCostBucket;
+							if (gi.straddling) {
+								// Sort straddling primitive based on their centroids
+								int centroidBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
+								assert(centroidBucket <= NUM_BUCKET);
+								if (centroidBucket == NUM_BUCKET) centroidBucket = NUM_BUCKET - 1;
+								return centroidBucket <= minSplitCostBucket;
+							} else {
+								// Sort all other primitives based on their max bounds
+								int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
+								assert(startEdgeBucket <= NUM_BUCKET);
+								if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
+
+								return startEdgeBucket <= minSplitCostBucket;
+							}
+
 						});
 						mid = pmid - &geomInfos[0];
 
@@ -533,16 +595,23 @@ SBVH::BuildRecursive(
 				}
 				else
 				{
-
+					// == CREATE LEAF
 					// Cost of splitting buckets is too high, create a leaf node instead
 					size_t firstGeomOffset = orderedGeoms.size();
 
+					std::vector<GeomId> geomIds;
 					for (int i = first; i < last; i++)
 					{
 						int geomIdx = geomInfos[i].geometryId;
-						orderedGeoms.push_back(m_geoms[geomIdx]);
+
+						// If this geometry has been added to order list, add it now
+						if (std::find(orderedGeoms.begin(), orderedGeoms.end(), m_geoms[geomIdx]) == orderedGeoms.end()) {
+							orderedGeoms.push_back(m_geoms[geomIdx]);
+							geomIds.push_back(geomIdx);
+						}
 					}
 					SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
+					leaf->m_geomIds = geomIds;
 					nodeCount++;
 					return leaf;
 				}
@@ -619,14 +688,17 @@ SBVH::BuildRecursive(
 
 					// Cost of splitting buckets is too high, create a leaf node instead
 					size_t firstGeomOffset = orderedGeoms.size();
-
+					std::vector<GeomId> geomIds;
 					for (int i = first; i < last; i++)
 					{
 						int geomIdx = geomInfos[i].geometryId;
 						orderedGeoms.push_back(m_geoms[geomIdx]);
+						geomIds.push_back(geomIdx);
+
 					}
 					SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
 					nodeCount++;
+					leaf->m_geomIds = geomIds;
 					return leaf;
 				}
 			}
@@ -640,10 +712,13 @@ SBVH::BuildRecursive(
 
 	// Build near child
 	EAxis splitAxis = static_cast<EAxis>(dim);;
-	SBVHNode* nearChild = BuildRecursive(geomInfos, first, mid, nodeCount, orderedGeoms);
+	if (depth == 42) {
+		std::cout << "here";
+	}
+	SBVHNode* nearChild = BuildRecursive(geomInfos, first, mid, nodeCount, orderedGeoms, depth + 1);
 
 	// Build far child
-	SBVHNode* farChild = BuildRecursive(geomInfos, mid, last, nodeCount, orderedGeoms);
+	SBVHNode* farChild = BuildRecursive(geomInfos, mid, last, nodeCount, orderedGeoms, depth + 1);
 
 	SBVHNode* node = new SBVHNode(nearChild, farChild, nodeCount, splitAxis);
 	nodeCount++;
@@ -661,17 +736,29 @@ Intersection SBVH::GetIntersection(Ray& r)
 
 	if (m_root->IsLeaf()) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
-		for (int i = 0; i < leaf->m_numGeoms; i++)
-		{
+		//for (int i = 0; i < leaf->m_numGeoms; i++)
+		//{
+		//	r.m_traversalCost += COST_INTERSECTION;
+		//	
+		//	std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+		//	Intersection isx = geom->GetIntersection(r);
+		//	if (isx.t > 0 && isx.t < nearestT)
+		//	{
+		//		nearestT = isx.t;
+		//		nearestIsx = isx;
+		//	}
+		//}
+		for (auto geomId : leaf->m_geomIds) {
 			r.m_traversalCost += COST_INTERSECTION;
-			
-			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+				
+			std::shared_ptr<Geometry> geom = m_geoms[geomId];
 			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0 && isx.t < nearestT)
 			{
 				nearestT = isx.t;
 				nearestIsx = isx;
 			}
+
 		}
 		return nearestIsx;
 	}
@@ -700,18 +787,33 @@ void SBVH::GetIntersectionRecursive(
 
 	if (node->IsLeaf()) {
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
+		if (leaf->m_numGeoms < 4 || node->m_bbox.DoesIntersect(r)) {
+			// Return nearest primitive
+			//for (int i = 0; i < leaf->m_numGeoms; i++)
+			//{
+			//	r.m_traversalCost += COST_INTERSECTION;
 
-		// Return nearest primitive
-		for (int i = 0; i < leaf->m_numGeoms; i++)
-		{
-			r.m_traversalCost += COST_INTERSECTION;
-
-			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
-			Intersection isx = geom->GetIntersection(r);
-			if (isx.t > 0 && isx.t < nearestT)
+			//	std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+			//	Intersection isx = geom->GetIntersection(r);
+			//	if (isx.t > 0 && isx.t < nearestT)
+			//	{
+			//		r.m_traversalCost = COST_INTERSECTION;
+			//		nearestT = isx.t;
+			//		nearestIsx = isx;
+			//	}
+			//}
+			for (auto geomId : leaf->m_geomIds)
 			{
-				nearestT = isx.t;
-				nearestIsx = isx;
+				r.m_traversalCost += COST_INTERSECTION;
+
+				std::shared_ptr<Geometry> geom = m_geoms[geomId];
+				Intersection isx = geom->GetIntersection(r);
+				if (isx.t > 0 && isx.t < nearestT)
+				{
+					nearestT = isx.t;
+					nearestIsx = isx;
+				}
+
 			}
 		}
 		return;
@@ -763,16 +865,18 @@ bool SBVH::DoesIntersectRecursive(
 	if (node->IsLeaf())
 	{
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
-		for (int i = 0; i < leaf->m_numGeoms; i++)
+		if (leaf->m_numGeoms < 4 || node->m_bbox.DoesIntersect(r))
 		{
-			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
-			Intersection isx = geom->GetIntersection(r);
-			if (isx.t > 0)
+			for (int i = 0; i < leaf->m_numGeoms; i++)
 			{
-				return true;
+				std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+				Intersection isx = geom->GetIntersection(r);
+				if (isx.t > 0)
+				{
+					return true;
+				}
 			}
 		}
-
 		return false;
 	}
 

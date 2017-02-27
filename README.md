@@ -12,6 +12,37 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
+### Feb 26, 2017 - More SBVH fixes
+
+This is a fairly short update. I spent most of the time fixing several bugs from building the SBVH. 
+
+I have added a concept of "sub geometry", as in a geometry info struct that contains a bounding box for only part of the geometry, due to spatial split. They are stored together with the regular geometry info struct.
+
+- Modified the SBVH leaf node to contain an array of geometry IDs instead of using the `firstGeomOffset` and `numGeoms` when querying geometries from a leaf node. The reason is because the same geometry can be included in two spatially split node, so we simply can't assume that each leaf node stores a unique geometry anymore.
+- Modified the SBVH leaf node to contain a flag indicating whether it's a sub geometry. 
+- Fixed a bug with BBox ray-intersection, which culled geometries when it shouldn't be.
+- Fixed a bug with new sub bounding boxes created for sub geometries never updated their centroids, causing incorrect partitioning along the centroids.
+- Fixed a bug with new sub geometry infos being inserted in the current geometry info list at a wrong location, shifting all other geometry infos back and out of order
+- Fixed a bug where straddling geometries were being removed from the list
+- Fixed a bug with computing sub bounding boxes for each bin during spatial split
+- Fixed a bug with incorrect surface areas used in computing spatial split candidate cost.
+- Added a couple test scenes.
+
+When tested with a small scene (equal counts splitting is included here for reference:
+
+| | Equal Counts | Only SAH | SAH with spatial split |
+|---|---|---|---|
+| Number of geometries | 68 | 68 | 68 |
+| Number of nodes | 115 | 97 | 33 |
+| ms/frame | 80 | 69 | 71 |
+| |![](TLVulkanRenderer/renders/arch_equal_counts.png)|![](TLVulkanRenderer/renders/arch_object_split.png)|![](TLVulkanRenderer/renders/arch_spatial_split.png)|
+
+With spatial splitting on, the rendering is roughly the same as the SAH technique, flutuating within 2ms differences. However, we significantly reduced the number of traversal nodes (from 97 to 33). This is about 30% memory footprint with spatial splitting on. Even though we don't gain much from speed, it's interesting to see that we do get a lot of space back, which could be useful once transferred over to GPU for ray tracing.
+
+### Plan
+
+The SBVH happens to run into stack overflow at larger scene with thousands of geometries, so there's still work to do here. I'm going to focus on this next. With GDC and interviews coming up, I might be limitted in time to get some work in next week, but will likely to resume progress the week after.
+
 ### Feb 19, 2017 - SBVH debugging, profiling, and code clean up
 
 #### Ray traversal heat map

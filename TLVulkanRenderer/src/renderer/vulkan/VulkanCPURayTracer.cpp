@@ -75,7 +75,7 @@ void Task(
 	{
 		for (uint32_t y = startY; y < endY; y++)
 		{
-			UniformSampler sampler(ESamples::X8);
+			UniformSampler sampler(ESamples::X1);
 			vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
 
 			vec3 color;
@@ -83,7 +83,6 @@ void Task(
 			for (auto sample : samples)
 			{
 				Ray newRay = scene->camera.GenerateRay(sample.x, sample.y);
-				raysQueue.push(newRay);
 				color += Raytrace(newRay, scene);
 				rayTraversalCost += newRay.m_traversalCost;
 

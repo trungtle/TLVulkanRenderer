@@ -4,12 +4,11 @@
 glm::vec3 LambertMaterial::EvaluateEnergy(const Intersection& isx, const glm::vec3& in, glm::vec3& out) 
 {
 	vec3 color;
-
-	// Back face culling
-	if (dot(in, isx.hitNormal) < 0)
-	{
-		return color;
-	}
+	// @todo: Back face culling
+	//if (dot(in, isx.hitNormal) < 0)
+	//{
+	//	return color;
+	//}
 
 	// === Reflection === //
 	if (m_reflectivity > 0)
