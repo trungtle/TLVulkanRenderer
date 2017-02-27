@@ -28,20 +28,13 @@ I have added a concept of "sub geometry", as in a geometry info struct that cont
 - Fixed a bug with incorrect surface areas used in computing spatial split candidate cost.
 - Added a couple test scenes.
 
-When tested with a small scene (equal counts splitting is included here for reference:
-
-| | Equal Counts | Only SAH | SAH with spatial split |
-|---|---|---|---|
-| Number of geometries | 68 | 68 | 68 |
-| Number of nodes | 115 | 97 | 33 |
-| ms/frame | 80 | 69 | 71 |
-| |![](TLVulkanRenderer/renders/arch_equal_counts.png)|![](TLVulkanRenderer/renders/arch_object_split.png)|![](TLVulkanRenderer/renders/arch_spatial_split.png)|
-
-With spatial splitting on, the rendering is roughly the same as the SAH technique, flutuating within 2ms differences. However, we significantly reduced the number of traversal nodes (from 97 to 33). This is about 30% memory footprint with spatial splitting on. Even though we don't gain much from speed, it's interesting to see that we do get a lot of space back, which could be useful once transferred over to GPU for ray tracing.
-
 ### Plan
 
-The SBVH happens to run into stack overflow at larger scene with thousands of geometries, so there's still work to do here. I'm going to focus on this next. With GDC and interviews coming up, I might be limitted in time to get some work in next week, but will likely to resume progress the week after.
+A couple of issues:
+- The SBVH happens to run into stack overflow at larger scene with thousands of geometries, so there's still work to do here. I'm going to focus on this next.
+- Also, SBVH is expected to contain more nodes than BVH, but in some test scenes, my implementation of SBVH contains less nodes than a BVH. In some cases, the number of nodes were 33 vs 97 for SBVH and BVH. This seems strange, so I need to look into this to understand why.
+
+With GDC and interviews coming up, I might be limitted in time to get some work in next week, but will likely to resume progress the week after.
 
 ### Feb 19, 2017 - SBVH debugging, profiling, and code clean up
 
