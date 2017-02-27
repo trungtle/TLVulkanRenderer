@@ -59,6 +59,8 @@ BBox Sphere::GetBBox() {
 	bbox.m_max = glm::max(p0, glm::max(p1, glm::max(p2, glm::max(p3, glm::max(p4, glm::max(p5, glm::max(p6, p7)))))));
 	bbox.m_centroid = BBox::Centroid(bbox.m_min, bbox.m_max);
 	bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);
+	bbox.m_isDirty = false;
+
 	return bbox;
 }
 
@@ -124,6 +126,7 @@ BBox Cube::GetBBox() {
 	bbox.m_max = glm::max(p0, glm::max(p1, glm::max(p2, glm::max(p3, glm::max(p4, glm::max(p5, glm::max(p6, p7)))))));
 	bbox.m_centroid = BBox::Centroid(bbox.m_min, bbox.m_max);
 	bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);
+	bbox.m_isDirty = false;
 	return bbox;
 }
 
@@ -185,10 +188,16 @@ BBox Triangle::GetBBox() {
 	glm::vec3 p0 = glm::vec3(m_transform.T() * glm::vec4(vert0, 1.f));
 	glm::vec3 p1 = glm::vec3(m_transform.T() * glm::vec4(vert1, 1.f));
 	glm::vec3 p2 = glm::vec3(m_transform.T() * glm::vec4(vert2, 1.f));
-	box.m_min = glm::min(p0, glm::min(p1, p2));
-	box.m_max = glm::max(p0, glm::max(p1, p2));
+	box.m_min.x = min(p0.x, min(p1.x, p2.x));
+	box.m_min.y = min(p0.y, min(p1.y, p2.y));
+	box.m_min.z = min(p0.z, min(p1.z, p2.z));
+	box.m_max.x = max(p0.x, max(p1.x, p2.x));
+	box.m_max.y = max(p0.y, max(p1.y, p2.y));
+	box.m_max.z = max(p0.z, max(p1.z, p2.z));
 	box.m_centroid = BBox::Centroid(box.m_min, box.m_max);
 	box.m_transform = Transform(box.m_centroid, glm::vec3(0), box.m_max - box.m_min);
+	box.m_isDirty = false;
+
 	return box;
 }
 

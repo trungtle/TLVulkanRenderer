@@ -18,8 +18,8 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_accel.reset(new SBVH(
-		5,
-		SBVH::EqualCounts
+		100,
+		SBVH::SpatialSplit_SAH
 		));
 
 	ParseSceneFile(fileName);

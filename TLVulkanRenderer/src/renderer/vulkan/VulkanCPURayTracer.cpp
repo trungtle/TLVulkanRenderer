@@ -83,8 +83,6 @@ void Task(
 			for (auto sample : samples)
 			{
 				Ray newRay = scene->camera.GenerateRay(sample.x, sample.y);
-				//Ray newRay = scene->camera.GenerateRay(339, 14);
-				//raysQueue.push(newRay);
 				color += Raytrace(newRay, scene);
 				rayTraversalCost += newRay.m_traversalCost;
 

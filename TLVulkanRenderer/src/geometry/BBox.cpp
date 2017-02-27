@@ -45,7 +45,7 @@ bool BBox::DoesIntersect(const Ray& r) const
 			t_f = t1;
 		}
 	}
-	if (t_n < t_f && t_n >= 0)
+	if (t_n < t_f)// && t_n >= 0)
 	{
 		return true;
 	}
@@ -62,9 +62,15 @@ glm::vec3 BBox::Offset(const glm::vec3& point) const
 	return out; 
 }
 
-float BBox::GetSurfaceArea() const {
-	vec3 scale = m_max - m_min;
-	return 2.0f * (scale.x * scale.y + scale.x * scale.z + scale.y * scale.z);
+float BBox::GetSurfaceArea() {
+
+	// @todo: careful if we need to dynamically update bbox
+	//if (m_area < 0 || m_isDirty) {
+		vec3 scale = m_max - m_min;
+		m_area = 2.0f * (scale.x * scale.y + scale.x * scale.z + scale.y * scale.z);
+	//}
+
+	return m_area;
 }
 
 BBox BBox::ClipGeometry(std::shared_ptr<Geometry> geom, EAxis dim) 
@@ -95,6 +101,7 @@ BBox BBox::ClipGeometry(std::shared_ptr<Geometry> geom, EAxis dim)
 			t = dot(d, nearFace.m_normal) / denom;
 		}
 	}
+	clippedBox.m_isDirty = false;
 	return clippedBox;
 }
 
@@ -126,6 +133,7 @@ BBox BBox::BBoxUnion(const BBox& a, const BBox& b) {
 	ret.m_min.z = glm::min(a.m_min.z, b.m_min.z);
 	ret.m_centroid = BBox::Centroid(ret.m_max, ret.m_min);
 	ret.m_transform = Transform(ret.m_centroid, glm::vec3(0), ret.m_max - ret.m_min);
+	ret.m_isDirty = false;
 	return ret;
 }
 
@@ -140,6 +148,7 @@ BBox BBox::BBoxUnion(const BBox& a, const vec3& point)
 	ret.m_min.z = glm::min(a.m_min.z, point.z);
 	ret.m_centroid = BBox::Centroid(ret.m_max, ret.m_min);
 	ret.m_transform = Transform(ret.m_centroid, glm::vec3(0), ret.m_max - ret.m_min);
+	ret.m_isDirty = false;
 	return ret;
 }
 
@@ -154,6 +163,7 @@ BBox BBox::BBoxOverlap(const BBox& a, const BBox& b)
 	ret.m_min.z = glm::max(glm::min(a.m_max.x, b.m_min.x), glm::min(a.m_min.x, b.m_max.x));
 	ret.m_centroid = BBox::Centroid(ret.m_max, ret.m_min);
 	ret.m_transform = Transform(ret.m_centroid, glm::vec3(0), ret.m_max - ret.m_min);
+	ret.m_isDirty = false;
 	return ret;
 }
 
@@ -171,6 +181,7 @@ BBox BBox::BBoxFromPoints(std::vector<vec3>& points)
 	}
 	ret.m_centroid = BBox::Centroid(ret.m_max, ret.m_min);
 	ret.m_transform = Transform(ret.m_centroid, glm::vec3(0), ret.m_max - ret.m_min);
+	ret.m_isDirty = false;
 
 	return ret;
 }
