@@ -73,37 +73,6 @@ float BBox::GetSurfaceArea() {
 	return m_area;
 }
 
-BBox BBox::ClipGeometry(std::shared_ptr<Geometry> geom, EAxis dim) 
-{
-	BBox clippedBox;
-	Triangle* tri = static_cast<Triangle*>(geom.get());
-	Ray rays[3];
-	vec3 edge0 = normalize(tri->vert1 - tri->vert0);
-	rays[0] = Ray(tri->vert0, edge0);
-	vec3 edge1 = tri->vert2 - tri->vert0;
-	rays[1] = Ray(tri->vert0, edge1);
-	vec3 edge2 = tri->vert2 - tri->vert1;
-	rays[2] = Ray(tri->vert1, edge2);
-
-	EPlane clippingPlane;
-	BBoxFace nearFace, farFace;
-	nearFace.m_point = m_min;
-	nearFace.m_normal[dim] = -1;
-	farFace.m_point = m_max;
-	farFace.m_normal[dim] = 1;
-
-	// Find intersection with each clipping planes
-	float t;
-	for (auto i = 0; i < 3; i++) {
-		float denom = dot(nearFace.m_normal, rays[i].m_direction);
-		if (denom > 1e-6) {
-			vec3 d = nearFace.m_point - rays[i].m_origin;
-			t = dot(d, nearFace.m_normal) / denom;
-		}
-	}
-	clippedBox.m_isDirty = false;
-	return clippedBox;
-}
 
 bool BBox::IsInside(const vec3& point) const {
 	return (point.x < m_max.x && point.x > m_min.x &&
@@ -186,18 +155,18 @@ BBox BBox::BBoxFromPoints(std::vector<vec3>& points)
 	return ret;
 }
 
-EAxis BBox::BBoxMaximumExtent(const BBox& bbox) {
+Dim BBox::BBoxMaximumExtent(const BBox& bbox) {
 	glm::vec3 diag = bbox.m_max - bbox.m_min;
 	if (diag.x > diag.y && diag.x > diag.z)
 	{
-		return EAxis::X;
+		return 0;
 	}
 	else if (diag.y > diag.z)
 	{
-		return EAxis::Y;
+		return 1;
 	}
 	else
 	{
-		return EAxis::Z;
+		return 2;
 	}
 }

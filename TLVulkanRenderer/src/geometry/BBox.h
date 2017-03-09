@@ -4,48 +4,12 @@
 #include <geometry/Geometry.h>
 #include <memory>
 
-typedef enum
-{
-	X,
-	Y,
-	Z
-} EAxis;
+typedef unsigned int Dim;
 
 enum EPlane {
 	XY,
 	ZY,
 	XZ
-};
-
-enum EBBoxEdgeType
-{
-	START,
-	END
-};
-
-struct BBoxFace {
-	BBoxFace() : m_point(vec3(0)), m_normal(vec3(0)) {}
-
-	BBoxFace(vec3 point, vec3 normal) :
-		m_point(point), m_normal(normal)
-	{};
-
-	vec3 m_point;
-	vec3 m_normal;
-};
-
-struct BBoxEdge
-{
-	BBoxEdge() : m_t(0), m_geomId(-1), m_type(EBBoxEdgeType::START)
-	{}
-
-	BBoxEdge(float t, size_t geomId, EBBoxEdgeType type) :
-		m_t(t), m_geomId(geomId), m_type(type)
-	{}
-
-	float m_t;
-	size_t m_geomId;
-	EBBoxEdgeType m_type;
 };
 
 class BBox
@@ -71,14 +35,6 @@ public:
 	glm::vec3 Offset(const glm::vec3& point) const;
 	float GetSurfaceArea();
 
-
-	/**
-	 * \brief Clip geometry along a dimension
-	 * \param geom 
-	 * \param dim 
-	 * \return 
-	 */
-	BBox ClipGeometry(std::shared_ptr<Geometry> geom, EAxis dim);
 	bool IsInside(const vec3& point) const;
 
 	static glm::vec3 Centroid(
@@ -103,5 +59,5 @@ public:
 	* \param bbox
 	* \return
 	*/
-	static EAxis BBoxMaximumExtent(const BBox& bbox);
+	static Dim BBoxMaximumExtent(const BBox& bbox);
 };

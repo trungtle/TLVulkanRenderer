@@ -3,13 +3,15 @@
 #include <iostream>
 #include <unordered_set>
 
+const int NUM_BUCKET = 12;
+
 // This comparator is used to sort bvh nodes based on its centroid's maximum extent
 struct CompareCentroid
 {
 	CompareCentroid(int dim) : dim(dim) {};
 
 	int dim;
-	bool operator()(const SBVHGeometryInfo node1, SBVHGeometryInfo node2) const {
+	bool operator()(const PrimInfo node1, PrimInfo node2) const {
 		return node1.bbox.m_centroid[dim] < node2.bbox.m_centroid[dim];
 	}
 };
@@ -25,112 +27,27 @@ SBVH::Build(
 	}
 
 	// Initialize geom info
-	std::vector<SBVHGeometryInfo> geomInfos(geoms.size());
+	std::vector<PrimInfo> geomInfos(geoms.size());
 	for (size_t i = 0; i < geomInfos.size(); i++)
 	{
-		geomInfos[i] = { i, geoms[i]->GetBBox(), false, -1, false };
+		geomInfos[i] = { i, geoms[i]->GetBBox()};
 	}
 
 	size_t totalNodes = 0;
 
 	std::vector<std::shared_ptr<Geometry>> orderedGeoms;
-	m_root = BuildRecursive(geomInfos, 0, geomInfos.size(), totalNodes, orderedGeoms, 0);
+	m_root = BuildRecursive(0, geomInfos.size(), totalNodes, geomInfos, orderedGeoms, 0);
 	//m_geoms.swap(orderedGeoms);
 	Flatten();
 }
 
-void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices)
+void SBVH::PartitionEqualCounts(
+	Dim dim, 
+	PrimID first, 
+	PrimID last,
+	PrimID& mid,
+	std::vector<PrimInfo>& geomInfos) const 
 {
-	size_t verticeCount = 0;
-	vec3 color;
-	for (auto node : m_nodes)
-	{
-		if (node->IsLeaf())
-		{
-			color = vec3(0, 1, 1);
-		}
-		else
-		{
-			color = vec3(1, 0, 0);
-		}
-		// Setup vertices
-		glm::vec3 centroid = node->m_bbox.m_centroid;
-		glm::vec3 translation = centroid;
-		glm::vec3 scale = glm::vec3(glm::vec3(node->m_bbox.m_max) - glm::vec3(node->m_bbox.m_min));
-		glm::mat4 transform = glm::translate(glm::mat4(1.0), translation) * glm::scale(glm::mat4(1.0f), scale);
-
-		vertices.push_back(
-		{
-			glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)),
-			color
-		});
-		vertices.push_back(
-		{
-			glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)),
-			color
-		});
-		vertices.push_back(
-		{
-			glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)),
-			color
-		});
-		vertices.push_back(
-		{
-			glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)),
-			color
-		});
-		vertices.push_back(
-		{
-			glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)),
-			color
-		});
-		vertices.push_back(
-		{
-			glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)),
-			color
-		});
-		vertices.push_back({
-			glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)),
-			color
-		});
-		vertices.push_back({
-			glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)),
-			color
-		});
-
-		// Setup indices
-
-		indices.push_back(0 + verticeCount);
-		indices.push_back(1 + verticeCount);
-		indices.push_back(1 + verticeCount);
-		indices.push_back(3 + verticeCount);
-		indices.push_back(3 + verticeCount);
-		indices.push_back(2 + verticeCount);
-		indices.push_back(2 + verticeCount);
-		indices.push_back(0 + verticeCount);
-		indices.push_back(0 + verticeCount);
-		indices.push_back(4 + verticeCount);
-		indices.push_back(4 + verticeCount);
-		indices.push_back(6 + verticeCount);
-		indices.push_back(6 + verticeCount);
-		indices.push_back(2 + verticeCount);
-		indices.push_back(3 + verticeCount);
-		indices.push_back(7 + verticeCount);
-		indices.push_back(7 + verticeCount);
-		indices.push_back(6 + verticeCount);
-		indices.push_back(1 + verticeCount);
-		indices.push_back(5 + verticeCount);
-		indices.push_back(5 + verticeCount);
-		indices.push_back(4 + verticeCount);
-		indices.push_back(5 + verticeCount);
-		indices.push_back(7 + verticeCount);
-
-		verticeCount += 8;
-
-	}
-}
-
-void PartitionEqualCounts(int dim, int first, int last, int& mid, std::vector<SBVHGeometryInfo>& geomInfos) {
 	// Partial sorting along the maximum extent and split at the middle
 	// Sort evenly to each half
 	mid = (first + last) / 2;
@@ -138,12 +55,177 @@ void PartitionEqualCounts(int dim, int first, int last, int& mid, std::vector<SB
 
 }
 
+void SBVH::PartitionObjects(
+	Cost minCostBucket,
+	Dim dim,
+	PrimID first, 
+	PrimID last, 
+	PrimID& mid,
+	std::vector<PrimInfo>& geomInfos, 
+	BBox& bboxCentroids
+	) {
+	
+	size_t numPrimitives = last - first;
+	// Split node
+	PrimInfo *pmid = std::partition(
+		&geomInfos[first], &geomInfos[last - 1] + 1,
+		[=](const PrimInfo& gi)
+	{
+		// Partition geometry into two halves, before and after the split
+		int whichBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
+		assert(whichBucket <= NUM_BUCKET);
+		if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
+		return whichBucket <= minCostBucket;
+	});
+	mid = pmid - &geomInfos[0];
+}
+
+void SBVH::PartitionSpatial(
+	Cost minCostBucket,
+	Dim dim,
+	PrimID first,
+	PrimID last,
+	PrimID& mid,
+	std::vector<PrimInfo>& geomInfos,
+	BBox& bboxCentroids,
+	BBox& bboxAllGeoms
+	) 
+{
+	PrimInfo *pmid = std::partition(
+		&geomInfos[first], &geomInfos[last - 1] + 1,
+		[=](const PrimInfo& gi)
+	{
+		if (false)//gi.straddling)
+		{
+			// Sort straddling primitive based on their centroids
+			int centroidBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
+			assert(centroidBucket <= NUM_BUCKET);
+			if (centroidBucket == NUM_BUCKET) centroidBucket = NUM_BUCKET - 1;
+			return centroidBucket <= minCostBucket;
+		}
+		else
+		{
+			// Sort all other primitives based on their max bounds
+			int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
+			assert(startEdgeBucket <= NUM_BUCKET);
+			if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
+
+			return startEdgeBucket <= minCostBucket;
+		}
+
+	});
+	mid = pmid - &geomInfos[0];
+}
+
+SBVHLeaf* SBVH::CreateLeaf(
+	SBVHNode* parent,
+	PrimID first,
+	PrimID last,
+	PrimID& nodeCount,
+	std::vector<PrimInfo>& geomInfos,
+	std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
+	BBox& bboxAllGeoms
+	) {
+
+	size_t numPrimitives = last - first;
+
+	size_t firstGeomOffset = orderedGeoms.size();
+	std::vector<PrimID> geomIds;
+	for (int i = first; i < last; i++)
+	{
+		int geomIdx = geomInfos[i].primitiveId;
+		orderedGeoms.push_back(m_geoms[geomIdx]);
+		geomIds.push_back(geomIdx);
+
+	}
+	SBVHLeaf* leaf = new SBVHLeaf(parent, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
+	nodeCount++;
+	leaf->m_geomIds = geomIds;
+	return leaf;
+}
+
+SBVHNode* SBVH::CreateNode(
+	SBVHNode* parent,
+	SBVHNode* nearChild,
+	SBVHNode* farChild,
+	PrimID& nodeCount,
+	Dim dim
+	) {
+	SBVHNode* node = new SBVHNode(parent, nearChild, farChild, nodeCount, dim);
+	nodeCount++;
+	return node;
+}
+
+std::tuple<Cost, BucketID> 
+SBVH::CalculateObjectSplitCost(
+	Dim dim,
+	PrimID first,
+	PrimID last,
+	std::vector<PrimInfo>& geomInfos,
+	BBox& bboxCentroids,
+	BBox& bboxAllGeoms
+	) const 
+{
+	BucketInfo buckets[NUM_BUCKET];
+	Cost costs[NUM_BUCKET - 1];
+	float invAllGeometriesSA = 1.0f / bboxAllGeoms.GetSurfaceArea();
+
+	// For each primitive in range, determine which bucket it falls into
+	for (int i = first; i < last; i++)
+	{
+		int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
+		assert(whichBucket <= NUM_BUCKET);
+		if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
+
+		buckets[whichBucket].count++;
+		buckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
+	}
+
+	// Compute cost for splitting after each bucket
+	for (int i = 0; i < NUM_BUCKET - 1; i++)
+	{
+		BBox bbox0, bbox1;
+		int count0 = 0, count1 = 0;
+
+		// Compute cost for buckets before split candidate
+		for (int j = 0; j <= i; j++)
+		{
+			bbox0 = BBox::BBoxUnion(bbox0, buckets[j].bbox);
+			count0 += buckets[j].count;
+		}
+
+		// Compute cost for buckets after split candidate
+		for (int j = i + 1; j < NUM_BUCKET; j++)
+		{
+			bbox1 = BBox::BBoxUnion(bbox1, buckets[j].bbox);
+			count1 += buckets[j].count;
+		}
+
+		costs[i] = COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;
+	}
+
+	// Now that we have the costs, we can loop through our buckets and find
+	// which bucket has the lowest cost
+	Cost minCost = costs[0];
+	BucketID minCostBucket = 0;
+	for (int i = 1; i < NUM_BUCKET - 1; i++)
+	{
+		if (costs[i] < minCost)
+		{
+			minCost = costs[i];
+			minCostBucket = i;
+		}
+	}
+
+	return std::tuple<Cost, BucketID>(minCost, minCostBucket);
+}
+
 SBVHNode*
 SBVH::BuildRecursive(
-	std::vector<SBVHGeometryInfo>& geomInfos, 
-	int first, 
-	int last, 
-	size_t& nodeCount,
+	PrimID first, 
+	PrimID last,
+	PrimID& nodeCount,
+	std::vector<PrimInfo>& geomInfos,
 	std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
 	int depth
 	) 
@@ -161,29 +243,17 @@ SBVH::BuildRecursive(
 
 	// Num primitive should only reflect unique IDs
 	int numPrimitives = 0;
-	std::unordered_set<GeomId> uniqueGeomIds;
+	std::unordered_set<PrimID> uniqueGeomIds;
 	for (int i = first; i < last; i++) {
-		if (uniqueGeomIds.find(geomInfos[i].geometryId) == uniqueGeomIds.end()) {
+		if (uniqueGeomIds.find(geomInfos[i].primitiveId) == uniqueGeomIds.end()) {
 			++numPrimitives;
-			uniqueGeomIds.insert(geomInfos[i].geometryId);
+			uniqueGeomIds.insert(geomInfos[i].primitiveId);
 		}
 	}
 	
 	// == GENERATE SINGLE GEOMETRY LEAF NODE
 	if (numPrimitives == 1) {
-		// Create a leaf node
-		size_t firstGeomOffset = orderedGeoms.size();
-
-		GeomId geomIdx = geomInfos[first].geometryId;
-		// If this geometry has been added to order list, add it now
-		if (std::find(orderedGeoms.begin(), orderedGeoms.end(), m_geoms[geomIdx]) == orderedGeoms.end())
-		{
-			orderedGeoms.push_back(m_geoms[geomIdx]);
-		}
-		SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
-		leaf->m_geomIds.push_back(geomIdx);
-		nodeCount++;
-		return leaf;
+		return CreateLeaf(nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms);
 	}
 
 	// COMPUTE BOUNDS OF ALL CENTROIDS
@@ -193,57 +263,23 @@ SBVH::BuildRecursive(
 	}
 
 	// Get maximum extent
-	auto dim = static_cast<int>((BBox::BBoxMaximumExtent(bboxCentroids)));
+	auto dim = BBox::BBoxMaximumExtent(bboxCentroids);
 
 	// === GENERATE PLANAR LEAF NODE
 	// If all centroids are the same, create leafe since there's no effective way to split the tree
 	if (bboxCentroids.m_max[dim] == bboxCentroids.m_min[dim]) {
-		// Create a leaf node
-		size_t firstGeomOffset = orderedGeoms.size();
-
-		bool nonStraddling = false;
-		std::vector<GeomId> geomIds;
-		for (int i = first; i < last; i++)
-		{
-			// Skipping straddling objects
-			if (geomInfos[i].straddling) continue;
-			nonStraddling = true;
-
-			int geomIdx = geomInfos[i].geometryId;
-			// If this geometry has been added to order list, add it now
-			if (std::find(orderedGeoms.begin(), orderedGeoms.end(), m_geoms[geomIdx]) == orderedGeoms.end())
-			{
-				orderedGeoms.push_back(m_geoms[geomIdx]);
-				geomIds.push_back(geomIdx);
-			}
-		}
-		if (nonStraddling) {
-			SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
-			leaf->m_geomIds = geomIds;
-			nodeCount++;
-			return leaf;
-		} else {
-			return nullptr;
-		}
+		return CreateLeaf(nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms);
 	}
 
-	// Create 12 buckets (based from pbrt)
-	struct BucketInfo
-	{
-		int count = 0;
-		BBox bbox;
-		int enter = 0; // Number of entering references
-		int exit = 0; // Number of exiting references 
-	};
-
-	const int NUM_BUCKET = 12;
 	BucketInfo buckets[NUM_BUCKET];
 	BucketInfo spatialSplitBuckets[NUM_BUCKET];
 	float costs[NUM_BUCKET - 1];
 	// For quick computation, store the inverse of all geoms surface area
 	float invAllGeometriesSA = 1.0f / bboxAllGeoms.GetSurfaceArea();
 
-	int mid;
+	std::tuple<Cost, BucketID> objSplitCost;
+
+	PrimID mid;
 	switch(m_splitMethod) {
 		case SpatialSplit_SAH:
 			// 1. Find object split candidate
@@ -256,27 +292,17 @@ SBVH::BuildRecursive(
 			}
 			else
 			{
-				std::vector<SBVHGeometryInfo> subGeomInfos;
+				std::vector<PrimInfo> subGeomInfos;
 
 				// Update maximum extend to be all bounding boxes, not just the centroids
-				dim = static_cast<int>((BBox::BBoxMaximumExtent(bboxAllGeoms)));
+				Dim maxAllPrims = BBox::BBoxMaximumExtent(bboxAllGeoms);
 
 				const float RESTRICT_ALPHA = 1e-5;
 
 				// === FIND OBJECT SPLIT CANDIDATE
 				// For each primitive in range, determine which bucket it falls into
-				for (int i = first; i < last; i++)
-				{
-					// Skipping subgeominfo objects
-					if (geomInfos[i].isSubGeom) continue;
-
-					int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
-					assert(whichBucket <= NUM_BUCKET);
-					if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-
-					buckets[whichBucket].count++;
-					buckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
-				}
+				std::tuple<Cost, BucketID> objSplitCost =
+					CalculateObjectSplitCost(dim, first, last, geomInfos, bboxCentroids, bboxAllGeoms);
 
 				// somehow we need to figure out how to clip primitives against bbox
 				// For each primitive in range, determine which bucket it falls into
@@ -285,8 +311,6 @@ SBVH::BuildRecursive(
 				float bucketSize = (bboxAllGeoms.m_max[dim] - bboxAllGeoms.m_min[dim]) / NUM_BUCKET;
 				for (int i = first; i < last; i++)
 				{
-					// Skipping straddling objects
-					if (geomInfos[i].straddling) continue;
 
 					// Check if geometry straddles across buckets
 					int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(geomInfos.at(i).bbox.m_min)[dim];;
@@ -298,7 +322,6 @@ SBVH::BuildRecursive(
 
 					if (startEdgeBucket != endEdgeBucket) {
 						// Geometry straddles across multiple buckets, split it
-						geomInfos[i].straddling = true;
 
 						spatialSplitBuckets[startEdgeBucket].enter++;
 						spatialSplitBuckets[endEdgeBucket].exit++;
@@ -315,12 +338,9 @@ SBVH::BuildRecursive(
 							bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);
 
 							// Create a new geom info to hold the splitted geometry
-							SBVHGeometryInfo newGeomInfo;
+							PrimInfo newGeomInfo;
 							newGeomInfo.bbox = bbox;
-							newGeomInfo.straddling = false;
-							newGeomInfo.geometryId = geomInfos.at(i).geometryId;
-							newGeomInfo.where = i;
-							newGeomInfo.isSubGeom = true;
+							newGeomInfo.primitiveId = geomInfos.at(i).primitiveId;
 							subGeomInfos.push_back(newGeomInfo);
 
 							spatialSplitBuckets[b].bbox = BBox::BBoxUnion(spatialSplitBuckets[b].bbox, bbox);
@@ -539,15 +559,8 @@ SBVH::BuildRecursive(
 					}
 				}
 
-				if (isSpatialSplit) {
-					// Insert new subGeomInfos
-					int offset = 0;
-					for (auto sg : subGeomInfos) {
-						geomInfos.insert(geomInfos.begin() + sg.where + offset, sg);
-						offset++;
-						last++;
-					}
-				}
+				objSplitCost =
+					CalculateObjectSplitCost(dim, first, last, geomInfos, bboxCentroids, bboxAllGeoms);
 
 				// == CREATE LEAF OR SPLIT
 				float leafCost = numPrimitives * COST_INTERSECTION;
@@ -555,64 +568,19 @@ SBVH::BuildRecursive(
 				{
 					// Split node
 
-					// @todo: this seems suspiciously incorrect
 					if (isSpatialSplit) {
-						SBVHGeometryInfo *pmid = std::partition(
-							&geomInfos[first], &geomInfos[last - 1] + 1,
-							[=](const SBVHGeometryInfo& gi)
-						{
-							if (gi.straddling) {
-								// Sort straddling primitive based on their centroids
-								int centroidBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
-								assert(centroidBucket <= NUM_BUCKET);
-								if (centroidBucket == NUM_BUCKET) centroidBucket = NUM_BUCKET - 1;
-								return centroidBucket <= minSplitCostBucket;
-							} else {
-								// Sort all other primitives based on their max bounds
-								int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
-								assert(startEdgeBucket <= NUM_BUCKET);
-								if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
-
-								return startEdgeBucket <= minSplitCostBucket;
-							}
-
-						});
-						mid = pmid - &geomInfos[0];
+						PartitionSpatial(std::get<BucketID>(objSplitCost), dim, first, last, mid, geomInfos, bboxCentroids, bboxAllGeoms);
 
 					} else {
-						SBVHGeometryInfo *pmid = std::partition(
-							&geomInfos[first], &geomInfos[last - 1] + 1,
-							[=](const SBVHGeometryInfo& gi)
-						{
-							// Partition geometry into two halves, before and after the split
-							int whichBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
-							assert(whichBucket <= NUM_BUCKET);
-							if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-							return whichBucket <= minSplitCostBucket;
-						});
-						mid = pmid - &geomInfos[0];
+						PartitionObjects(std::get<BucketID>(objSplitCost), dim, first, last, mid, geomInfos, bboxCentroids);
 					}
 				}
 				else
 				{
 					// == CREATE LEAF
-					// Cost of splitting buckets is too high, create a leaf node instead
-					size_t firstGeomOffset = orderedGeoms.size();
-
-					std::vector<GeomId> geomIds;
-					for (int i = first; i < last; i++)
-					{
-						int geomIdx = geomInfos[i].geometryId;
-
-						// If this geometry has been added to order list, add it now
-						if (std::find(orderedGeoms.begin(), orderedGeoms.end(), m_geoms[geomIdx]) == orderedGeoms.end()) {
-							orderedGeoms.push_back(m_geoms[geomIdx]);
-							geomIds.push_back(geomIdx);
-						}
-					}
-					SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
-					leaf->m_geomIds = geomIds;
-					nodeCount++;
+					SBVHLeaf* leaf = CreateLeaf(
+						nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms
+					);
 					return leaf;
 				}
 			}
@@ -622,83 +590,25 @@ SBVH::BuildRecursive(
 			if (numPrimitives <= 4)
 			{
 				PartitionEqualCounts(dim, first, last, mid, geomInfos);
-			} 
-			else 
+			}
+			else
 			{
-				// For each primitive in range, determine which bucket it falls into
-				for (int i = first; i < last; i++) {
-					int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
-					assert(whichBucket <= NUM_BUCKET);
-					if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-					
-					buckets[whichBucket].count++;
-					buckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
-				}
-
-				// Compute cost for splitting after each bucket
-				for (int i = 0; i < NUM_BUCKET - 1; i++) {
-					BBox bbox0, bbox1;
-					int count0 = 0, count1 = 0;
-
-					// Compute cost for buckets before split candidate
-					for (int j = 0; j <= i ; j++) {
-						bbox0 = BBox::BBoxUnion(bbox0, buckets[j].bbox);
-						count0 += buckets[j].count;
-					}
-
-					// Compute cost for buckets after split candidate
-					for (int j = i  + 1; j < NUM_BUCKET; j++)
-					{
-						bbox1 = BBox::BBoxUnion(bbox1, buckets[j].bbox);
-						count1 += buckets[j].count;
-					}
-
-					costs[i] = COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;
-				}
-
-				// Now that we have the costs, we can loop through our buckets and find
-				// which bucket has the lowest cost
-				float minCost = costs[0];
-				int minCostBucket = 0;
-				for (int i = 1; i < NUM_BUCKET - 1; i++) {
-					if (costs[i] < minCost) {
-						minCost = costs[i];
-						minCostBucket = i;
-					}
-				}
+				objSplitCost =
+					CalculateObjectSplitCost(dim, first, last, geomInfos, bboxCentroids, bboxAllGeoms);
 
 				// Either create a leaf or split
 				float leafCost = numPrimitives;
-				if (numPrimitives > m_maxGeomsInNode || minCost < leafCost) {
+				if (numPrimitives > m_maxGeomsInNode || std::get<Cost>(objSplitCost) < leafCost)
+				{
 					// Split node
-					SBVHGeometryInfo *pmid = std::partition(
-						&geomInfos[first], &geomInfos[last - 1] + 1,
-						[=](const SBVHGeometryInfo& gi)
-					{
-						// Partition geometry into two halves, before and after the split
-						int whichBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
-						assert(whichBucket <= NUM_BUCKET);
-						if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-						return whichBucket <= minCostBucket;
-					});
-					mid = pmid - &geomInfos[0];
-
-				} 
-				else {
-
+					PartitionObjects(std::get<BucketID>(objSplitCost), dim, first, last, mid, geomInfos, bboxCentroids);
+				}
+				else
+				{
 					// Cost of splitting buckets is too high, create a leaf node instead
-					size_t firstGeomOffset = orderedGeoms.size();
-					std::vector<GeomId> geomIds;
-					for (int i = first; i < last; i++)
-					{
-						int geomIdx = geomInfos[i].geometryId;
-						orderedGeoms.push_back(m_geoms[geomIdx]);
-						geomIds.push_back(geomIdx);
-
-					}
-					SBVHLeaf* leaf = new SBVHLeaf(nullptr, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
-					nodeCount++;
-					leaf->m_geomIds = geomIds;
+					SBVHLeaf* leaf = CreateLeaf(
+						nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms
+					);
 					return leaf;
 				}
 			}
@@ -711,16 +621,14 @@ SBVH::BuildRecursive(
 	}
 
 	// Build near child
-	EAxis splitAxis = static_cast<EAxis>(dim);;
-	if (depth == 42) {
-		std::cout << "here";
-	}
-	SBVHNode* nearChild = BuildRecursive(geomInfos, first, mid, nodeCount, orderedGeoms, depth + 1);
+	SBVHNode* nearChild = BuildRecursive(first, mid, nodeCount, geomInfos, orderedGeoms, depth + 1);
 
 	// Build far child
-	SBVHNode* farChild = BuildRecursive(geomInfos, mid, last, nodeCount, orderedGeoms, depth + 1);
+	SBVHNode* farChild = BuildRecursive(mid, last, nodeCount, geomInfos, orderedGeoms, depth + 1);
 
-	SBVHNode* node = new SBVHNode(nearChild, farChild, nodeCount, splitAxis);
+	SBVHNode* node = new SBVHNode(nullptr, nearChild, farChild, nodeCount, dim);
+	nearChild->m_parent = node;
+	farChild->m_parent = node;
 	nodeCount++;
 	return node;
 }
@@ -935,3 +843,93 @@ void SBVH::Flatten() {
 	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
 }
 
+void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices)
+{
+	size_t verticeCount = 0;
+	vec3 color;
+	for (auto node : m_nodes)
+	{
+		if (node->IsLeaf())
+		{
+			color = vec3(0, 1, 1);
+		}
+		else
+		{
+			color = vec3(1, 0, 0);
+		}
+		// Setup vertices
+		glm::vec3 centroid = node->m_bbox.m_centroid;
+		glm::vec3 translation = centroid;
+		glm::vec3 scale = glm::vec3(glm::vec3(node->m_bbox.m_max) - glm::vec3(node->m_bbox.m_min));
+		glm::mat4 transform = glm::translate(glm::mat4(1.0), translation) * glm::scale(glm::mat4(1.0f), scale);
+
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, .5f, .5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, .5f, -.5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, -.5f, .5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(.5f, -.5f, -.5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(-.5f, .5f, .5f, 1)),
+			color
+		});
+		vertices.push_back(
+		{
+			glm::vec3(transform * glm::vec4(-.5f, .5f, -.5f, 1)),
+			color
+		});
+		vertices.push_back({
+			glm::vec3(transform * glm::vec4(-.5f, -.5f, .5f, 1)),
+			color
+		});
+		vertices.push_back({
+			glm::vec3(transform * glm::vec4(-.5f, -.5f, -.5f, 1)),
+			color
+		});
+
+		// Setup indices
+
+		indices.push_back(0 + verticeCount);
+		indices.push_back(1 + verticeCount);
+		indices.push_back(1 + verticeCount);
+		indices.push_back(3 + verticeCount);
+		indices.push_back(3 + verticeCount);
+		indices.push_back(2 + verticeCount);
+		indices.push_back(2 + verticeCount);
+		indices.push_back(0 + verticeCount);
+		indices.push_back(0 + verticeCount);
+		indices.push_back(4 + verticeCount);
+		indices.push_back(4 + verticeCount);
+		indices.push_back(6 + verticeCount);
+		indices.push_back(6 + verticeCount);
+		indices.push_back(2 + verticeCount);
+		indices.push_back(3 + verticeCount);
+		indices.push_back(7 + verticeCount);
+		indices.push_back(7 + verticeCount);
+		indices.push_back(6 + verticeCount);
+		indices.push_back(1 + verticeCount);
+		indices.push_back(5 + verticeCount);
+		indices.push_back(5 + verticeCount);
+		indices.push_back(4 + verticeCount);
+		indices.push_back(5 + verticeCount);
+		indices.push_back(7 + verticeCount);
+
+		verticeCount += 8;
+
+	}
+}
