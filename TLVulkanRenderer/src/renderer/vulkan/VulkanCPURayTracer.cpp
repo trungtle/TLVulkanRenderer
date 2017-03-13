@@ -10,7 +10,7 @@
 
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 	vec3 color;
-	int depth = 1;
+	int depth = 3;
 	for (auto light : scene->lights) {
 		for (int i = 0; i < depth; i++)
 		{
@@ -24,7 +24,7 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 				}
 
 				// Shade material
-				color *= isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay.m_direction);
+				color *= isx.hitObject->GetMaterial()->EvaluateEnergy(isx, newRay.m_direction, newRay.m_direction);
 				color *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler
@@ -38,7 +38,9 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 			}
 			else
 			{
-				color *= 0.0f;
+				// Shade background
+				float t = 0.5 * newRay.m_direction.y + 1.0f;
+				color = (1.0f - t) * vec3(1, 1, 1) + t * vec3(0.5, 0.7, 1.0);
 				break;
 			}
 		}

@@ -1,21 +1,13 @@
 #include "LambertMaterial.h"
 #include <geometry/Geometry.h>
 
-glm::vec3 LambertMaterial::EvaluateEnergy(const Intersection& isx, const glm::vec3& in, glm::vec3& out) 
+glm::vec3 LambertMaterial::EvaluateEnergy(
+	const Intersection& isx, 
+	const glm::vec3& lightDirection, 
+	const glm::vec3& in, 
+	glm::vec3& out)
 {
 	vec3 color;
-	// @todo: Back face culling
-	//if (dot(in, isx.hitNormal) < 0)
-	//{
-	//	return color;
-	//}
-
-	// === Reflection === //
-	if (m_reflectivity > 0)
-	{
-		out = normalize(reflect(out, isx.hitNormal));
-		return m_colorReflective;
-	}
 
 	// === Refraction === //
 	if (false)
@@ -35,13 +27,12 @@ glm::vec3 LambertMaterial::EvaluateEnergy(const Intersection& isx, const glm::ve
 	}
 	
 	// Use half lambert here to pop up the color
-	float lambert = glm::dot(in, isx.hitNormal) * 0.5 + 0.5;
+	float diffuse = glm::dot(lightDirection, isx.hitNormal) * 0.5 + 0.5;
+	//float specular = (m_shininess + 8) / (8 * PI)
 	color = glm::clamp(
-		lambert, 0.0f, 1.0f) * m_colorDiffuse * isx.hitTextureColor + m_colorAmbient;
+		diffuse, 0.0f, 1.0f) * isx.hitTextureColor + m_colorAmbient;
 
-	if (m_reflectivity > 0) {
-		color *= m_colorReflective;
-	}
+	// Out direction is some random on the hemisphere
 
 	return color;
 }

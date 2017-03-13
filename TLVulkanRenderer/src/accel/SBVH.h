@@ -199,7 +199,7 @@ protected:
 		BBox& bboxAllGeoms
 		);
 
-	SBVHNode*
+	static SBVHNode*
 	CreateNode(
 		SBVHNode* parent,
 		SBVHNode* nearChild,
@@ -223,11 +223,9 @@ protected:
 
 	std::tuple<Cost, BucketID>
 	CalculateSpatialSplitCost(
-		Cost minCostBucket,
 		Dim dim,
 		PrimID first,
 		PrimID last,
-		PrimID& mid,
 		std::vector<PrimInfo>& geomInfos,
 		BBox& bboxCentroids,
 		BBox& bboxAllGeoms

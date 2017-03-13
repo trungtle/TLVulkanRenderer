@@ -166,8 +166,9 @@
     <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
     <ClInclude Include="src\geometry\materials\Material.h" />
     <ClInclude Include="src\accel\SBVH.h" />
+    <ClInclude Include="src\geometry\materials\MetalMaterial.h" />
     <ClInclude Include="src\geometry\Transform.h" />
-    <ClInclude Include="src\ImageUtil.h" />
+    <ClInclude Include="src\Texture.h" />
     <ClInclude Include="src\MathUtil.h" />
     <ClInclude Include="src\renderer\Film.h" />
     <ClInclude Include="src\geometry\Ray.h" />
@@ -206,6 +207,8 @@
     <None Include="..\README.md" />
     <None Include="shaders\fragShader.frag" />
     <None Include="shaders\fragShader.spv" />
+    <None Include="shaders\raytracing\ACESfilm.frag" />
+    <None Include="shaders\raytracing\pass-through.vert" />
     <None Include="shaders\raytracing\quad.frag" />
     <None Include="shaders\raytracing\quad.vert" />
     <None Include="shaders\raytracing\raytrace.comp" />
@@ -222,6 +225,7 @@
     <ClCompile Include="src\geometry\Geometry.cpp" />
     <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
     <ClCompile Include="src\accel\SBVH.cpp" />
+    <ClCompile Include="src\geometry\materials\MetalMaterial.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanCPURayTracer.cpp" />

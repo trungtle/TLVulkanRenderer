@@ -220,6 +220,18 @@ SBVH::CalculateObjectSplitCost(
 	return std::tuple<Cost, BucketID>(minCost, minCostBucket);
 }
 
+std::tuple<Cost, BucketID> 
+SBVH::CalculateSpatialSplitCost(
+	Dim dim, 
+	PrimID first, 
+	PrimID last, 
+	std::vector<PrimInfo>& geomInfos, 
+	BBox& bboxCentroids, 
+	BBox& bboxAllGeoms
+	) 
+{
+}
+
 SBVHNode*
 SBVH::BuildRecursive(
 	PrimID first, 
@@ -558,9 +570,6 @@ SBVH::BuildRecursive(
 						}
 					}
 				}
-
-				objSplitCost =
-					CalculateObjectSplitCost(dim, first, last, geomInfos, bboxCentroids, bboxAllGeoms);
 
 				// == CREATE LEAF OR SPLIT
 				float leafCost = numPrimitives * COST_INTERSECTION;

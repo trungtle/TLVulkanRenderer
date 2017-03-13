@@ -45,6 +45,7 @@
     <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
     <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
     <ClCompile Include="src\accel\SBVH.cpp" />
+    <ClCompile Include="src\geometry\materials\MetalMaterial.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -128,7 +129,6 @@
     </ClInclude>
     <ClInclude Include="src\geometry\BBox.h" />
     <ClInclude Include="src\geometry\materials\Material.h" />
-    <ClInclude Include="src\ImageUtil.h" />
     <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
     <ClInclude Include="src\lights\Light.h" />
     <ClInclude Include="src\lights\PointLight.h" />
@@ -139,6 +139,8 @@
     <ClInclude Include="src\scene\sceneLoaders\SceneLoader.h" />
     <ClInclude Include="src\accel\SBVH.h" />
     <ClInclude Include="src\accel\AccelStructure.h" />
+    <ClInclude Include="src\geometry\materials\MetalMaterial.h" />
+    <ClInclude Include="src\Texture.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">
@@ -167,6 +169,8 @@
     <None Include="..\README.md" />
     <None Include="shaders\fragShader.spv" />
     <None Include="shaders\vertShader.spv" />
+    <None Include="shaders\raytracing\pass-through.vert" />
+    <None Include="shaders\raytracing\ACESfilm.frag" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

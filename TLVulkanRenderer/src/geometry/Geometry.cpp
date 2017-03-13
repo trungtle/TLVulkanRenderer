@@ -174,10 +174,11 @@ Intersection Triangle::GetIntersection(const Ray& r) {
 	// Color
 	glm::vec2 uv = uv0 * (1 - u - v) + uv1 * u + uv2 * v;
 
+	CheckerTexture checkerTexture;
 	isx.hitPoint = r.GetPointOnRay(t);
 	isx.hitNormal = normalize(norm0 * (1 - u - v) + norm1 * u + norm2 * v);
 	isx.t = t;
-	isx.hitTextureColor = m_material->m_colorDiffuse;
+	isx.hitTextureColor = m_material->m_texture != nullptr ? checkerTexture.value(uv, isx.hitPoint) : m_material->m_texture->value(uv, isx.hitPoint);
 	isx.hitObject = this;
 
 	return isx;

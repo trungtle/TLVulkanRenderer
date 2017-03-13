@@ -957,7 +957,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 					//TextureData* dev_diffuseTex = NULL;
 					MaterialPacked materialPacked;
-					Texture texture;
+					Texture* texture = nullptr;
 					if (!primitive.material.empty()) {
 						const tinygltf::Material& mat = tinygltfScene.materials.at(primitive.material);
 
@@ -969,11 +969,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 									const tinygltf::Image& image = tinygltfScene.images.at(tex.source);
 
 									// Texture bytes
-									texture.width = image.width;
-									texture.height = image.height;
-									texture.component = image.component;
-									texture.name = image.name;
-									texture.image = image.image;
+									texture = new ImageTexture(image.name, image.image, image.width, image.height);
 								}
 							}
 							else {

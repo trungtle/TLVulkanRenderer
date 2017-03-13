@@ -12,6 +12,8 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
+### March 10, 2017 - Added texture, refactored SBVH, added background
+
 ### Feb 26, 2017 - More SBVH fixes
 
 This is a fairly short update. I spent most of the time fixing several bugs from building the SBVH. 

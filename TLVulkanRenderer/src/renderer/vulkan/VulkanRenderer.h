@@ -75,6 +75,9 @@ protected:
 	PrepareGraphicsPipeline();
 
 	virtual VkResult
+	PreparePostProcessingPipeline();
+
+	virtual VkResult
 	PrepareGraphicsVertexBuffer();
 
 	virtual VkResult
@@ -196,7 +199,16 @@ protected:
 		*/
 		VkQueue queue;
 
+
 	} m_graphics;
+
+	struct Quad
+	{
+		std::vector<uint16_t> indices;
+		std::vector<vec2> positions;
+		std::vector<vec2> uvs;
+	} m_post_quad;
+
 
 	/**
 	 * \brief Semaphores to signal when to acquire and present swapchain images
