@@ -3,14 +3,12 @@
 #include <iostream>
 #include <unordered_set>
 
-const int NUM_BUCKET = 12;
-
 // This comparator is used to sort bvh nodes based on its centroid's maximum extent
 struct CompareCentroid
 {
-	CompareCentroid(int dim) : dim(dim) {};
+	CompareCentroid(Dim dim) : dim(dim) {};
 
-	int dim;
+	Dim dim;
 	bool operator()(const PrimInfo node1, PrimInfo node2) const {
 		return node1.bbox.m_centroid[dim] < node2.bbox.m_centroid[dim];
 	}
@@ -18,25 +16,25 @@ struct CompareCentroid
 
 void 
 SBVH::Build(
-	std::vector<std::shared_ptr<Geometry>>& geoms
+	std::vector<std::shared_ptr<Geometry>>& prims
 )
 {
-	m_geoms = geoms;
-	if (geoms.size() == 0) {
+	m_prims = prims;
+	if (prims.size() == 0) {
 		return;
 	}
 
-	// Initialize geom info
-	std::vector<PrimInfo> geomInfos(geoms.size());
-	for (size_t i = 0; i < geomInfos.size(); i++)
+	// Initialize primitives info
+	std::vector<PrimInfo> primInfos(prims.size());
+	for (size_t i = 0; i < primInfos.size(); i++)
 	{
-		geomInfos[i] = { i, geoms[i]->GetBBox()};
+		primInfos[i] = { i, prims[i]->GetBBox()};
 	}
 
-	size_t totalNodes = 0;
+	PrimID totalNodes = 0;
 
 	std::vector<std::shared_ptr<Geometry>> orderedGeoms;
-	m_root = BuildRecursive(0, geomInfos.size(), totalNodes, geomInfos, orderedGeoms, 0);
+	m_root = BuildRecursive(0, primInfos.size(), totalNodes, primInfos, orderedGeoms, 0);
 	//m_geoms.swap(orderedGeoms);
 	Flatten();
 }
@@ -65,8 +63,6 @@ void SBVH::PartitionObjects(
 	BBox& bboxCentroids
 	) {
 	
-	size_t numPrimitives = last - first;
-	// Split node
 	PrimInfo *pmid = std::partition(
 		&geomInfos[first], &geomInfos[last - 1] + 1,
 		[=](const PrimInfo& gi)
@@ -87,7 +83,6 @@ void SBVH::PartitionSpatial(
 	PrimID last,
 	PrimID& mid,
 	std::vector<PrimInfo>& geomInfos,
-	BBox& bboxCentroids,
 	BBox& bboxAllGeoms
 	) 
 {
@@ -95,24 +90,11 @@ void SBVH::PartitionSpatial(
 		&geomInfos[first], &geomInfos[last - 1] + 1,
 		[=](const PrimInfo& gi)
 	{
-		if (false)//gi.straddling)
-		{
-			// Sort straddling primitive based on their centroids
-			int centroidBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
-			assert(centroidBucket <= NUM_BUCKET);
-			if (centroidBucket == NUM_BUCKET) centroidBucket = NUM_BUCKET - 1;
-			return centroidBucket <= minCostBucket;
-		}
-		else
-		{
-			// Sort all other primitives based on their max bounds
-			int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
-			assert(startEdgeBucket <= NUM_BUCKET);
-			if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
+		int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
+		assert(startEdgeBucket <= NUM_BUCKET);
+		if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
 
-			return startEdgeBucket <= minCostBucket;
-		}
-
+		return startEdgeBucket <= minCostBucket;
 	});
 	mid = pmid - &geomInfos[0];
 }
@@ -134,7 +116,7 @@ SBVHLeaf* SBVH::CreateLeaf(
 	for (int i = first; i < last; i++)
 	{
 		int geomIdx = geomInfos[i].primitiveId;
-		orderedGeoms.push_back(m_geoms[geomIdx]);
+		orderedGeoms.push_back(m_prims[geomIdx]);
 		geomIds.push_back(geomIdx);
 
 	}
@@ -225,11 +207,223 @@ SBVH::CalculateSpatialSplitCost(
 	Dim dim, 
 	PrimID first, 
 	PrimID last, 
-	std::vector<PrimInfo>& geomInfos, 
+	std::vector<PrimInfo>& primInfos, 
 	BBox& bboxCentroids, 
-	BBox& bboxAllGeoms
-	) 
-{
+	BBox& bboxAllGeoms,
+	std::vector<BucketInfo>& buckets
+	) const {
+
+	Cost costs[NUM_BUCKET - 1];
+	float invAllGeometriesSA = 1.0f / bboxAllGeoms.GetSurfaceArea();
+	float bucketSize = (bboxAllGeoms.m_max[dim] - bboxAllGeoms.m_min[dim]) / NUM_BUCKET;
+
+
+	// For each primitive in range, determine which bucket it falls into
+	for (int i = first; i < last; i++)
+	{
+		int minBucket = NUM_BUCKET * bboxAllGeoms.Offset(primInfos.at(i).bbox.m_min)[dim];
+		assert(minBucket <= NUM_BUCKET);
+		if (minBucket == NUM_BUCKET) minBucket = NUM_BUCKET - 1;
+
+		int maxBucket = NUM_BUCKET * bboxAllGeoms.Offset(primInfos.at(i).bbox.m_max)[dim];
+		assert(maxBucket <= NUM_BUCKET);
+		if (maxBucket == NUM_BUCKET) maxBucket = NUM_BUCKET - 1;
+
+		buckets[minBucket].enter++;
+		buckets[maxBucket].exit++;
+
+		if (minBucket != maxBucket)
+		{
+			// Naively split into equal sized bboxes
+			for (auto b = minBucket; b <= maxBucket; b++)
+			{
+				BBox bbox = primInfos.at(i).bbox;
+				float nearSplitPlane = b * bucketSize + bboxAllGeoms.m_min[dim];
+				float farSplitPlane = nearSplitPlane + bucketSize;
+				bbox.m_min[dim] = max(bbox.m_min[dim], nearSplitPlane);
+				bbox.m_max[dim] = min(bbox.m_max[dim], farSplitPlane);
+				assert(bbox.m_min[dim] < bbox.m_max[dim]);
+				bbox.m_centroid = BBox::Centroid(bbox.m_min, bbox.m_max);
+				bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);
+#ifdef TIGHT_BBOX
+				vec3 pointOnSplittingPlane = bboxAllGeoms.m_min;
+				for (auto bucket = startEdgeBucket; bucket < endEdgeBucket; bucket++)
+				{
+					// Get the primitive reference from geometry info, then clip it against the splitting plane
+					std::shared_ptr<Geometry> pGeom = m_geoms[geomInfos[i].geometryId];
+
+					// Cast to triangle
+					Triangle* pTri = dynamic_cast<Triangle*>(pGeom.get());
+					if (pTri == nullptr)
+					{
+						// not a triangle
+						// Geometry reference completely falls inside bucket
+						int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
+						assert(whichBucket <= NUM_BUCKET);
+						if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
+
+						spatialSplitBuckets[whichBucket].count++;
+						spatialSplitBuckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
+						geomInfos[i].straddling = false;
+						break;
+
+					}
+
+					// Find intersection with splitting plane
+					pointOnSplittingPlane[dim] = bucketSize * (bucket + 1) + bboxAllGeoms.m_min[dim];
+
+					vec3 planeNormal;
+					EAxis splittinPlaneAxis[2];
+					switch (dim)
+					{
+						case EAxis::X:
+							// Find Y and Z intersections
+							planeNormal = vec3(1, 0, 0);
+							splittinPlaneAxis[0] = EAxis::Y;
+							splittinPlaneAxis[1] = EAxis::Z;
+							break;
+						case EAxis::Y:
+							// Find X and Z intersections
+							planeNormal = vec3(0, 1, 0);
+							splittinPlaneAxis[0] = EAxis::X;
+							splittinPlaneAxis[1] = EAxis::Z;
+							break;
+						case EAxis::Z:
+							// Find Y and X intersections
+							planeNormal = vec3(0, 0, 1);
+							splittinPlaneAxis[0] = EAxis::X;
+							splittinPlaneAxis[1] = EAxis::Y;
+							break;
+					}
+
+					bool isVert0BelowPlane = dot(pTri->vert0 - pointOnSplittingPlane, planeNormal) < 0;
+					bool isVert1BelowPlane = dot(pTri->vert1 - pointOnSplittingPlane, planeNormal) < 0;
+					bool isVert2BelowPlane = dot(pTri->vert2 - pointOnSplittingPlane, planeNormal) < 0;
+
+					// Assert that not all vertices lie on the same side of the splitting plane
+					assert(!(isVert0BelowPlane && isVert1BelowPlane && isVert2BelowPlane));
+					assert(!(!isVert0BelowPlane && !isVert1BelowPlane && !isVert2BelowPlane));
+
+					// Use similar triangles to find the point of intersection on splitting plane
+					vec3 pointAbove;
+					vec3 pointsBelow[2];
+					if (isVert0BelowPlane && isVert1BelowPlane)
+					{
+						pointAbove = pTri->vert2;
+						pointsBelow[0] = pTri->vert0;
+						pointsBelow[1] = pTri->vert1;
+					}
+					else if (isVert0BelowPlane && isVert2BelowPlane)
+					{
+						pointAbove = pTri->vert1;
+						pointsBelow[0] = pTri->vert0;
+						pointsBelow[1] = pTri->vert2;
+					}
+					else if (isVert1BelowPlane && isVert2BelowPlane)
+					{
+						pointAbove = pTri->vert0;
+						pointsBelow[0] = pTri->vert1;
+						pointsBelow[1] = pTri->vert2;
+					}
+
+					std::vector<vec3> isxPoints;
+					for (auto pointBelow : pointsBelow)
+					{
+						vec3 isxPoint;
+						for (auto axis = 0; axis < 2; axis++)
+						{
+							isxPoint[dim] = pointOnSplittingPlane[dim];
+							isxPoint[splittinPlaneAxis[axis]] =
+								((pointBelow[splittinPlaneAxis[axis]] - pointAbove[splittinPlaneAxis[axis]]) /
+								(pointBelow[dim] - pointAbove[dim])) *
+									(pointOnSplittingPlane[dim] - pointAbove[dim]) +
+								pointAbove[splittinPlaneAxis[axis]];
+						}
+						isxPoints.push_back(isxPoint);
+					}
+
+					// Found intersection, grow tight bounding box of reference for bucket
+					SBVHGeometryInfo tightBBoxGeomInfo;
+
+					// Create additional geometry info to whole the new tight bbox
+					tightBBoxGeomInfo.geometryId = geomInfos[i].geometryId;
+					tightBBoxGeomInfo.bbox = BBox::BBoxFromPoints(isxPoints);
+					if (pTri->vert0[dim] > pointOnSplittingPlane[dim] - bucketSize &&
+						pTri->vert0[dim] < pointOnSplittingPlane[dim])
+					{
+						tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert0);
+					}
+					if (pTri->vert1[dim] > pointOnSplittingPlane[dim] - bucketSize &&
+						pTri->vert1[dim] < pointOnSplittingPlane[dim])
+					{
+						tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert1);
+					}
+					if (pTri->vert2[dim] > pointOnSplittingPlane[dim] - bucketSize &&
+						pTri->vert2[dim] < pointOnSplittingPlane[dim])
+					{
+						tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert2);
+					}
+
+					geomInfos.push_back(tightBBoxGeomInfo);
+
+					spatialSplitBuckets[bucket].bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, spatialSplitBuckets[bucket].bbox);
+				}
+
+				// Increment entering and exiting reference counts
+				spatialSplitBuckets[startEdgeBucket].enter++;
+				spatialSplitBuckets[endEdgeBucket].exit++;
+#endif
+				// Create a new geom info to hold the splitted geometry
+				PrimInfo fragInfo;
+				fragInfo.bbox = bbox;
+				fragInfo.primitiveId = primInfos.at(i).primitiveId;
+				fragInfo.origPrimOffset = i;
+				buckets[b].fragments.push_back(fragInfo);
+
+				buckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, bbox);
+			}
+		} else {
+			buckets[minBucket].bbox = primInfos.at(i).bbox;
+		}
+	}
+
+	// Compute cost for splitting after each bucket
+	for (int i = 0; i < NUM_BUCKET - 1; i++)
+	{
+		BBox bbox0, bbox1;
+		int count0 = 0, count1 = 0;
+
+		// Compute cost for buckets before split candidate
+		for (BucketID j = 0; j <= i; j++)
+		{
+			bbox0 = BBox::BBoxUnion(bbox0, buckets[j].bbox);
+			count0 += buckets[j].enter;
+		}
+
+		// Compute cost for buckets after split candidate
+		for (BucketID j = i + 1; j < NUM_BUCKET; j++)
+		{
+			bbox1 = BBox::BBoxUnion(bbox1, buckets[j].bbox);
+			count1 += buckets[j].exit;
+		}
+
+		costs[i] = COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;
+	}
+
+	// Now that we have the costs, we can loop through our buckets and find
+	// which bucket has the lowest cost
+	Cost minCost = costs[0];
+	BucketID minCostBucket = 0;
+	for (int i = 1; i < NUM_BUCKET - 1; i++)
+	{
+		if (costs[i] < minCost)
+		{
+			minCost = costs[i];
+			minCostBucket = i;
+		}
+	}
+
+	return std::tuple<Cost, BucketID>(minCost, minCostBucket);
 }
 
 SBVHNode*
@@ -254,14 +448,7 @@ SBVH::BuildRecursive(
 	}
 
 	// Num primitive should only reflect unique IDs
-	int numPrimitives = 0;
-	std::unordered_set<PrimID> uniqueGeomIds;
-	for (int i = first; i < last; i++) {
-		if (uniqueGeomIds.find(geomInfos[i].primitiveId) == uniqueGeomIds.end()) {
-			++numPrimitives;
-			uniqueGeomIds.insert(geomInfos[i].primitiveId);
-		}
-	}
+	int numPrimitives = last - first;
 	
 	// == GENERATE SINGLE GEOMETRY LEAF NODE
 	if (numPrimitives == 1) {
@@ -283,12 +470,6 @@ SBVH::BuildRecursive(
 		return CreateLeaf(nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms);
 	}
 
-	BucketInfo buckets[NUM_BUCKET];
-	BucketInfo spatialSplitBuckets[NUM_BUCKET];
-	float costs[NUM_BUCKET - 1];
-	// For quick computation, store the inverse of all geoms surface area
-	float invAllGeometriesSA = 1.0f / bboxAllGeoms.GetSurfaceArea();
-
 	std::tuple<Cost, BucketID> objSplitCost;
 
 	PrimID mid;
@@ -304,271 +485,48 @@ SBVH::BuildRecursive(
 			}
 			else
 			{
-				std::vector<PrimInfo> subGeomInfos;
-
 				// Update maximum extend to be all bounding boxes, not just the centroids
-				Dim maxAllPrims = BBox::BBoxMaximumExtent(bboxAllGeoms);
+				Dim allGeomsDim = BBox::BBoxMaximumExtent(bboxAllGeoms);
 
 				const float RESTRICT_ALPHA = 1e-5;
 
 				// === FIND OBJECT SPLIT CANDIDATE
 				// For each primitive in range, determine which bucket it falls into
-				std::tuple<Cost, BucketID> objSplitCost =
+				objSplitCost =
 					CalculateObjectSplitCost(dim, first, last, geomInfos, bboxCentroids, bboxAllGeoms);
 
-				// somehow we need to figure out how to clip primitives against bbox
-				// For each primitive in range, determine which bucket it falls into
-				// If a primitive straddles across multiple buckets, chop it into
-				// multiple tight bounding boxes that only fits inside each bucket
-				float bucketSize = (bboxAllGeoms.m_max[dim] - bboxAllGeoms.m_min[dim]) / NUM_BUCKET;
-				for (int i = first; i < last; i++)
-				{
+				std::vector<BucketInfo> spatialBuckets;
+				spatialBuckets.resize(NUM_BUCKET);
+				std::tuple<Cost, BucketID> spatialSplitCost =
+					CalculateSpatialSplitCost(allGeomsDim, first, last, geomInfos, bboxCentroids, bboxAllGeoms, spatialBuckets);
 
-					// Check if geometry straddles across buckets
-					int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(geomInfos.at(i).bbox.m_min)[dim];;
-					assert(startEdgeBucket <= NUM_BUCKET);
-					if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
-					int endEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(geomInfos.at(i).bbox.m_max)[dim];;
-					assert(endEdgeBucket <= NUM_BUCKET);
-					if (endEdgeBucket == NUM_BUCKET) endEdgeBucket = NUM_BUCKET - 1;
-
-					if (startEdgeBucket != endEdgeBucket) {
-						// Geometry straddles across multiple buckets, split it
-
-						spatialSplitBuckets[startEdgeBucket].enter++;
-						spatialSplitBuckets[endEdgeBucket].exit++;
-						// Naively split into equal sized bboxes
-						for (auto b = startEdgeBucket; b <= endEdgeBucket; b++)
-						{
-							BBox bbox = geomInfos.at(i).bbox;
-							float nearSplitPlane = startEdgeBucket * bucketSize + bboxAllGeoms.m_min[dim];
-							float farSplitPlane = nearSplitPlane + bucketSize;
-							bbox.m_min[dim] = max(bbox.m_min[dim], nearSplitPlane);
-							bbox.m_max[dim] = min(bbox.m_max[dim], farSplitPlane);
-							assert(bbox.m_min[dim] < bbox.m_max[dim]);
-							bbox.m_centroid = BBox::Centroid(bbox.m_min, bbox.m_max);
-							bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);
-
-							// Create a new geom info to hold the splitted geometry
-							PrimInfo newGeomInfo;
-							newGeomInfo.bbox = bbox;
-							newGeomInfo.primitiveId = geomInfos.at(i).primitiveId;
-							subGeomInfos.push_back(newGeomInfo);
-
-							spatialSplitBuckets[b].bbox = BBox::BBoxUnion(spatialSplitBuckets[b].bbox, bbox);
-						}
-
-#ifdef TIGHT_BBOX
-						vec3 pointOnSplittingPlane = bboxAllGeoms.m_min;
-						for (auto bucket = startEdgeBucket; bucket < endEdgeBucket; bucket++) {
-							// Get the primitive reference from geometry info, then clip it against the splitting plane
-							std::shared_ptr<Geometry> pGeom = m_geoms[geomInfos[i].geometryId];
-
-							// Cast to triangle
-							Triangle* pTri = dynamic_cast<Triangle*>(pGeom.get());
-							if (pTri == nullptr) {
-								// not a triangle
-								// Geometry reference completely falls inside bucket
-								int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
-								assert(whichBucket <= NUM_BUCKET);
-								if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-
-								spatialSplitBuckets[whichBucket].count++;
-								spatialSplitBuckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
-								geomInfos[i].straddling = false;
-								break;
-
-							}
-
-							// Find intersection with splitting plane
-							pointOnSplittingPlane[dim] = bucketSize * (bucket + 1) + bboxAllGeoms.m_min[dim];
-
-							vec3 planeNormal;
-							EAxis splittinPlaneAxis[2];
-							switch(dim) {
-								case EAxis::X:
-									// Find Y and Z intersections
-									planeNormal = vec3(1, 0, 0);
-									splittinPlaneAxis[0] = EAxis::Y;
-									splittinPlaneAxis[1] = EAxis::Z;
-									break;
-								case EAxis::Y:
-									// Find X and Z intersections
-									planeNormal = vec3(0, 1, 0);
-									splittinPlaneAxis[0] = EAxis::X;
-									splittinPlaneAxis[1] = EAxis::Z;
-									break;
-								case EAxis::Z:
-									// Find Y and X intersections
-									planeNormal = vec3(0, 0, 1);
-									splittinPlaneAxis[0] = EAxis::X;
-									splittinPlaneAxis[1] = EAxis::Y;
-									break;
-							}
-
-							bool isVert0BelowPlane = dot(pTri->vert0 - pointOnSplittingPlane, planeNormal) < 0;
-							bool isVert1BelowPlane = dot(pTri->vert1 - pointOnSplittingPlane, planeNormal) < 0;
-							bool isVert2BelowPlane = dot(pTri->vert2 - pointOnSplittingPlane, planeNormal) < 0;
-
-							// Assert that not all vertices lie on the same side of the splitting plane
-							assert(!(isVert0BelowPlane && isVert1BelowPlane && isVert2BelowPlane));
-							assert(!(!isVert0BelowPlane && !isVert1BelowPlane && !isVert2BelowPlane));
-
-							// Use similar triangles to find the point of intersection on splitting plane
-							vec3 pointAbove;
-							vec3 pointsBelow[2];
-							if (isVert0BelowPlane && isVert1BelowPlane)
-							{
-								pointAbove = pTri->vert2;
-								pointsBelow[0] = pTri->vert0;
-								pointsBelow[1] = pTri->vert1;
-							}
-							else if (isVert0BelowPlane && isVert2BelowPlane)
-							{
-								pointAbove = pTri->vert1;
-								pointsBelow[0] = pTri->vert0;
-								pointsBelow[1] = pTri->vert2;
-							}
-							else if (isVert1BelowPlane && isVert2BelowPlane)
-							{
-								pointAbove = pTri->vert0;
-								pointsBelow[0] = pTri->vert1;
-								pointsBelow[1] = pTri->vert2;
-							}
-
-							std::vector<vec3> isxPoints;
-							for (auto pointBelow : pointsBelow) {
-								vec3 isxPoint;
-								for (auto axis = 0; axis < 2; axis++)
-								{
-									isxPoint[dim] = pointOnSplittingPlane[dim];
-									isxPoint[splittinPlaneAxis[axis]] = 
-										((pointBelow[splittinPlaneAxis[axis]] - pointAbove[splittinPlaneAxis[axis]]) /
-										(pointBelow[dim] - pointAbove[dim])) *
-										(pointOnSplittingPlane[dim] - pointAbove[dim]) + 
-										pointAbove[splittinPlaneAxis[axis]];
-								}
-								isxPoints.push_back(isxPoint);
-							}
-
-							// Found intersection, grow tight bounding box of reference for bucket
-							SBVHGeometryInfo tightBBoxGeomInfo;
-
-							// Create additional geometry info to whole the new tight bbox
-							tightBBoxGeomInfo.geometryId = geomInfos[i].geometryId;
-							tightBBoxGeomInfo.bbox = BBox::BBoxFromPoints(isxPoints);
-							if (pTri->vert0[dim] > pointOnSplittingPlane[dim] - bucketSize && 
-								pTri->vert0[dim] < pointOnSplittingPlane[dim]) {
-								tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert0);
-							}
-							if (pTri->vert1[dim] > pointOnSplittingPlane[dim] - bucketSize &&
-								pTri->vert1[dim] < pointOnSplittingPlane[dim])
-							{
-								tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert1);
-							}
-							if (pTri->vert2[dim] > pointOnSplittingPlane[dim] - bucketSize &&
-								pTri->vert2[dim] < pointOnSplittingPlane[dim])
-							{
-								tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert2);
-							}
-
-							geomInfos.push_back(tightBBoxGeomInfo);
-
-							spatialSplitBuckets[bucket].bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, spatialSplitBuckets[bucket].bbox);
-						}
-
-						// Increment entering and exiting reference counts
-						spatialSplitBuckets[startEdgeBucket].enter++;
-						spatialSplitBuckets[endEdgeBucket].exit++;
-#endif
-					} else {
-						// Geometry reference completely falls inside bucket
-						int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
-						assert(whichBucket <= NUM_BUCKET);
-						if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-
-						spatialSplitBuckets[whichBucket].count++;
-						spatialSplitBuckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
-
-					}
-				}
-
-				// Compute cost for splitting after each bucket
-				float minSplitCost = INFINITY;
-				int minSplitCostBucket = 0;
-				float objectSplitCost = INFINITY;
-				float spatialSplitCost = INFINITY;
+				// Get the cheapest cost between object split candidate and spatial split candidate
+				
 				bool isSpatialSplit = false;
-				for (int i = 0; i < NUM_BUCKET - 1; i++)
-				{
-					BBox bbox0, bbox1;
-					int count0 = 0, count1 = 0;
+				Cost minSplitCost = std::get<Cost>(objSplitCost);
+				if (minSplitCost > std::get<Cost>(spatialSplitCost)) {
+					minSplitCost = std::get<Cost>(spatialSplitCost);
+					isSpatialSplit = true;
 
-					// Compute cost for buckets before split candidate
-					for (int j = 0; j <= i; j++)
-					{
-						bbox0 = BBox::BBoxUnion(bbox0, buckets[j].bbox);
-						count0 += buckets[j].count;
+					// Create new fragments
+					for (auto frag : spatialBuckets[std::get<BucketID>(spatialSplitCost)].fragments) {
+
+						PrimInfo origPrim = geomInfos.at(frag.origPrimOffset);
+						PrimInfo left = { frag.primitiveId, frag.bbox };
+						left.bbox.m_min[allGeomsDim] = origPrim.bbox.m_min[allGeomsDim];
+						left.bbox.m_centroid = BBox::Centroid(left.bbox.m_min, left.bbox.m_max);
+						left.bbox.m_transform = Transform(left.bbox.m_centroid, glm::vec3(0), left.bbox.m_max - left.bbox.m_min);
+
+						PrimInfo right = { frag.primitiveId, frag.bbox };
+						right.bbox.m_max[allGeomsDim] = origPrim.bbox.m_max[allGeomsDim];;
+						right.bbox.m_centroid = BBox::Centroid(right.bbox.m_min, right.bbox.m_max);
+						right.bbox.m_transform = Transform(right.bbox.m_centroid, glm::vec3(0), right.bbox.m_max - right.bbox.m_min);
+
+						geomInfos.at(frag.origPrimOffset) = left;
+						geomInfos.insert(geomInfos.begin() + frag.origPrimOffset, right);
+						last++;
 					}
 
-					// Compute cost for buckets after split candidate
-					for (int j = i + 1; j < NUM_BUCKET; j++)
-					{
-						bbox1 = BBox::BBoxUnion(bbox1, buckets[j].bbox);
-						count1 += buckets[j].count;
-					}
-
-					objectSplitCost = COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;
-
-					// Store children overlapping SA so we can use to restrict spatial split later
-					float SAChildrenOverlap = BBox::BBoxOverlap(bbox0, bbox1).GetSurfaceArea();
-					
-					// === RESTRICT SPATIAL SPLIT
-					// If the cost of B1 and B2 overlap is cheap enough, we can skip spatial splitting
-					// @todo: Maybe this value can be controlled with a GUI?
-					if (SAChildrenOverlap * invAllGeometriesSA > RESTRICT_ALPHA)
-					{
-						// Object split overlap is too expensive, consider spatial split
-						// === FIND SPATIAL SPLIT CANDIDATE
-
-						bbox0 = BBox();
-						bbox1 = BBox();
-						count0 = 0;
-						count1 = 0;
-
-						// Compute cost for buckets before split candidate
-						for (int j = 0; j <= i; j++)
-						{
-							bbox0 = BBox::BBoxUnion(bbox0, spatialSplitBuckets[j].bbox);
-							count0 += spatialSplitBuckets[j].enter;
-						}
-
-						// Compute cost for buckets after split candidate
-						for (int j = i + 1; j < NUM_BUCKET; j++)
-						{
-							bbox1 = BBox::BBoxUnion(bbox1, spatialSplitBuckets[j].bbox);
-							count1 += spatialSplitBuckets[j].exit;
-						}
-
-						spatialSplitCost = COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;
-					}
-
-					// Get the cheapest cost between object split candidate and spatial split candidate
-					
-					if (objectSplitCost < spatialSplitCost)
-					{
-						if (objectSplitCost < minSplitCost) {
-							minSplitCost = objectSplitCost;
-							minSplitCostBucket = i;
-							isSpatialSplit = false;
-						}
-					} else {
-						if (spatialSplitCost < minSplitCost) {
-							minSplitCost = spatialSplitCost;
-							minSplitCostBucket = i;
-							isSpatialSplit = true;
-						}
-					}
 				}
 
 				// == CREATE LEAF OR SPLIT
@@ -578,7 +536,7 @@ SBVH::BuildRecursive(
 					// Split node
 
 					if (isSpatialSplit) {
-						PartitionSpatial(std::get<BucketID>(objSplitCost), dim, first, last, mid, geomInfos, bboxCentroids, bboxAllGeoms);
+						PartitionSpatial(std::get<BucketID>(objSplitCost), allGeomsDim, first, last, mid, geomInfos, bboxAllGeoms);
 
 					} else {
 						PartitionObjects(std::get<BucketID>(objSplitCost), dim, first, last, mid, geomInfos, bboxCentroids);
@@ -668,7 +626,7 @@ Intersection SBVH::GetIntersection(Ray& r)
 		for (auto geomId : leaf->m_geomIds) {
 			r.m_traversalCost += COST_INTERSECTION;
 				
-			std::shared_ptr<Geometry> geom = m_geoms[geomId];
+			std::shared_ptr<Geometry> geom = m_prims[geomId];
 			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0 && isx.t < nearestT)
 			{
@@ -723,7 +681,7 @@ void SBVH::GetIntersectionRecursive(
 			{
 				r.m_traversalCost += COST_INTERSECTION;
 
-				std::shared_ptr<Geometry> geom = m_geoms[geomId];
+				std::shared_ptr<Geometry> geom = m_prims[geomId];
 				Intersection isx = geom->GetIntersection(r);
 				if (isx.t > 0 && isx.t < nearestT)
 				{
@@ -755,7 +713,7 @@ bool SBVH::DoesIntersect(
 
 		for (int i = 0; i < leaf->m_numGeoms; i++)
 		{
-			std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+			std::shared_ptr<Geometry> geom = m_prims[leaf->m_firstGeomOffset + i];
 			Intersection isx = geom->GetIntersection(r);
 			if (isx.t > 0)
 			{
@@ -786,7 +744,7 @@ bool SBVH::DoesIntersectRecursive(
 		{
 			for (int i = 0; i < leaf->m_numGeoms; i++)
 			{
-				std::shared_ptr<Geometry> geom = m_geoms[leaf->m_firstGeomOffset + i];
+				std::shared_ptr<Geometry> geom = m_prims[leaf->m_firstGeomOffset + i];
 				Intersection isx = geom->GetIntersection(r);
 				if (isx.t > 0)
 				{

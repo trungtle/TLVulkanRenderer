@@ -10,7 +10,7 @@
 
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 	vec3 color;
-	int depth = 3;
+	int depth = 2;
 	for (auto light : scene->lights) {
 		for (int i = 0; i < depth; i++)
 		{
@@ -24,17 +24,19 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 				}
 
 				// Shade material
-				color *= isx.hitObject->GetMaterial()->EvaluateEnergy(isx, newRay.m_direction, newRay.m_direction);
-				color *= light->Attenuation(isx.hitPoint);
+				vec3 newColor = isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay.m_direction, newRay.m_direction);
+				newColor *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler
-				//Ray shadowFeeler(isx.hitPoint + 0.01f * lightDirection, lightDirection);
-				//if (scene->DoesIntersect(shadowFeeler))
-				//{
-				//	color *= 0.1f;
-				//} else {
-				//	color *= light->m_color;
-				//}
+				Ray shadowFeeler(isx.hitPoint + EPSILON * lightDirection, lightDirection);
+				if (scene->DoesIntersect(shadowFeeler))
+				{
+					newColor *= 0.1f;
+				} else {
+					newColor *= light->m_color;
+				}
+
+				color = newColor;
 			}
 			else
 			{

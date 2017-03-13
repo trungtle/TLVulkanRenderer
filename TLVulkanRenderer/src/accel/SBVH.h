@@ -4,6 +4,8 @@
 #include <geometry/BBox.h>
 #include <memory>
 
+const int NUM_BUCKET = 12;
+
 typedef size_t PrimID;
 typedef size_t SBVHNodeId;
 typedef size_t BucketID;
@@ -13,22 +15,27 @@ struct PrimInfo
 {
 	PrimID primitiveId;
 	BBox bbox;
+	PrimID origPrimOffset;
 };
 
-struct PrimFragmentInfo
+struct PrimFragInfo
 {
+	uint8_t i_start;
+	uint8_t i_end;
 	PrimID primitiveId;
 	BBox bbox;
 };
 
-struct BucketInfo
+class BucketInfo
 {
-	size_t count = 0;
-	BBox bbox;
-	size_t enter = 0; // Number of entering references
-	size_t exit = 0; // Number of exiting references 
+public:
+	BucketInfo() : count(0), bbox{ BBox() }, enter(0), exit(0) {};
 
-	BucketInfo() : count(0), bbox(BBox()), enter(0), exit(0) {};
+	int count = 0;
+	BBox bbox;
+	int enter = 0; // Number of entering references
+	int exit = 0; // Number of exiting references 
+	std::vector<PrimInfo> fragments;
 };
 
 class SBVHNode {
@@ -52,6 +59,16 @@ public:
 
 		if (farChild) {
 			m_bbox = BBox::BBoxUnion(m_bbox, farChild->m_bbox);
+		}
+	};
+
+	virtual ~SBVHNode() {
+		if (m_nearChild) {
+			delete m_nearChild;
+		}
+
+		if (m_farChild) {
+			delete m_farChild;
 		}
 	};
 
@@ -184,7 +201,6 @@ protected:
 		PrimID last,
 		PrimID& mid,
 		std::vector<PrimInfo>& geomInfos,
-		BBox& bboxCentroids,
 		BBox& bboxAllGeoms
 		);
 
@@ -228,13 +244,14 @@ protected:
 		PrimID last,
 		std::vector<PrimInfo>& geomInfos,
 		BBox& bboxCentroids,
-		BBox& bboxAllGeoms
-		);
+		BBox& bboxAllGeoms,
+		std::vector<BucketInfo>& buckets
+		) const;
 
 	SBVHNode* m_root;
 	int m_maxGeomsInNode;
 	ESplitMethod m_splitMethod;
-	std::vector<std::shared_ptr<Geometry>> m_geoms;
+	std::vector<std::shared_ptr<Geometry>> m_prims;
 
 };
 
