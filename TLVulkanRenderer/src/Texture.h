@@ -28,7 +28,7 @@ public:
 
 	glm::vec3 value(glm::vec2 uv, const glm::vec3& p) const override {
 		int i = uv.s * width;
-		int j = (1.0f - uv.t) * height - 0.001;
+		int j = (uv.t) * height - 0.001;
 		if (i < 0) i = 0;
 		if (j < 0) j = 0;
 		if (i > width - 1) i = width - 1;

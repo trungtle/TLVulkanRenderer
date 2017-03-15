@@ -12,6 +12,9 @@ glm::vec3 LambertMaterial::EvaluateEnergy(
 	// === Refraction === //
 	if (false)
 	{
+		// heckbert method
+		// t = lerp(0.225m 0.465, cos theta)
+		// Rv = lerp(i, -n, t)
 		float ei = 1.0;
 		float et = 1.5;
 		float cosi = clamp(dot(in, isx.hitNormal), -1.0f, 1.0f);

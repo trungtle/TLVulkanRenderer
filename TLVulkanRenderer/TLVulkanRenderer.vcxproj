@@ -163,6 +163,7 @@
     <ClInclude Include="src\Application.h" />
     <ClInclude Include="src\geometry\BBox.h" />
     <ClInclude Include="src\geometry\Geometry.h" />
+    <ClInclude Include="src\geometry\materials\GlassMaterial.h" />
     <ClInclude Include="src\geometry\materials\LambertMaterial.h" />
     <ClInclude Include="src\geometry\materials\Material.h" />
     <ClInclude Include="src\accel\SBVH.h" />
@@ -223,6 +224,7 @@
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\geometry\BBox.cpp" />
     <ClCompile Include="src\geometry\Geometry.cpp" />
+    <ClCompile Include="src\geometry\materials\GlassMaterial.cpp" />
     <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
     <ClCompile Include="src\accel\SBVH.cpp" />
     <ClCompile Include="src\geometry\materials\MetalMaterial.cpp" />

@@ -178,7 +178,7 @@ Intersection Triangle::GetIntersection(const Ray& r) {
 	isx.hitPoint = r.GetPointOnRay(t);
 	isx.hitNormal = normalize(norm0 * (1 - u - v) + norm1 * u + norm2 * v);
 	isx.t = t;
-	isx.hitTextureColor = m_material->m_texture != nullptr ? checkerTexture.value(uv, isx.hitPoint) : m_material->m_texture->value(uv, isx.hitPoint);
+	isx.hitTextureColor = m_material->m_texture == nullptr ? checkerTexture.value(uv, isx.hitPoint) : m_material->m_texture->value(uv, isx.hitPoint);
 	isx.hitObject = this;
 
 	return isx;

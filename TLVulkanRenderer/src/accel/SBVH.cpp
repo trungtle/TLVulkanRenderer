@@ -29,13 +29,30 @@ SBVH::Build(
 	for (size_t i = 0; i < primInfos.size(); i++)
 	{
 		primInfos[i] = { i, prims[i]->GetBBox()};
+		if (i == 4216) {
+			printf("HYere");
+		}
 	}
 
 	PrimID totalNodes = 0;
 
 	std::vector<std::shared_ptr<Geometry>> orderedGeoms;
-	m_root = BuildRecursive(0, primInfos.size(), totalNodes, primInfos, orderedGeoms, 0);
+	PrimID first = 0;
+	PrimID last = primInfos.size();
+	for (auto primInfo : primInfos)
+	{
+		if (primInfo.primitiveId == 4216)
+		{
+			printf("Here");
+		}
+	}
+	m_root = BuildRecursive(first, last, totalNodes, primInfos, orderedGeoms, 0);
 	//m_geoms.swap(orderedGeoms);
+	for (auto primInfo : primInfos) {
+		if (primInfo.primitiveId == 4216) {
+			printf("Here");
+		}
+	}
 	Flatten();
 }
 
@@ -77,7 +94,7 @@ void SBVH::PartitionObjects(
 }
 
 void SBVH::PartitionSpatial(
-	Cost minCostBucket,
+	BucketID minCostBucket,
 	Dim dim,
 	PrimID first,
 	PrimID last,
@@ -90,7 +107,7 @@ void SBVH::PartitionSpatial(
 		&geomInfos[first], &geomInfos[last - 1] + 1,
 		[=](const PrimInfo& gi)
 	{
-		int startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
+		BucketID startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
 		assert(startEdgeBucket <= NUM_BUCKET);
 		if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
 
@@ -112,13 +129,27 @@ SBVHLeaf* SBVH::CreateLeaf(
 	size_t numPrimitives = last - first;
 
 	size_t firstGeomOffset = orderedGeoms.size();
-	std::vector<PrimID> geomIds;
+	std::unordered_set<PrimID> geomIds;
+	if (last == 4336) {
+		assert(last == 4336);
+	}
 	for (int i = first; i < last; i++)
 	{
-		int geomIdx = geomInfos[i].primitiveId;
-		orderedGeoms.push_back(m_prims[geomIdx]);
-		geomIds.push_back(geomIdx);
-
+		PrimID primID = geomInfos.at(i).primitiveId;
+		std::string name = m_prims[primID].get()->GetName();
+		bool found = false;
+		for (auto orderedPrim : orderedGeoms) {
+			if (name.compare(orderedPrim.get()->GetName()) == 0) {
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			continue;
+		} else {			
+			orderedGeoms.push_back(m_prims[primID]);
+			geomIds.insert(primID);
+		}
 	}
 	SBVHLeaf* leaf = new SBVHLeaf(parent, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
 	nodeCount++;
@@ -221,11 +252,11 @@ SBVH::CalculateSpatialSplitCost(
 	// For each primitive in range, determine which bucket it falls into
 	for (int i = first; i < last; i++)
 	{
-		int minBucket = NUM_BUCKET * bboxAllGeoms.Offset(primInfos.at(i).bbox.m_min)[dim];
+		BucketID minBucket = (NUM_BUCKET * bboxAllGeoms.Offset(primInfos.at(i).bbox.m_min)[dim]);
 		assert(minBucket <= NUM_BUCKET);
 		if (minBucket == NUM_BUCKET) minBucket = NUM_BUCKET - 1;
 
-		int maxBucket = NUM_BUCKET * bboxAllGeoms.Offset(primInfos.at(i).bbox.m_max)[dim];
+		BucketID maxBucket = (NUM_BUCKET * bboxAllGeoms.Offset(primInfos.at(i).bbox.m_max)[dim]);
 		assert(maxBucket <= NUM_BUCKET);
 		if (maxBucket == NUM_BUCKET) maxBucket = NUM_BUCKET - 1;
 
@@ -234,15 +265,19 @@ SBVH::CalculateSpatialSplitCost(
 
 		if (minBucket != maxBucket)
 		{
+
 			// Naively split into equal sized bboxes
-			for (auto b = minBucket; b <= maxBucket; b++)
-			{
+			for (BucketID b = minBucket; b <= maxBucket; b++)
+			{			
 				BBox bbox = primInfos.at(i).bbox;
 				float nearSplitPlane = b * bucketSize + bboxAllGeoms.m_min[dim];
 				float farSplitPlane = nearSplitPlane + bucketSize;
+				if ((bbox.m_min[dim] < nearSplitPlane && bbox.m_max[dim] < nearSplitPlane) || bbox.m_min[dim] > farSplitPlane && bbox.m_max[dim] > farSplitPlane) {
+					continue;
+				}
 				bbox.m_min[dim] = max(bbox.m_min[dim], nearSplitPlane);
 				bbox.m_max[dim] = min(bbox.m_max[dim], farSplitPlane);
-				assert(bbox.m_min[dim] < bbox.m_max[dim]);
+				assert(bbox.m_min[dim] <= bbox.m_max[dim]);
 				bbox.m_centroid = BBox::Centroid(bbox.m_min, bbox.m_max);
 				bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);
 #ifdef TIGHT_BBOX
@@ -428,10 +463,10 @@ SBVH::CalculateSpatialSplitCost(
 
 SBVHNode*
 SBVH::BuildRecursive(
-	PrimID first, 
-	PrimID last,
+	PrimID& first, 
+	PrimID& last,
 	PrimID& nodeCount,
-	std::vector<PrimInfo>& geomInfos,
+	std::vector<PrimInfo>& primInfos,
 	std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
 	int depth
 	) 
@@ -444,7 +479,7 @@ SBVH::BuildRecursive(
 	// == COMPUTE BOUNDS OF ALL GEOMETRIES
 	BBox bboxAllGeoms;
 	for (int i = first; i < last; i++) {
-		bboxAllGeoms = BBox::BBoxUnion(bboxAllGeoms, geomInfos[i].bbox);
+		bboxAllGeoms = BBox::BBoxUnion(bboxAllGeoms, primInfos[i].bbox);
 	}
 
 	// Num primitive should only reflect unique IDs
@@ -452,13 +487,13 @@ SBVH::BuildRecursive(
 	
 	// == GENERATE SINGLE GEOMETRY LEAF NODE
 	if (numPrimitives == 1) {
-		return CreateLeaf(nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms);
+		return CreateLeaf(nullptr, first, last, nodeCount, primInfos, orderedGeoms, bboxAllGeoms);
 	}
 
 	// COMPUTE BOUNDS OF ALL CENTROIDS
 	BBox bboxCentroids;
 	for (int i = first; i < last; i++) {
-		bboxCentroids = BBox::BBoxUnion(bboxCentroids, geomInfos[i].bbox.m_centroid);
+		bboxCentroids = BBox::BBoxUnion(bboxCentroids, primInfos[i].bbox.m_centroid);
 	}
 
 	// Get maximum extent
@@ -467,21 +502,21 @@ SBVH::BuildRecursive(
 	// === GENERATE PLANAR LEAF NODE
 	// If all centroids are the same, create leafe since there's no effective way to split the tree
 	if (bboxCentroids.m_max[dim] == bboxCentroids.m_min[dim]) {
-		return CreateLeaf(nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms);
+		return CreateLeaf(nullptr, first, last, nodeCount, primInfos, orderedGeoms, bboxAllGeoms);
 	}
 
 	std::tuple<Cost, BucketID> objSplitCost;
 
 	PrimID mid;
 	switch(m_splitMethod) {
-		case SpatialSplit_SAH:
+		case Spatial:
 			// 1. Find object split candidate
 			// Restrict spatial split of crossed threshold
 			// 2. Find spatial split candidate
 			// 3. Select winner candidate
 			if (numPrimitives <= 4)
 			{
-				PartitionEqualCounts(dim, first, last, mid, geomInfos);
+				PartitionEqualCounts(dim, first, last, mid, primInfos);
 			}
 			else
 			{
@@ -493,40 +528,57 @@ SBVH::BuildRecursive(
 				// === FIND OBJECT SPLIT CANDIDATE
 				// For each primitive in range, determine which bucket it falls into
 				objSplitCost =
-					CalculateObjectSplitCost(dim, first, last, geomInfos, bboxCentroids, bboxAllGeoms);
+					CalculateObjectSplitCost(dim, first, last, primInfos, bboxCentroids, bboxAllGeoms);
 
-				std::vector<BucketInfo> spatialBuckets;
-				spatialBuckets.resize(NUM_BUCKET);
-				std::tuple<Cost, BucketID> spatialSplitCost =
-					CalculateSpatialSplitCost(allGeomsDim, first, last, geomInfos, bboxCentroids, bboxAllGeoms, spatialBuckets);
-
-				// Get the cheapest cost between object split candidate and spatial split candidate
-				
 				bool isSpatialSplit = false;
 				Cost minSplitCost = std::get<Cost>(objSplitCost);
-				if (minSplitCost > std::get<Cost>(spatialSplitCost)) {
-					minSplitCost = std::get<Cost>(spatialSplitCost);
-					isSpatialSplit = true;
+				std::tuple<Cost, BucketID> spatialSplitCost;
+				if (m_spatialSplitBudget > 0) {
+					std::vector<BucketInfo> spatialBuckets;
+					spatialBuckets.resize(NUM_BUCKET);
+					spatialSplitCost =
+						CalculateSpatialSplitCost(allGeomsDim, first, last, primInfos, bboxCentroids, bboxAllGeoms, spatialBuckets);
 
-					// Create new fragments
-					for (auto frag : spatialBuckets[std::get<BucketID>(spatialSplitCost)].fragments) {
+					// Get the cheapest cost between object split candidate and spatial split candidate
 
-						PrimInfo origPrim = geomInfos.at(frag.origPrimOffset);
-						PrimInfo left = { frag.primitiveId, frag.bbox };
-						left.bbox.m_min[allGeomsDim] = origPrim.bbox.m_min[allGeomsDim];
-						left.bbox.m_centroid = BBox::Centroid(left.bbox.m_min, left.bbox.m_max);
-						left.bbox.m_transform = Transform(left.bbox.m_centroid, glm::vec3(0), left.bbox.m_max - left.bbox.m_min);
+					if (minSplitCost > std::get<Cost>(spatialSplitCost))
+					{
+						minSplitCost = std::get<Cost>(spatialSplitCost);
+						isSpatialSplit = true;
 
-						PrimInfo right = { frag.primitiveId, frag.bbox };
-						right.bbox.m_max[allGeomsDim] = origPrim.bbox.m_max[allGeomsDim];;
-						right.bbox.m_centroid = BBox::Centroid(right.bbox.m_min, right.bbox.m_max);
-						right.bbox.m_transform = Transform(right.bbox.m_centroid, glm::vec3(0), right.bbox.m_max - right.bbox.m_min);
+						// Consume budget
+						m_spatialSplitBudget--;
 
-						geomInfos.at(frag.origPrimOffset) = left;
-						geomInfos.insert(geomInfos.begin() + frag.origPrimOffset, right);
-						last++;
+						std::vector<PrimInfo> origPrims;
+						for (auto frag : spatialBuckets[std::get<BucketID>(spatialSplitCost)].fragments) {
+							PrimInfo origPrim = primInfos.at(frag.origPrimOffset);
+							origPrims.push_back(origPrim);
+						}
+
+						// Create new fragments
+						PrimID count = 0;
+						for (auto frag : spatialBuckets[std::get<BucketID>(spatialSplitCost)].fragments)
+						{
+							PrimInfo origPrim = origPrims.at(count);
+							count++;
+
+							PrimInfo left = { frag.primitiveId, frag.bbox };
+							left.bbox.m_min[allGeomsDim] = origPrim.bbox.m_min[allGeomsDim];
+							assert(left.bbox.m_min[allGeomsDim] <= left.bbox.m_max[allGeomsDim]);
+							left.bbox.m_centroid = BBox::Centroid(left.bbox.m_min, left.bbox.m_max);
+							left.bbox.m_transform = Transform(left.bbox.m_centroid, glm::vec3(0), left.bbox.m_max - left.bbox.m_min);
+
+							PrimInfo right = { frag.primitiveId, frag.bbox };
+							right.bbox.m_max[allGeomsDim] = origPrim.bbox.m_max[allGeomsDim];
+							assert(right.bbox.m_min[allGeomsDim] <= right.bbox.m_max[allGeomsDim]);
+							right.bbox.m_centroid = BBox::Centroid(right.bbox.m_min, right.bbox.m_max);
+							right.bbox.m_transform = Transform(right.bbox.m_centroid, glm::vec3(0), right.bbox.m_max - right.bbox.m_min);
+
+							primInfos.at(frag.origPrimOffset) = left;
+							primInfos.insert(primInfos.begin() + frag.origPrimOffset + 1, right);
+							last++;
+						}
 					}
-
 				}
 
 				// == CREATE LEAF OR SPLIT
@@ -536,17 +588,17 @@ SBVH::BuildRecursive(
 					// Split node
 
 					if (isSpatialSplit) {
-						PartitionSpatial(std::get<BucketID>(objSplitCost), allGeomsDim, first, last, mid, geomInfos, bboxAllGeoms);
+						PartitionSpatial(std::get<BucketID>(spatialSplitCost), allGeomsDim, first, last, mid, primInfos, bboxAllGeoms);
 
 					} else {
-						PartitionObjects(std::get<BucketID>(objSplitCost), dim, first, last, mid, geomInfos, bboxCentroids);
+						PartitionObjects(std::get<BucketID>(objSplitCost), dim, first, last, mid, primInfos, bboxCentroids);
 					}
 				}
 				else
 				{
 					// == CREATE LEAF
 					SBVHLeaf* leaf = CreateLeaf(
-						nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms
+						nullptr, first, last, nodeCount, primInfos, orderedGeoms, bboxAllGeoms
 					);
 					return leaf;
 				}
@@ -556,25 +608,25 @@ SBVH::BuildRecursive(
 		case SAH: // Partition based on surface area heuristics
 			if (numPrimitives <= 4)
 			{
-				PartitionEqualCounts(dim, first, last, mid, geomInfos);
+				PartitionEqualCounts(dim, first, last, mid, primInfos);
 			}
 			else
 			{
 				objSplitCost =
-					CalculateObjectSplitCost(dim, first, last, geomInfos, bboxCentroids, bboxAllGeoms);
+					CalculateObjectSplitCost(dim, first, last, primInfos, bboxCentroids, bboxAllGeoms);
 
 				// Either create a leaf or split
 				float leafCost = numPrimitives;
 				if (numPrimitives > m_maxGeomsInNode || std::get<Cost>(objSplitCost) < leafCost)
 				{
 					// Split node
-					PartitionObjects(std::get<BucketID>(objSplitCost), dim, first, last, mid, geomInfos, bboxCentroids);
+					PartitionObjects(std::get<BucketID>(objSplitCost), dim, first, last, mid, primInfos, bboxCentroids);
 				}
 				else
 				{
 					// Cost of splitting buckets is too high, create a leaf node instead
 					SBVHLeaf* leaf = CreateLeaf(
-						nullptr, first, last, nodeCount, geomInfos, orderedGeoms, bboxAllGeoms
+						nullptr, first, last, nodeCount, primInfos, orderedGeoms, bboxAllGeoms
 					);
 					return leaf;
 				}
@@ -583,19 +635,21 @@ SBVH::BuildRecursive(
 
 		case EqualCounts: // Partition based on equal counts
 		default:
-			PartitionEqualCounts(dim, first, last, mid, geomInfos);
+			PartitionEqualCounts(dim, first, last, mid, primInfos);
 			break;
 	}
 
 	// Build near child
-	SBVHNode* nearChild = BuildRecursive(first, mid, nodeCount, geomInfos, orderedGeoms, depth + 1);
+	SBVHNode* nearChild = BuildRecursive(first, mid, nodeCount, primInfos, orderedGeoms, depth + 1);
 
 	// Build far child
-	SBVHNode* farChild = BuildRecursive(mid, last, nodeCount, geomInfos, orderedGeoms, depth + 1);
+	SBVHNode* farChild = BuildRecursive(mid, last, nodeCount, primInfos, orderedGeoms, depth + 1);
 
 	SBVHNode* node = new SBVHNode(nullptr, nearChild, farChild, nodeCount, dim);
-	nearChild->m_parent = node;
-	farChild->m_parent = node;
+	if (nearChild)
+		nearChild->m_parent = node;
+	if (farChild)
+		farChild->m_parent = node;
 	nodeCount++;
 	return node;
 }
@@ -710,14 +764,19 @@ bool SBVH::DoesIntersect(
 	if (m_root->IsLeaf())
 	{
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
-
-		for (int i = 0; i < leaf->m_numGeoms; i++)
+		if (leaf->m_numGeoms < 4 || m_root->m_bbox.DoesIntersect(r))
 		{
-			std::shared_ptr<Geometry> geom = m_prims[leaf->m_firstGeomOffset + i];
-			Intersection isx = geom->GetIntersection(r);
-			if (isx.t > 0)
+			for (auto geomId : leaf->m_geomIds)
 			{
-				return true;
+				r.m_traversalCost += COST_INTERSECTION;
+
+				std::shared_ptr<Geometry> geom = m_prims[geomId];
+				Intersection isx = geom->GetIntersection(r);
+				if (isx.t > 0)
+				{
+					return true;
+				}
+
 			}
 		}
 		return false;
@@ -742,14 +801,17 @@ bool SBVH::DoesIntersectRecursive(
 		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
 		if (leaf->m_numGeoms < 4 || node->m_bbox.DoesIntersect(r))
 		{
-			for (int i = 0; i < leaf->m_numGeoms; i++)
+			for (auto geomId : leaf->m_geomIds)
 			{
-				std::shared_ptr<Geometry> geom = m_prims[leaf->m_firstGeomOffset + i];
+				r.m_traversalCost += COST_INTERSECTION;
+
+				std::shared_ptr<Geometry> geom = m_prims[geomId];
 				Intersection isx = geom->GetIntersection(r);
 				if (isx.t > 0)
 				{
 					return true;
 				}
+
 			}
 		}
 		return false;

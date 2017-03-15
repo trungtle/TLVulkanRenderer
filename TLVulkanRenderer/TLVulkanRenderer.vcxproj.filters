@@ -46,6 +46,7 @@
     <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
     <ClCompile Include="src\accel\SBVH.cpp" />
     <ClCompile Include="src\geometry\materials\MetalMaterial.cpp" />
+    <ClCompile Include="src\geometry\materials\GlassMaterial.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -141,6 +142,7 @@
     <ClInclude Include="src\accel\AccelStructure.h" />
     <ClInclude Include="src\geometry\materials\MetalMaterial.h" />
     <ClInclude Include="src\Texture.h" />
+    <ClInclude Include="src\geometry\materials\GlassMaterial.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

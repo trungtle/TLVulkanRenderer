@@ -3,13 +3,14 @@
 #include "AccelStructure.h"
 #include <geometry/BBox.h>
 #include <memory>
-
-const int NUM_BUCKET = 12;
+#include <unordered_set>
 
 typedef size_t PrimID;
 typedef size_t SBVHNodeId;
 typedef size_t BucketID;
 typedef float Cost;
+
+const BucketID NUM_BUCKET = 12;
 
 struct PrimInfo
 {
@@ -105,7 +106,7 @@ public:
 
 	size_t m_firstGeomOffset;
 	size_t m_numGeoms;
-	std::vector<PrimID> m_geomIds;
+	std::unordered_set<PrimID> m_geomIds;
 };
 
 class SBVH : public AccelStructure {
@@ -115,7 +116,7 @@ public:
 	{
 		EqualCounts,
 		SAH,
-		SpatialSplit_SAH
+		Spatial
 	};
 
 	SBVH() : m_root(nullptr), m_maxGeomsInNode(1), m_splitMethod(EqualCounts)
@@ -144,8 +145,8 @@ public:
 protected:
 	SBVHNode*
 	BuildRecursive(
-		PrimID first,
-		PrimID last,
+		PrimID& first,
+		PrimID& last,
 		PrimID& nodeCount,
 		std::vector<PrimInfo>& geomInfos,
 		std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
@@ -195,7 +196,7 @@ protected:
 
 	static void
 	PartitionSpatial(
-		Cost minCostBucket,
+		BucketID minCostBucket,
 		Dim dim,
 		PrimID first,
 		PrimID last,
@@ -252,6 +253,6 @@ protected:
 	int m_maxGeomsInNode;
 	ESplitMethod m_splitMethod;
 	std::vector<std::shared_ptr<Geometry>> m_prims;
-
+	size_t m_spatialSplitBudget = 10;
 };
 

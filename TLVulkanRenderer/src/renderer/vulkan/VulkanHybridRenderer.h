@@ -1,19 +1,21 @@
 #pragma once
-
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
+#include "renderer/Film.h"
+#include <thread>
+#include <queue>
 
 class VulkanHybridRenderer : public VulkanRenderer
 {
 
 public:
-	VulkanHybridRenderer(
+	VulkanCPURaytracer(
 		GLFWwindow* window,
 		Scene* scene,
 		std::shared_ptr<std::map<string, string>> config
 	);
 
-	virtual ~VulkanHybridRenderer() final;
+	virtual ~VulkanCPURaytracer() final;
 
 	void
 		Update() override final;
@@ -75,7 +77,10 @@ protected:
 	VkPipelineLayout m_wireframePipelineLayout;
 	uint32_t m_wireframeIndexCount;
 
+	Film m_film;
+
 	std::array<std::thread, 16> m_threads;
+	queue<Ray> m_raysQueue;
 
 	void
 		PrepareResources();

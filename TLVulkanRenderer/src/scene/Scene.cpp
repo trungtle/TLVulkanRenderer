@@ -20,7 +20,7 @@ Scene::Scene(
 	// Construct SBVH
 	m_accel.reset(new SBVH(
 		100,
-		SBVH::SAH
+		SBVH::Spatial
 		));
 
 	ParseSceneFile(fileName);
@@ -97,7 +97,7 @@ Scene::DoesIntersect(Ray& ray)
 
 void Scene::PrepareTestScene()
 {
-	//camera.eye = vec3(0, 5, 45);
+	//camera.eye = vec3(0, 10 , 45);
 	camera.eye = vec3(0, 0, 7);
 	camera.RecomputeAttributes();
 
@@ -145,17 +145,17 @@ void Scene::PrepareTestScene()
 	}
 
 	// Add spheres
-	int numSpheres = 5;
-	for (int i = 0; i < numSpheres; i++) {
-		std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
-			sin(glm::radians(360.0f * i / numSpheres)) * 1,
-			-2.4 + (0.5 + i * 0.25) * 0.5,
-			cos(glm::radians(360.0f * i / numSpheres)) * 1
-			), 0.5 + i * 0.25, mirror));
-		std::string name = "Sphere" + i;
-		s.get()->SetName(name);
-		geometries.push_back(s);
-	}
+	//int numSpheres = 5;
+	//for (int i = 0; i < numSpheres; i++) {
+	//	std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
+	//		sin(glm::radians(360.0f * i / numSpheres)) * 1,
+	//		-2.4 + (0.5 + i * 0.25) * 0.5,
+	//		cos(glm::radians(360.0f * i / numSpheres)) * 1
+	//		), 0.5 + i * 0.25, mirror));
+	//	std::string name = "Sphere" + i;
+	//	s.get()->SetName(name);
+	//	geometries.push_back(s);
+	//}
 
 	// Add planes
 	std::shared_ptr<Cube> floor(new Cube(vec3(0, -2.5, 0), vec3(5, 0.2, 5), lambertRed));
