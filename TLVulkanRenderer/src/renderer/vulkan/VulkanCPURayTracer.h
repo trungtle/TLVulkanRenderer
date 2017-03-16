@@ -17,6 +17,38 @@ public:
 
 	virtual ~VulkanCPURaytracer() final;
 
+	// -----------
+	// GRAPHICS PIPELINE
+	// -----------
+	void
+	Prepare() final;
+
+	VkResult
+	PrepareGraphicsPipeline() final;
+
+	VkResult
+	PrepareVertexBuffers() final;
+
+	VkResult
+	PrepareUniforms() final;
+
+	// --- Descriptor
+
+	VkResult
+	PrepareDescriptorPool() final;
+
+	VkResult
+	PrepareDescriptorLayouts() final;
+
+	VkResult
+	PrepareDescriptorSets() final;
+
+	VkResult
+	BuildCommandBuffers() final;
+
+	void
+	PrepareTextures() final;
+
 	void
 	Update() override final;
 
@@ -25,36 +57,7 @@ public:
 	 
 protected:
 
-	// -----------
-	// GRAPHICS PIPELINE
-	// -----------
-	void
-		PrepareGraphics() final;
-
-	VkResult
-		PrepareGraphicsPipeline() final;
-
-	VkResult
-		PrepareGraphicsVertexBuffer() final;
-
-	VkResult
-		PrepareGraphicsUniformBuffer() final;
-
-	// --- Descriptor
-
-	VkResult
-		PrepareGraphicsDescriptorPool() final;
-
-	VkResult
-		PrepareGraphicsDescriptorSetLayout() final;
-
-	VkResult
-		PrepareGraphicsDescriptorSets() final;
-
 	// --- Command buffers
-
-	VkResult
-		PrepareGraphicsCommandBuffers() final;
 
 	struct Quad
 	{
@@ -81,9 +84,6 @@ protected:
 
 	std::array<std::thread, 16> m_threads;
 	queue<Ray> m_raysQueue;
-
-	void
-	PrepareResources();
 
 	void
 	GenerateWireframeBVHNodes();

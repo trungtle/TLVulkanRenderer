@@ -17,7 +17,7 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 			Intersection isx = scene->GetIntersection(newRay);
 			if (isx.t > 0)
 			{
-				vec3 lightDirection = glm::normalize(light->m_position - isx.hitPoint);
+				vec3 lightDirection = glm::normalize(light->GetPosition() - isx.hitPoint);
 
 				if (i == 0) {
 					color = vec3(1, 1, 1);
@@ -33,7 +33,7 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 				{
 					newColor *= 0.1f;
 				} else {
-					newColor *= light->m_color;
+					newColor *= light->GetColor();
 				}
 
 				color = newColor;
@@ -113,7 +113,7 @@ VulkanCPURaytracer::VulkanCPURaytracer(
 	std::shared_ptr<std::map<string, string>> config
 	) : VulkanRenderer(window, scene, config), m_film{Film(m_width, m_height)}
 {
-	PrepareGraphics();
+	Prepare();
 }
 
 VulkanCPURaytracer::~VulkanCPURaytracer()
@@ -251,16 +251,16 @@ VulkanCPURaytracer::Render() {
 }
 
 void 
-VulkanCPURaytracer::PrepareGraphics() 
+VulkanCPURaytracer::Prepare() 
 {
-	PrepareResources();
-	PrepareGraphicsUniformBuffer();
-	PrepareGraphicsVertexBuffer();
-	PrepareGraphicsDescriptorPool();
-	PrepareGraphicsDescriptorSetLayout();
-	PrepareGraphicsDescriptorSets();
+	PrepareTextures();
+	PrepareUniforms();
+	PrepareVertexBuffers();
+	PrepareDescriptorPool();
+	PrepareDescriptorLayouts();
+	PrepareDescriptorSets();
 	PrepareGraphicsPipeline();
-	PrepareGraphicsCommandBuffers();
+	BuildCommandBuffers();
 
 }
 
@@ -272,10 +272,8 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 	// Load SPIR-V bytecode
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
-	VkShaderModule vertShader;
-	PrepareShaderModule("shaders/raytracing/quad.vert.spv", vertShader);
-	VkShaderModule fragShader;
-	PrepareShaderModule("shaders/raytracing/quad.frag.spv", fragShader);
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/quad.vert.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/quad.frag.spv");
 
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// 1. Vertex input stage
@@ -438,10 +436,8 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 		VK_CULL_MODE_NONE, 
 		VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
-	VkShaderModule wireframeVertShader;
-	PrepareShaderModule("shaders/raytracing/wireframe.vert.spv", wireframeVertShader);
-	VkShaderModule wireframeFragShader;
-	PrepareShaderModule("shaders/raytracing/wireframe.frag.spv", wireframeFragShader);
+	VkShaderModule wireframeVertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/wireframe.vert.spv");
+	VkShaderModule wireframeFragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/wireframe.frag.spv");
 
 	shaderCreateInfos = {
 		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, wireframeVertShader),
@@ -522,7 +518,7 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 	return result;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsVertexBuffer() {
+VkResult VulkanCPURaytracer::PrepareVertexBuffers() {
 	m_graphics.geometryBuffers.clear();
 
 	const std::vector<uint16_t> indices = {
@@ -632,9 +628,9 @@ VkResult VulkanCPURaytracer::PrepareGraphicsVertexBuffer() {
 	return VK_SUCCESS;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsUniformBuffer() 
+VkResult VulkanCPURaytracer::PrepareUniforms() 
 {
-	VulkanRenderer::PrepareGraphicsUniformBuffer();
+	VulkanRenderer::PrepareUniforms();
 
 	// === Quad === //
 	m_quadUniform.Create(
@@ -655,7 +651,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsUniformBuffer()
 	return VK_SUCCESS;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorPool() {
+VkResult VulkanCPURaytracer::PrepareDescriptorPool() {
 	std::array<VkDescriptorPoolSize, 2> poolSizes = {
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2)
@@ -671,7 +667,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorPool() {
 	return VK_SUCCESS;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSetLayout() 
+VkResult VulkanCPURaytracer::PrepareDescriptorLayouts() 
 {
 	// === Quad
 	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
@@ -739,7 +735,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSetLayout()
 	return result;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
+VkResult VulkanCPURaytracer::PrepareDescriptorSets() {
 
 	// === Quad
 	VkDescriptorSetAllocateInfo allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_graphics.descriptorSetLayout);
@@ -809,7 +805,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
 	return VK_SUCCESS;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
+VkResult VulkanCPURaytracer::BuildCommandBuffers() {
 	m_graphics.commandBuffers.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
 	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
 	VkCommandBufferAllocateInfo allocInfo = MakeCommandBufferAllocateInfo(m_graphics.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_vulkanDevice->m_swapchain.framebuffers.size());
@@ -905,7 +901,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 	return result;
 }
 
-void VulkanCPURaytracer::PrepareResources() {
+void VulkanCPURaytracer::PrepareTextures() {
 
 	GenerateWireframeBVHNodes();
 

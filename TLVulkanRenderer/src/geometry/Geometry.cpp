@@ -8,7 +8,12 @@ Geometry::Geometry() {
 Geometry::~Geometry() {
 }
 
-BBox SquarePlane::GetBBox() 
+Intersection SquarePlane::GetIntersection(const Ray & r)
+{
+	return Intersection();
+}
+
+BBox SquarePlane::GetBBox()
 {
 	return BBox();
 }

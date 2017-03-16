@@ -28,7 +28,7 @@ public:
 	virtual ~Geometry();
 
 	virtual Intersection GetIntersection(const Ray& r) = 0;
-	virtual vec2 GetUV(const vec3&) const = 0;
+	virtual UV GetUV(const vec3&) const = 0;
 	virtual BBox GetBBox() = 0;
 
 	virtual void SetTransform(const Transform& xform) {
@@ -73,7 +73,7 @@ public:
 
 	Intersection GetIntersection(const Ray& r) override;
 
-	vec2 GetUV(const vec3& point) const override {
+	UV GetUV(const vec3& point) const override {
 		return vec2(point.x + 0.5f, point.y + 0.5f);
 	}
 
@@ -100,7 +100,7 @@ public:
 
 	Intersection GetIntersection(const Ray& r) override;
 
-	vec2 GetUV(const vec3& point) const override {
+	UV GetUV(const vec3& point) const override {
 		glm::vec3 p = glm::normalize(point);
 		float phi = atan2f(p.z, p.x);//glm::atan(p.x/p.z);
 		if (phi < 0)
@@ -143,7 +143,7 @@ public:
 
 	Intersection GetIntersection(const Ray& r) override;
 
-	vec2 GetUV(const vec3& point) const override {
+	UV GetUV(const vec3& point) const override {
 		glm::vec3 abs = glm::min(glm::abs(point), 0.5f);
 		glm::vec2 UV;//Always offset lower-left corner
 		if (abs.x > abs.y && abs.x > abs.z)
@@ -237,7 +237,7 @@ public:
 		return glm::length(glm::cross(p1 - p2, p3 - p2)) * 0.5f;
 	}
 
-	vec2 GetUV(const vec3& point) const override {
+	UV GetUV(const vec3& point) const override {
 		float A = m_area;
 		float A0 = Area(vert1, vert2, point);
 		float A1 = Area(vert0, vert2, point);

@@ -97,8 +97,8 @@ Scene::DoesIntersect(Ray& ray)
 
 void Scene::PrepareTestScene()
 {
-	camera.eye = vec3(0, 20 , 200);
-	//camera.eye = vec3(0, 0, 7);
+	//camera.eye = vec3(0, 20 , 200);
+	camera.eye = vec3(0, 0, 7);
 	camera.RecomputeAttributes();
 
 	// Setup materials
@@ -130,17 +130,19 @@ void Scene::PrepareTestScene()
 	}
 
 	// Add spheres
-	//int numSpheres = 5;
-	//for (int i = 0; i < numSpheres; i++) {
-	//	std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
-	//		sin(glm::radians(360.0f * i / numSpheres)) * 1,
-	//		-2.4 + (0.5 + i * 0.25) * 0.5,
-	//		cos(glm::radians(360.0f * i / numSpheres)) * 1
-	//		), 0.5 + i * 0.25, mirror));
-	//	std::string name = "Sphere" + i;
-	//	s.get()->SetName(name);
-	//	geometries.push_back(s);
-	//}
+	int numSpheres = 5;
+	for (int i = 0; i < numSpheres; i++) {
+		std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
+			sin(glm::radians(360.0f * i / numSpheres)) * 1,
+			-2.4 + (0.5 + i * 0.25) * 0.5,
+			cos(glm::radians(360.0f * i / numSpheres)) * 1
+			), 0.5 + i * 0.25, mirror));
+		std::string name = "Sphere" + i;
+		s.get()->SetName(name);
+		geometries.push_back(s);
+	}
+
+	PrepareCornellBox();
 
 	// Add lights
 	PointLight* light = new PointLight(vec3(0, 10.0, 10.0), vec3(1, 1, 1), 200);

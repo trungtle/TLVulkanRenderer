@@ -190,6 +190,13 @@ namespace VulkanUtil {
 			VkPipelineCreateFlags flags
 		);
 
+		VkShaderModule
+		MakeShaderModule(
+				const VkDevice& device,
+				const std::string& filepath
+			);
+
+
 		// ===================
 		// RENDERPASS
 		// ===================

@@ -3,7 +3,7 @@
 #include <cassert>
 #include <glfw3.h>
 #include "VulkanSwapchain.h"
-
+#include "Utilities.h"
 
 namespace VulkanUtil {
 	namespace Make {
@@ -350,6 +350,29 @@ namespace VulkanUtil {
 			createInfo.flags = flags;
 
 			return createInfo;
+		}
+
+		VkShaderModule MakeShaderModule(const VkDevice& device, const std::string & filepath)
+		{
+			VkShaderModule module;
+
+			std::vector<Byte> bytecode;
+			LoadSPIR_V(filepath.c_str(), bytecode);
+
+			VkResult result = VK_SUCCESS;
+
+			VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
+			shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+			shaderModuleCreateInfo.codeSize = bytecode.size();
+			shaderModuleCreateInfo.pCode = (uint32_t*)bytecode.data();
+
+			result = vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &module);
+			if (result != VK_SUCCESS)
+			{
+				throw std::runtime_error("Failed to create shader module");
+			}
+
+			return module;
 		}
 
 		VkRenderPassBeginInfo

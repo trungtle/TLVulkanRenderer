@@ -1,27 +1,24 @@
 #pragma once
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
-#include "renderer/Film.h"
-#include <thread>
-#include <queue>
 
 class VulkanHybridRenderer : public VulkanRenderer
 {
 
 public:
-	VulkanCPURaytracer(
+	VulkanHybridRenderer(
 		GLFWwindow* window,
 		Scene* scene,
 		std::shared_ptr<std::map<string, string>> config
 	);
 
-	virtual ~VulkanCPURaytracer() final;
+	virtual void
+		Update() final;
 
-	void
-		Update() override final;
+	virtual void
+		Render() final;
 
-	void
-		Render() override final;
+	virtual ~VulkanHybridRenderer() final;
 
 protected:
 
@@ -29,32 +26,57 @@ protected:
 	// GRAPHICS PIPELINE
 	// -----------
 	void
-		PrepareGraphics() final;
+		Prepare() final;
 
 	VkResult
-		PrepareGraphicsPipeline() final;
+		PreparePipelines() final;
 
 	VkResult
-		PrepareGraphicsVertexBuffer() final;
-
-	VkResult
-		PrepareGraphicsUniformBuffer() final;
+		PrepareVertexBuffers() final;
 
 	// --- Descriptor
 
 	VkResult
-		PrepareGraphicsDescriptorPool() final;
+		PrepareDescriptorPool() final;
 
 	VkResult
-		PrepareGraphicsDescriptorSetLayout() final;
+		PrepareDescriptorLayouts() final;
 
 	VkResult
-		PrepareGraphicsDescriptorSets() final;
+		PrepareDescriptorSets() final;
 
 	// --- Command buffers
 
 	VkResult
-		PrepareGraphicsCommandBuffers() final;
+		BuildCommandBuffers() final;
+
+	// -----------
+	// COMPUTE PIPELINE (for raytracing)
+	// -----------
+
+	void
+		PrepareComputeRaytrace();
+
+	void
+		PrepareComputeRaytraceDescriptorSets();
+
+	void
+		PrepareComputeRaytraceCommandPool();
+
+	void
+		PrepareComputeRaytraceStorageBuffer();
+
+	void
+		PrepareComputeRaytraceUniformBuffer();
+
+	VkResult
+		PrepareComputeRaytraceTextureResources();
+
+	VkResult
+		PrepareComputeRaytracePipeline();
+
+	VkResult
+		BuildComputeCommandBuffers();
 
 	struct Quad
 	{
@@ -64,27 +86,54 @@ protected:
 	} m_quad;
 
 
-protected:
-	VulkanImage::Image m_stagingImage;
-	VulkanImage::Image m_displayImage;
-	VulkanBuffer::StorageBuffer m_quadUniform;
-	VulkanBuffer::StorageBuffer m_wireframeBVHVertices;
-	VulkanBuffer::StorageBuffer m_wireframeBVHIndices;
-	VulkanBuffer::StorageBuffer m_wireframeUniform;
-	VkDescriptorSet m_wireframeDescriptorSet;
-	VkDescriptorSetLayout m_wireframeDescriptorLayout;
-	VkPipeline m_wireframePipeline;
-	VkPipelineLayout m_wireframePipelineLayout;
-	uint32_t m_wireframeIndexCount;
+	struct Compute
+	{
+		// -- Compute compatible queue
+		VkQueue queue;
+		VkFence fence;
 
-	Film m_film;
+		// -- Descriptor
+		VkDescriptorPool descriptorPool;
+		VkDescriptorSetLayout descriptorSetLayout;
+		VkDescriptorSet descriptorSets;
 
-	std::array<std::thread, 16> m_threads;
-	queue<Ray> m_raysQueue;
+		// -- Pipeline
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
 
-	void
-		PrepareResources();
+		// -- Commands
+		VkCommandPool commandPool;
+		VkCommandBuffer commandBuffer;
 
-	void
-		GenerateWireframeBVHNodes();
+		struct
+		{
+			// -- Uniform buffer
+			VulkanBuffer::StorageBuffer uniform;
+			VulkanBuffer::StorageBuffer stagingUniform;
+			VulkanBuffer::StorageBuffer materials;
+
+			// -- Shapes buffers
+			VulkanBuffer::StorageBuffer indices;
+			VulkanBuffer::StorageBuffer verticePositions;
+			VulkanBuffer::StorageBuffer verticeNormals;
+
+		} buffers;
+
+		// -- Output storage image
+		VulkanImage::Image storageRaytraceImage;
+
+		// -- Uniforms
+		struct UBOCompute
+		{ // Compute shader uniform block object
+			glm::vec4 position = glm::vec4(0.0, 2.5f, 15.0f, 1.0f);
+			glm::vec4 right = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);;
+			glm::vec4 lookat = glm::vec4(0.0, 2.5f, 0.0f, 0.0f);
+			glm::vec4 forward;
+			glm::vec4 up = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+			glm::vec2 pixelLength;
+			float fov = 40.0f;
+			float aspectRatio = 45.0f;
+		} ubo;
+
+	} m_compute;
 };

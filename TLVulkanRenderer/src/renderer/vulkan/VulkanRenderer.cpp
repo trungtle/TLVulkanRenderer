@@ -42,7 +42,7 @@ VulkanRenderer::VulkanRenderer(
 	vkGetDeviceQueue(m_vulkanDevice->device, m_vulkanDevice->queueFamilyIndices.presentFamily, 0, &m_presentQueue);
 
 	VkResult result;
-	result = PrepareGraphicsCommandPool();
+	result = PrepareCommandPool();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created command pool");
 
@@ -62,11 +62,8 @@ VulkanRenderer::VulkanRenderer(
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created semaphores");
 
-	// -- Prepare compute work
-	PrepareCompute();
-
 	// -- Prepare graphics specific work
-	PrepareGraphics();
+	Prepare();
 
 }
 
@@ -197,7 +194,7 @@ VulkanRenderer::PrepareRenderPass() {
 }
 
 VkResult
-VulkanRenderer::PrepareGraphicsDescriptorSetLayout() {
+VulkanRenderer::PrepareDescriptorLayouts() {
 	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 		// Binding 0: Fragment shader image sampler
 		MakeDescriptorSetLayoutBinding(
@@ -230,10 +227,8 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 	// Load SPIR-V bytecode
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
-	VkShaderModule vertShader;
-	PrepareShaderModule("shaders/vertShader.spv", vertShader);
-	VkShaderModule fragShader;
-	PrepareShaderModule("shaders/fragShader.spv", fragShader);
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/vertShader.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/fragShader.spv");
 
 	// -- VERTEX INPUT STAGE
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
@@ -409,10 +404,8 @@ VkResult VulkanRenderer::PreparePostProcessingPipeline() {
 	// Load SPIR-V bytecode
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
-	VkShaderModule vertShader;
-	PrepareShaderModule("shaders/raytracing/quad.vert.spv", vertShader);
-	VkShaderModule fragShader;
-	PrepareShaderModule("shaders/raytracing/quad.frag.spv", fragShader);
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/quad.vert.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/quad.frag.spv");
 
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// 1. Vertex input stage
@@ -571,7 +564,7 @@ VkResult VulkanRenderer::PreparePostProcessingPipeline() {
 }
 
 VkResult
-VulkanRenderer::PrepareGraphicsCommandPool() {
+VulkanRenderer::PrepareCommandPool() {
 	VkResult result = VK_SUCCESS;
 
 	// Command pool for the graphics queue
@@ -587,7 +580,7 @@ VulkanRenderer::PrepareGraphicsCommandPool() {
 }
 
 VkResult
-VulkanRenderer::PrepareGraphicsVertexBuffer() {
+VulkanRenderer::PrepareVertexBuffers() {
 	m_graphics.geometryBuffers.clear();
 
 	for (MeshData* geomData : m_scene->meshesData) {
@@ -680,7 +673,7 @@ VulkanRenderer::PrepareGraphicsVertexBuffer() {
 
 
 VkResult
-VulkanRenderer::PrepareGraphicsUniformBuffer() {
+VulkanRenderer::PrepareUniforms() {
 	VkDeviceSize bufferSize = sizeof(GraphicsUniformBufferObject);
 	VkDeviceSize memoryOffset = 0;
 	m_vulkanDevice->CreateBuffer(
@@ -718,8 +711,12 @@ VulkanRenderer::PrepareGraphicsUniformBuffer() {
 	return VK_SUCCESS;
 }
 
+void VulkanRenderer::PrepareTextures()
+{
+}
+
 VkResult
-VulkanRenderer::PrepareGraphicsDescriptorPool() {
+VulkanRenderer::PrepareDescriptorPool() {
 	VkDescriptorPoolSize poolSize = MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
 
 	VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = MakeDescriptorPoolCreateInfo(1, &poolSize, 1);
@@ -733,7 +730,7 @@ VulkanRenderer::PrepareGraphicsDescriptorPool() {
 }
 
 VkResult
-VulkanRenderer::PrepareGraphicsDescriptorSets() {
+VulkanRenderer::PrepareDescriptorSets() {
 	VkDescriptorSetAllocateInfo allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_graphics.descriptorSetLayout);
 
 	CheckVulkanResult(
@@ -758,8 +755,13 @@ VulkanRenderer::PrepareGraphicsDescriptorSets() {
 	return VK_SUCCESS;
 }
 
+VkResult VulkanRenderer::PreparePipelines()
+{
+	return PrepareGraphicsPipeline();
+}
+
 VkResult
-VulkanRenderer::PrepareGraphicsCommandBuffers() {
+VulkanRenderer::BuildCommandBuffers() {
 	m_graphics.commandBuffers.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
 	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
 	VkCommandBufferAllocateInfo allocInfo = MakeCommandBufferAllocateInfo(m_graphics.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_vulkanDevice->m_swapchain.framebuffers.size());
@@ -844,58 +846,35 @@ VulkanRenderer::PrepareSemaphores() {
 	return result;
 }
 
-VkResult
-VulkanRenderer::PrepareShaderModule(
-	const std::string& filepath,
-	VkShaderModule& shaderModule
-) const {
-	std::vector<Byte> bytecode;
-	LoadSPIR_V(filepath.c_str(), bytecode);
-
-	VkResult result = VK_SUCCESS;
-
-	VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
-	shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	shaderModuleCreateInfo.codeSize = bytecode.size();
-	shaderModuleCreateInfo.pCode = (uint32_t*)bytecode.data();
-
-	result = vkCreateShaderModule(m_vulkanDevice->device, &shaderModuleCreateInfo, nullptr, &shaderModule);
-	if (result != VK_SUCCESS) {
-		throw std::runtime_error("Failed to create shader module");
-	}
-
-	return result;
-}
-
 void
-VulkanRenderer::PrepareGraphics() {
+VulkanRenderer::Prepare() {
 	VkResult result;
 
-	result = PrepareGraphicsVertexBuffer();
+	result = PrepareVertexBuffers();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created vertex buffer");
 
-	result = PrepareGraphicsUniformBuffer();
+	result = PrepareUniforms();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created graphics uniform buffer");
 
-	result = PrepareGraphicsDescriptorPool();
+	result = PrepareDescriptorPool();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created descriptor pool");
 
-	result = PrepareGraphicsDescriptorSetLayout();
+	result = PrepareDescriptorLayouts();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created descriptor set layout");
 
-	result = PrepareGraphicsDescriptorSets();
+	result = PrepareDescriptorSets();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created descriptor set");
 
-	result = PrepareGraphicsPipeline();
+	result = PreparePipelines();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created graphics pipeline");
 
-	result = PrepareGraphicsCommandBuffers();
+	result = BuildCommandBuffers();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created command buffers");
 

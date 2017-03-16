@@ -25,57 +25,57 @@ protected:
 	// GRAPHICS PIPELINE
 	// -----------
 	void
-	PrepareGraphics() final;
+	Prepare() final;
 
 	VkResult
-	PrepareGraphicsPipeline() final;
+	PreparePipelines() final;
 
 	VkResult
-	PrepareGraphicsVertexBuffer() final;
+	PrepareVertexBuffers() final;
 
 	// --- Descriptor
 
 	VkResult
-	PrepareGraphicsDescriptorPool() final;
+	PrepareDescriptorPool() final;
 
 	VkResult
-	PrepareGraphicsDescriptorSetLayout() final;
+	PrepareDescriptorLayouts() final;
 
 	VkResult
-	PrepareGraphicsDescriptorSets() final;
+	PrepareDescriptorSets() final;
 
 	// --- Command buffers
 
 	VkResult
-	PrepareGraphicsCommandBuffers() final;
+	BuildCommandBuffers() final;
 
 	// -----------
 	// COMPUTE PIPELINE (for raytracing)
 	// -----------
 
 	void
-	PrepareCompute() final;
+	PrepareComputeRaytrace();
 
 	void
-	PrepareComputeDescriptors();
+	PrepareComputeRaytraceDescriptorSets();
 
 	void
-	PrepareComputeCommandPool();
+	PrepareComputeRaytraceCommandPool();
 
 	void
-	PrepareComputeStorageBuffer();
+	PrepareComputeRaytraceStorageBuffer();
 
 	void
-	PrepareComputeUniformBuffer();
+	PrepareComputeRaytraceUniformBuffer();
 
 	VkResult
-	PrepareRayTraceTextureResources();
+	PrepareComputeRaytraceTextureResources();
 
 	VkResult
-	PrepareComputePipeline();
+	PrepareComputeRaytracePipeline();
 
 	VkResult
-	PrepareComputeCommandBuffers();
+	BuildComputeCommandBuffers();
 
 	struct Quad {
 		std::vector<uint16_t> indices;

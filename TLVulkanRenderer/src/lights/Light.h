@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <geometry/Geometry.h>
 #include "geometry/BBox.h"
+#include "Color.h"
 
 using namespace glm;
 
@@ -22,7 +23,7 @@ public:
 		return Intersection();
 	};
 
-	vec2 GetUV(const vec3&) const override {
+	UV GetUV(const vec3&) const override {
 		return vec2();
 	}
 
@@ -39,7 +40,16 @@ public:
 		return 1;
 	}
 
-	vec3 m_position;
-	vec3 m_color;
+	inline Point3 GetPosition() {
+		return m_position;
+	}
+
+	inline ColorRGB GetColor() {
+		return m_color;
+	}
+
+protected:
+	Point3 m_position;
+	ColorRGB m_color;
 
 };
