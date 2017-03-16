@@ -25,7 +25,7 @@ SBVH::Build(
 	}
 
 	// Initialize primitives info
-	std::vector<PrimInfo> primInfos(size_t(prims.size() * 2), {INVALID_ID, BBox()}); // Pad 20% more space for spatial split fragments
+	std::vector<PrimInfo> primInfos(size_t(prims.size() * 1.2), {INVALID_ID, BBox()}); // Pad 20% more space for spatial split fragments
 	for (size_t i = 0; i < m_prims.size(); i++)
 	{
 		primInfos[i] = { i, m_prims[i]->GetBBox()};

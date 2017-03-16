@@ -838,6 +838,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 	// -------- For each mesh -----------
 
+	int idxOffset = 0;
+	int vertOffset = 0;
 	for (auto& nodeString : nodeString2Matrix) {
 
 		const tinygltf::Node& node = tinygltfScene.nodes.at(nodeString.first);
@@ -845,7 +847,6 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 		const glm::mat3& matrixNormal = glm::transpose(glm::inverse(glm::mat3(matrix)));
 
 		int materialId = 0;
-		int idxOffset = 0;
 		for (auto& meshName : node.meshes) {
 			auto& mesh = tinygltfScene.meshes.at(meshName);
 			for (size_t i = 0; i < mesh.primitives.size(); i++) {
@@ -1018,17 +1019,18 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 				for (int j = idxOffset; j < scene->indices.size(); j++)
 				{
 					ivec4 idx = scene->indices[j];
+					
 
 					if (scene->verticeUVs.size() == 0) {
 						// No UVs
 						newMesh.triangles.push_back(
 							Triangle(
-								scene->verticePositions[idx.x],
-								scene->verticePositions[idx.y],
-								scene->verticePositions[idx.z],
-								scene->verticeNormals[idx.x],
-								scene->verticeNormals[idx.y],
-								scene->verticeNormals[idx.z],
+								scene->verticePositions[idx.x + vertOffset],
+								scene->verticePositions[idx.y + vertOffset],
+								scene->verticePositions[idx.z + vertOffset],
+								scene->verticeNormals[idx.x + vertOffset],
+								scene->verticeNormals[idx.y + vertOffset],
+								scene->verticeNormals[idx.z + vertOffset],
 								scene->materials[materialId - 1]
 							)
 						);
@@ -1037,15 +1039,15 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					{
 						newMesh.triangles.push_back(
 							Triangle(
-								scene->verticePositions[idx.x],
-								scene->verticePositions[idx.y],
-								scene->verticePositions[idx.z],
-								scene->verticeNormals[idx.x],
-								scene->verticeNormals[idx.y],
-								scene->verticeNormals[idx.z],
-								scene->verticeUVs[idx.x],
-								scene->verticeUVs[idx.y],
-								scene->verticeUVs[idx.z],
+								scene->verticePositions[idx.x + vertOffset],
+								scene->verticePositions[idx.y + vertOffset],
+								scene->verticePositions[idx.z + vertOffset],
+								scene->verticeNormals[idx.x + vertOffset],
+								scene->verticeNormals[idx.y + vertOffset],
+								scene->verticeNormals[idx.z + vertOffset],
+								scene->verticeUVs[idx.x + vertOffset],
+								scene->verticeUVs[idx.y + vertOffset],
+								scene->verticeUVs[idx.z + vertOffset],
 								scene->materials[materialId - 1]
 							)
 						);
@@ -1053,6 +1055,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 				}
 				scene->meshes.push_back(newMesh);
 				idxOffset = scene->indices.size();
+				vertOffset = scene->verticePositions.size();
+
 			} // -- End of mesh primitives
 		} // -- End of meshes
 	}
