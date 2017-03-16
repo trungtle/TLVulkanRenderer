@@ -10,6 +10,7 @@ typedef size_t SBVHNodeId;
 typedef size_t BucketID;
 typedef float Cost;
 
+const PrimID INVALID_ID = std::numeric_limits<size_t>::max();
 const BucketID NUM_BUCKET = 12;
 
 struct PrimInfo
@@ -17,14 +18,6 @@ struct PrimInfo
 	PrimID primitiveId;
 	BBox bbox;
 	PrimID origPrimOffset;
-};
-
-struct PrimFragInfo
-{
-	uint8_t i_start;
-	uint8_t i_end;
-	PrimID primitiveId;
-	BBox bbox;
 };
 
 class BucketInfo
@@ -145,12 +138,13 @@ public:
 protected:
 	SBVHNode*
 	BuildRecursive(
-		PrimID& first,
-		PrimID& last,
+		PrimID first,
+		PrimID last,
 		PrimID& nodeCount,
 		std::vector<PrimInfo>& geomInfos,
 		std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
-		int depth
+		int depth,
+		bool shouldInsertAtBack
 	);
 	
 	void
@@ -244,7 +238,6 @@ protected:
 		PrimID first,
 		PrimID last,
 		std::vector<PrimInfo>& geomInfos,
-		BBox& bboxCentroids,
 		BBox& bboxAllGeoms,
 		std::vector<BucketInfo>& buckets
 		) const;
@@ -253,6 +246,6 @@ protected:
 	int m_maxGeomsInNode;
 	ESplitMethod m_splitMethod;
 	std::vector<std::shared_ptr<Geometry>> m_prims;
-	size_t m_spatialSplitBudget = 10;
+	size_t m_spatialSplitBudget = 1;
 };
 

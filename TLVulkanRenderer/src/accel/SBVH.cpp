@@ -25,13 +25,10 @@ SBVH::Build(
 	}
 
 	// Initialize primitives info
-	std::vector<PrimInfo> primInfos(prims.size());
-	for (size_t i = 0; i < primInfos.size(); i++)
+	std::vector<PrimInfo> primInfos(size_t(prims.size() * 2), {INVALID_ID, BBox()}); // Pad 20% more space for spatial split fragments
+	for (size_t i = 0; i < m_prims.size(); i++)
 	{
-		primInfos[i] = { i, prims[i]->GetBBox()};
-		if (i == 4216) {
-			printf("HYere");
-		}
+		primInfos[i] = { i, m_prims[i]->GetBBox()};
 	}
 
 	PrimID totalNodes = 0;
@@ -39,20 +36,8 @@ SBVH::Build(
 	std::vector<std::shared_ptr<Geometry>> orderedGeoms;
 	PrimID first = 0;
 	PrimID last = primInfos.size();
-	for (auto primInfo : primInfos)
-	{
-		if (primInfo.primitiveId == 4216)
-		{
-			printf("Here");
-		}
-	}
-	m_root = BuildRecursive(first, last, totalNodes, primInfos, orderedGeoms, 0);
+	m_root = BuildRecursive(first, last, totalNodes, primInfos, orderedGeoms, 0, true);
 	//m_geoms.swap(orderedGeoms);
-	for (auto primInfo : primInfos) {
-		if (primInfo.primitiveId == 4216) {
-			printf("Here");
-		}
-	}
 	Flatten();
 }
 
@@ -76,21 +61,50 @@ void SBVH::PartitionObjects(
 	PrimID first, 
 	PrimID last, 
 	PrimID& mid,
-	std::vector<PrimInfo>& geomInfos, 
+	std::vector<PrimInfo>& primInfos, 
 	BBox& bboxCentroids
 	) {
 	
-	PrimInfo *pmid = std::partition(
-		&geomInfos[first], &geomInfos[last - 1] + 1,
-		[=](const PrimInfo& gi)
-	{
-		// Partition geometry into two halves, before and after the split
-		int whichBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
+	std::vector<PrimInfo> temp;
+	for (PrimID i = first; i < last; i++) {
+		if (primInfos[i].primitiveId == INVALID_ID) continue;
+
+		temp.push_back(primInfos.at(i));
+		// Clear out that memory
+		primInfos.at(i) = { INVALID_ID, BBox() };
+	}
+
+	PrimID front = first;
+	PrimID back = last - 1;
+	for (PrimInfo info : temp) {
+		// Partition geometry into two halves, before and after the split, and leave the middle empty
+		int whichBucket = NUM_BUCKET * bboxCentroids.Offset(info.bbox.m_centroid)[dim];
 		assert(whichBucket <= NUM_BUCKET);
 		if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-		return whichBucket <= minCostBucket;
-	});
-	mid = pmid - &geomInfos[0];
+		if(whichBucket <= minCostBucket) {
+			primInfos.at(front) = info;
+			front++;
+		} else {
+			primInfos.at(back) = info;
+			back--;
+		}
+		assert(front <= back + 1);
+
+	}
+
+	mid = (front + back) / 2;
+
+	//PrimInfo *pmid = std::partition(
+	//	&geomInfos[first], &geomInfos[last - 1] + 1,
+	//	[=](const PrimInfo& gi)
+	//{
+	//	// Partition geometry into two halves, before and after the split
+	//	int whichBucket = NUM_BUCKET * bboxCentroids.Offset(gi.bbox.m_centroid)[dim];
+	//	assert(whichBucket <= NUM_BUCKET);
+	//	if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
+	//	return whichBucket <= minCostBucket;
+	//});
+	//mid = pmid - &geomInfos[0];
 }
 
 void SBVH::PartitionSpatial(
@@ -99,21 +113,55 @@ void SBVH::PartitionSpatial(
 	PrimID first,
 	PrimID last,
 	PrimID& mid,
-	std::vector<PrimInfo>& geomInfos,
+	std::vector<PrimInfo>& primInfos,
 	BBox& bboxAllGeoms
 	) 
 {
-	PrimInfo *pmid = std::partition(
-		&geomInfos[first], &geomInfos[last - 1] + 1,
-		[=](const PrimInfo& gi)
+	std::vector<PrimInfo> temp;
+	for (PrimID i = first; i < last; i++)
 	{
-		BucketID startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
+		if (primInfos[i].primitiveId == INVALID_ID) continue;
+
+		temp.push_back(primInfos.at(i));
+		// Clear out that memory
+		primInfos.at(i) = { INVALID_ID, BBox() };
+	}
+
+	PrimID front = first;
+	PrimID back = last - 1;
+	for (PrimInfo info : temp)
+	{
+		// Partition geometry into two halves, before and after the split, and leave the middle empty
+		BucketID startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(info.bbox.m_min)[dim];
 		assert(startEdgeBucket <= NUM_BUCKET);
 		if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
+		if (startEdgeBucket <= minCostBucket)
+		{
+			primInfos.at(front) = info;
+			front++;
+		}
+		else
+		{
+			primInfos.at(back) = info;
+			back--;
+		}
+		assert(front <= back);
 
-		return startEdgeBucket <= minCostBucket;
-	});
-	mid = pmid - &geomInfos[0];
+	}
+
+	mid = (front + back) / 2;
+
+	//PrimInfo *pmid = std::partition(
+	//	&primInfos[first], &primInfos[last - 1] + 1,
+	//	[=](const PrimInfo& gi)
+	//{
+	//	BucketID startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
+	//	assert(startEdgeBucket <= NUM_BUCKET);
+	//	if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
+
+	//	return startEdgeBucket <= minCostBucket;
+	//});
+	//mid = pmid - &primInfos[0];
 }
 
 SBVHLeaf* SBVH::CreateLeaf(
@@ -121,35 +169,33 @@ SBVHLeaf* SBVH::CreateLeaf(
 	PrimID first,
 	PrimID last,
 	PrimID& nodeCount,
-	std::vector<PrimInfo>& geomInfos,
+	std::vector<PrimInfo>& primInfos,
 	std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
 	BBox& bboxAllGeoms
 	) {
 
-	size_t numPrimitives = last - first;
+	PrimID numPrimitives = 0;
+	for (auto prim : primInfos)
+	{
+		if (prim.primitiveId != INVALID_ID)
+		{
+			++numPrimitives;
+		}
+		else
+		{
+			continue;
+		}
+	}
 
 	size_t firstGeomOffset = orderedGeoms.size();
 	std::unordered_set<PrimID> geomIds;
-	if (last == 4336) {
-		assert(last == 4336);
-	}
 	for (int i = first; i < last; i++)
 	{
-		PrimID primID = geomInfos.at(i).primitiveId;
-		std::string name = m_prims[primID].get()->GetName();
-		bool found = false;
-		for (auto orderedPrim : orderedGeoms) {
-			if (name.compare(orderedPrim.get()->GetName()) == 0) {
-				found = true;
-				break;
-			}
-		}
-		if (found) {
-			continue;
-		} else {			
-			orderedGeoms.push_back(m_prims[primID]);
-			geomIds.insert(primID);
-		}
+		PrimID primID = primInfos.at(i).primitiveId;
+		if (primID == INVALID_ID) continue;
+
+		orderedGeoms.push_back(m_prims[primID]);
+		geomIds.insert(primID);
 	}
 	SBVHLeaf* leaf = new SBVHLeaf(parent, nodeCount, firstGeomOffset, numPrimitives, bboxAllGeoms);
 	nodeCount++;
@@ -174,7 +220,7 @@ SBVH::CalculateObjectSplitCost(
 	Dim dim,
 	PrimID first,
 	PrimID last,
-	std::vector<PrimInfo>& geomInfos,
+	std::vector<PrimInfo>& primInfos,
 	BBox& bboxCentroids,
 	BBox& bboxAllGeoms
 	) const 
@@ -186,12 +232,14 @@ SBVH::CalculateObjectSplitCost(
 	// For each primitive in range, determine which bucket it falls into
 	for (int i = first; i < last; i++)
 	{
-		int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
+		if (primInfos[i].primitiveId == INVALID_ID) continue;
+
+		int whichBucket = NUM_BUCKET * bboxCentroids.Offset(primInfos.at(i).bbox.m_centroid)[dim];
 		assert(whichBucket <= NUM_BUCKET);
 		if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
 
 		buckets[whichBucket].count++;
-		buckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
+		buckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, primInfos.at(i).bbox);
 	}
 
 	// Compute cost for splitting after each bucket
@@ -239,7 +287,6 @@ SBVH::CalculateSpatialSplitCost(
 	PrimID first, 
 	PrimID last, 
 	std::vector<PrimInfo>& primInfos, 
-	BBox& bboxCentroids, 
 	BBox& bboxAllGeoms,
 	std::vector<BucketInfo>& buckets
 	) const {
@@ -252,6 +299,8 @@ SBVH::CalculateSpatialSplitCost(
 	// For each primitive in range, determine which bucket it falls into
 	for (int i = first; i < last; i++)
 	{
+		if (primInfos[i].primitiveId == INVALID_ID) continue;
+
 		BucketID minBucket = (NUM_BUCKET * bboxAllGeoms.Offset(primInfos.at(i).bbox.m_min)[dim]);
 		assert(minBucket <= NUM_BUCKET);
 		if (minBucket == NUM_BUCKET) minBucket = NUM_BUCKET - 1;
@@ -463,12 +512,13 @@ SBVH::CalculateSpatialSplitCost(
 
 SBVHNode*
 SBVH::BuildRecursive(
-	PrimID& first, 
-	PrimID& last,
+	PrimID first, 
+	PrimID last,
 	PrimID& nodeCount,
 	std::vector<PrimInfo>& primInfos,
 	std::vector<std::shared_ptr<Geometry>>& orderedGeoms,
-	int depth
+	int depth,
+	bool shouldInsertAtBack
 	) 
 {
 	if (last <= first || last < 0 || first < 0)
@@ -479,20 +529,30 @@ SBVH::BuildRecursive(
 	// == COMPUTE BOUNDS OF ALL GEOMETRIES
 	BBox bboxAllGeoms;
 	for (int i = first; i < last; i++) {
+		if (primInfos[i].primitiveId == INVALID_ID) continue;
 		bboxAllGeoms = BBox::BBoxUnion(bboxAllGeoms, primInfos[i].bbox);
 	}
 
 	// Num primitive should only reflect unique IDs
-	int numPrimitives = last - first;
+	PrimID numPrimitives = 0;
+	for (auto prim : primInfos) {
+		if (prim.primitiveId != INVALID_ID) {
+			++numPrimitives;
+		} else {
+			continue;
+		}
+	}
 	
 	// == GENERATE SINGLE GEOMETRY LEAF NODE
-	if (numPrimitives == 1) {
+	if (numPrimitives == 1 || depth == 20) {
 		return CreateLeaf(nullptr, first, last, nodeCount, primInfos, orderedGeoms, bboxAllGeoms);
 	}
 
 	// COMPUTE BOUNDS OF ALL CENTROIDS
 	BBox bboxCentroids;
 	for (int i = first; i < last; i++) {
+		if (primInfos[i].primitiveId == INVALID_ID) continue;
+
 		bboxCentroids = BBox::BBoxUnion(bboxCentroids, primInfos[i].bbox.m_centroid);
 	}
 
@@ -537,7 +597,7 @@ SBVH::BuildRecursive(
 					std::vector<BucketInfo> spatialBuckets;
 					spatialBuckets.resize(NUM_BUCKET);
 					spatialSplitCost =
-						CalculateSpatialSplitCost(allGeomsDim, first, last, primInfos, bboxCentroids, bboxAllGeoms, spatialBuckets);
+						CalculateSpatialSplitCost(allGeomsDim, first, last, primInfos, bboxAllGeoms, spatialBuckets);
 
 					// Get the cheapest cost between object split candidate and spatial split candidate
 
@@ -550,7 +610,10 @@ SBVH::BuildRecursive(
 						m_spatialSplitBudget--;
 
 						std::vector<PrimInfo> origPrims;
-						for (auto frag : spatialBuckets[std::get<BucketID>(spatialSplitCost)].fragments) {
+						PrimID front = first;
+						PrimID back = last - 1;
+						BucketID spatialBucket = std::get<BucketID>(spatialSplitCost);
+						for (auto frag : spatialBuckets[spatialBucket].fragments) {
 							PrimInfo origPrim = primInfos.at(frag.origPrimOffset);
 							origPrims.push_back(origPrim);
 						}
@@ -574,9 +637,36 @@ SBVH::BuildRecursive(
 							right.bbox.m_centroid = BBox::Centroid(right.bbox.m_min, right.bbox.m_max);
 							right.bbox.m_transform = Transform(right.bbox.m_centroid, glm::vec3(0), right.bbox.m_max - right.bbox.m_min);
 
-							primInfos.at(frag.origPrimOffset) = left;
-							primInfos.insert(primInfos.begin() + frag.origPrimOffset + 1, right);
-							last++;
+
+							// Test whether we can unfit this reference if it's overlapping is too small
+							// Remember that spatial split cost is :
+							// COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;
+
+							Cost csplit = (std::get<Cost>(spatialSplitCost) - COST_TRAVERSAL) * bboxAllGeoms.GetSurfaceArea() / COST_INTERSECTION;
+							Cost c0 = BBox::BBoxUnion(left.bbox, origPrim.bbox).GetSurfaceArea() * 
+								spatialBuckets[spatialBucket].enter + right.bbox.GetSurfaceArea() * (spatialBuckets[spatialBucket].exit - 1);
+							Cost c1 = left.bbox.GetSurfaceArea() *
+								(spatialBuckets[spatialBucket].enter - 1) + BBox::BBoxUnion(right.bbox, origPrim.bbox).GetSurfaceArea() * spatialBuckets[spatialBucket].exit;
+
+							if (csplit < c0 && csplit < c1) {
+								// Insert the new fragments into the priminfos list at both children
+								primInfos.at(frag.origPrimOffset) = left;
+								if (shouldInsertAtBack)
+								{
+									primInfos[back] = right;
+									--back;
+								}
+								else
+								{
+									primInfos[front] = right;
+									++front;
+								}
+							} else if (c0 < c1) {
+								
+							} else {
+								
+							}
+
 						}
 					}
 				}
@@ -640,10 +730,10 @@ SBVH::BuildRecursive(
 	}
 
 	// Build near child
-	SBVHNode* nearChild = BuildRecursive(first, mid, nodeCount, primInfos, orderedGeoms, depth + 1);
+	SBVHNode* nearChild = BuildRecursive(first, mid, nodeCount, primInfos, orderedGeoms, depth + 1, true);
 
 	// Build far child
-	SBVHNode* farChild = BuildRecursive(mid, last, nodeCount, primInfos, orderedGeoms, depth + 1);
+	SBVHNode* farChild = BuildRecursive(mid, last, nodeCount, primInfos, orderedGeoms, depth + 1, false);
 
 	SBVHNode* node = new SBVHNode(nullptr, nearChild, farChild, nodeCount, dim);
 	if (nearChild)
