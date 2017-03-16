@@ -838,8 +838,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 	// -------- For each mesh -----------
 
-	int idxOffset = 0;
-	int vertOffset = 0;
+	unsigned int idxOffset = 0;
+	unsigned vertOffset = 0;
 	for (auto& nodeString : nodeString2Matrix) {
 
 		const tinygltf::Node& node = tinygltfScene.nodes.at(nodeString.first);
@@ -868,8 +868,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(indexAccessor.componentType);
 
 					// Extra index data
-					int bufferOffset = indexBufferView.byteOffset + indexAccessor.byteOffset;
-					int bufferLength = indexAccessor.count * componentLength * componentTypeByteSize;
+					unsigned int bufferOffset = indexBufferView.byteOffset + indexAccessor.byteOffset;
+					unsigned int bufferLength = indexAccessor.count * componentLength * componentTypeByteSize;
 					auto first = indexBuffer.data.begin() + bufferOffset;
 					auto last = indexBuffer.data.begin() + bufferOffset + bufferLength;
 					std::vector<Byte> data = std::vector<Byte>(first, last);
@@ -1016,7 +1016,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 				scene->meshesData.push_back(geom);
 
 				Mesh newMesh;
-				for (int j = idxOffset; j < scene->indices.size(); j++)
+				for (unsigned int j = idxOffset; j < scene->indices.size(); j++)
 				{
 					ivec4 idx = scene->indices[j];
 					

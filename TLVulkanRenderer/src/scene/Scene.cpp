@@ -97,8 +97,8 @@ Scene::DoesIntersect(Ray& ray)
 
 void Scene::PrepareTestScene()
 {
-	//camera.eye = vec3(0, 10 , 45);
-	camera.eye = vec3(0, 0, 7);
+	camera.eye = vec3(0, 20 , 200);
+	//camera.eye = vec3(0, 0, 7);
 	camera.RecomputeAttributes();
 
 	// Setup materials
@@ -108,21 +108,6 @@ void Scene::PrepareTestScene()
 	reflectiveMat->m_colorReflective = vec3(1, 1, 1);
 	materials.push_back(reflectiveMat);
 
-	LambertMaterial* lambertGreen = new LambertMaterial();
-	lambertGreen->m_colorDiffuse = vec3(0, 0.6, 0);
-	materials.push_back(lambertGreen);
-
-	LambertMaterial* lambertLime = new LambertMaterial();
-	lambertLime->m_colorDiffuse = vec3(0.6, 0.8, 0);
-	materials.push_back(lambertLime);
-
-	LambertMaterial* lambertRed = new LambertMaterial();
-	lambertRed->m_colorDiffuse = vec3(0.6, 0.1, 0);
-	materials.push_back(lambertRed);
-
-	LambertMaterial* lambertWhite = new LambertMaterial();
-	lambertWhite->m_colorDiffuse = vec3(0.5, 0.5, 0.5);
-	materials.push_back(lambertWhite);
 
 	MetalMaterial* mirror = new MetalMaterial();
 	mirror->m_colorReflective = vec3(0.8, 0.8, 0.8);
@@ -157,7 +142,40 @@ void Scene::PrepareTestScene()
 	//	geometries.push_back(s);
 	//}
 
-	// Add planes
+	// Add lights
+	PointLight* light = new PointLight(vec3(0, 10.0, 10.0), vec3(1, 1, 1), 200);
+	lights.push_back(light);
+
+	//light = new PointLight(vec3(0, -2.1, 2), vec3(1, 2, 1), 10);
+	//lights.push_back(light);
+
+	if (m_useAccel)
+	{
+		m_accel->Build(geometries);
+	}
+
+	std::cout << "Number of triangles: " << indices.size() << std::endl;
+}
+
+void Scene::PrepareCornellBox() {
+
+	LambertMaterial* lambertGreen = new LambertMaterial();
+	lambertGreen->m_colorDiffuse = vec3(0, 0.6, 0);
+	materials.push_back(lambertGreen);
+
+	LambertMaterial* lambertLime = new LambertMaterial();
+	lambertLime->m_colorDiffuse = vec3(0.6, 0.8, 0);
+	materials.push_back(lambertLime);
+
+	LambertMaterial* lambertRed = new LambertMaterial();
+	lambertRed->m_colorDiffuse = vec3(0.6, 0.1, 0);
+	materials.push_back(lambertRed);
+
+	LambertMaterial* lambertWhite = new LambertMaterial();
+	lambertWhite->m_colorDiffuse = vec3(0.5, 0.5, 0.5);
+	materials.push_back(lambertWhite);
+
+
 	std::shared_ptr<Cube> floor(new Cube(vec3(0, -2.5, 0), vec3(5, 0.2, 5), lambertRed));
 	floor.get()->SetName(std::string("Floor"));
 	geometries.push_back(floor);
@@ -177,19 +195,4 @@ void Scene::PrepareTestScene()
 	std::shared_ptr<Cube> ceiling(new Cube(vec3(0, 2.5, 0), vec3(5, 0.2, 5), lambertWhite));
 	ceiling.get()->SetName(std::string("Ceiling"));
 	geometries.push_back(ceiling);
-
-
-	// Add lights
-	PointLight* light = new PointLight(vec3(0, 10.0, 10.0), vec3(1, 1, 1), 200);
-	lights.push_back(light);
-
-	//light = new PointLight(vec3(0, -2.1, 2), vec3(1, 2, 1), 10);
-	//lights.push_back(light);
-
-	if (m_useAccel)
-	{
-		m_accel->Build(geometries);
-	}
-
-	std::cout << "Number of triangles: " << indices.size() << std::endl;
 }
