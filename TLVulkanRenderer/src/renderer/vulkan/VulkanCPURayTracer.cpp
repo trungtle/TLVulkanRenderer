@@ -4,6 +4,7 @@
 #include "geometry/Geometry.h"
 #include "scene/Camera.h"
 #include "renderer/samplers/UniformSampler.h"
+#include "renderer/samplers/StratifiedSampler.h"
 #include <iostream>
 
 #define MULTITHREAD
@@ -12,7 +13,8 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 	vec3 color;
 	int depth = 3;
 	for (auto light : scene->lights) {
-		for (int i = 0; i < depth; i++)
+		int i = 0;
+		for (i = 0; i < depth; i++)
 		{
 			Intersection isx = scene->GetIntersection(newRay);
 			if (isx.t > 0)
@@ -24,12 +26,14 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 				}
 
 				// Shade material
-				vec3 newColor = isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay.m_direction, newRay.m_direction);
-				if (isx.hitObject->GetMaterial()->m_refracti < 1.0)
+				bool shouldTerminate = false;
+				Ray reflectedRay;
+				vec3 newColor = isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay, reflectedRay, shouldTerminate);
+				if (shouldTerminate)
 				{
 					i = depth;
 				}
-				newRay.m_origin = isx.hitPoint;
+				newRay = reflectedRay;
 				newColor *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler

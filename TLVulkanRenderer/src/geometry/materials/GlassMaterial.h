@@ -12,8 +12,9 @@ public:
 	ColorRGB EvaluateEnergy(
 		const Intersection& isx,
 		const Direction& lightDirection,
-		const Direction& in,
-		Direction& out
+		const Ray& in,
+		Ray& out,
+		bool& shouldTerminate
 	) override;
 };
 

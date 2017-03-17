@@ -4,6 +4,7 @@
 #include <Texture.h>
 #include <scene/SceneUtil.h>
 #include <Color.h>
+#include <geometry/Ray.h>
 
 class Intersection;
 
@@ -27,10 +28,12 @@ public:
 	virtual ~Material() {}
 
 	virtual ColorRGB EvaluateEnergy(
-		const Intersection& isx, 
+		const Intersection& isx,
 		const Direction& lightDirection,
-		const Direction& in,
-		Direction& out) = 0;
+		const Ray& in,
+		Ray& out,
+		bool& shouldTerminate
+	) = 0;
 
 
 	ColorRGB	m_colorDiffuse;

@@ -115,16 +115,16 @@ void Scene::PrepareTestScene()
 
 
 	// Turn meshes into triangles
-	for (int m = 0; m < meshes.size(); m++)
-	{
-		//meshes[m].SetTransform(Transform(glm::vec3(0, 0, 0), glm::vec3(0), glm::vec3(1, 1, 1)));
-		for (int t = 0; t < meshes[m].triangles.size(); t++)
-		{
-			std::string name = "triangle" + t;
-			meshes[m].triangles[t].SetName(name);
-			geometries.push_back(std::shared_ptr<Geometry>(&meshes[m].triangles[t]));
-		}
-	}
+	//for (int m = 0; m < meshes.size(); m++)
+	//{
+	//	//meshes[m].SetTransform(Transform(glm::vec3(0, 0, 0), glm::vec3(0), glm::vec3(1, 1, 1)));
+	//	for (int t = 0; t < meshes[m].triangles.size(); t++)
+	//	{
+	//		std::string name = "triangle" + t;
+	//		meshes[m].triangles[t].SetName(name);
+	//		geometries.push_back(std::shared_ptr<Geometry>(&meshes[m].triangles[t]));
+	//	}
+	//}
 
 	// Add spheres
 	int numSpheres = 5;
@@ -176,11 +176,11 @@ void Scene::PrepareCornellBox() {
 	materials.push_back(lambertLime);
 
 	LambertMaterial* lambertRed = new LambertMaterial();
-	lambertRed->m_colorDiffuse = vec3(0.6, 0.1, 0);
+	lambertRed->m_colorDiffuse = vec3(0.6, 0.2, 0.1);
 	materials.push_back(lambertRed);
 
 	LambertMaterial* lambertWhite = new LambertMaterial();
-	lambertWhite->m_colorDiffuse = vec3(0.5, 0.5, 0.5);
+	lambertWhite->m_colorDiffuse = vec3(0.6, 0.6, 0.7);
 	materials.push_back(lambertWhite);
 
 

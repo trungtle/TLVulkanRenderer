@@ -4,14 +4,17 @@
 ColorRGB MetalMaterial::EvaluateEnergy(
 	const Intersection& isx, 
 	const Direction& lightDirection,
-	const Direction& in,
-	Direction& out)
+	const Ray& in,
+	Ray& out,
+	bool& shouldTerminate
+	)
 {
 	ColorRGB color;
 
-	out = glm::reflect(in, isx.hitNormal);
-	if (glm::dot(out, isx.hitNormal) >= 0) {
+	out.m_direction = glm::reflect(in.m_direction, isx.hitNormal);
+	if (glm::dot(out.m_direction, isx.hitNormal) >= 0) {
 		color *= m_colorReflective;
+		out.m_origin = isx.hitPoint + EPSILON * out.m_direction;
 	}
 
 	return color;
