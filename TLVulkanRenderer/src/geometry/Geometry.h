@@ -13,9 +13,11 @@ class Geometry;
 
 class Intersection {
 public:
-	glm::vec3 hitPoint;
-	glm::vec3 hitNormal;
-	glm::vec3 hitTextureColor;
+	Point3 hitPoint;
+	Normal hitNormal;
+	Normal hitTangent;
+	Normal hitBitangent;
+	ColorRGB hitTextureColor;
 	float t;
 	Geometry* hitObject;
 	Intersection() : t(-1), hitObject(nullptr) {};
@@ -139,6 +141,22 @@ public:
 		glm::vec4 N(0, 0, 0, 0);
 		N[idx] = glm::sign(P[idx]);
 		return N;
+	}
+
+	glm::vec4 GetCubeTangent(const glm::vec4& P) const {
+		int idx = 0;
+		float val = -1;
+		for (int i = 0; i < 3; i++)
+		{
+			if (glm::abs(P[i]) > val)
+			{
+				idx = i;
+				val = glm::abs(P[i]);
+			}
+		}
+		glm::vec4 T(0, 0, 0, 0);
+		T[idx] = glm::sign(P[(idx + 1) % 3]);
+		return T;
 	}
 
 	Intersection GetIntersection(const Ray& r) override;

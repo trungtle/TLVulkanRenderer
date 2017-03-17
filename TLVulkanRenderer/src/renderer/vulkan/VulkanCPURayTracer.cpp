@@ -37,11 +37,24 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 				newColor *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler
-				Ray shadowFeeler(isx.hitPoint + EPSILON * lightDirection, lightDirection);
+				// Jitter shadow feeler for sotf shadow
+				//static float r1 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+				//r1 = r1 * 2.0f - 1.0f; // Spread between -1, and 1
+				//static float r2 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+				//r2 = r2 * 2.0f - 1.0f; // Spread between -1, and 1
+				//static float r3 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+				//r3 = r3 * 2.0f - 1.0f; // Spread between -1, and 1
+				Point3 jitter = isx.hitPoint;// t + isx.hitTangent * x;
+				Direction dir = normalize(light->GetPosition() - jitter);
+				jitter += EPSILON * dir;
+
+				Ray shadowFeeler(jitter, dir);
 				if (scene->DoesIntersect(shadowFeeler))
 				{
 					newColor *= 0.1f;
-				} else {
+				}
+				else
+				{
 					newColor *= light->GetColor();
 				}
 
@@ -84,7 +97,7 @@ void Task(
 	uint32_t endY = (tileY + 1) * sizeY;
 	endY = std::min(endY, height);
 
-	UniformSampler sampler(ESamples::X1);
+	UniformSampler sampler(ESamples::X4);
 	for (uint32_t x = startX; x < endX; x++)
 	{
 		for (uint32_t y = startY; y < endY; y++)

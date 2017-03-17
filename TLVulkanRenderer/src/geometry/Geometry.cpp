@@ -38,8 +38,18 @@ Intersection Sphere::GetIntersection(const Ray& r) {
 	if (t >= 0) {
 		glm::vec4 P = glm::vec4(r_loc.m_origin + t * r_loc.m_direction, 1);
 		result.hitPoint = glm::vec3(m_transform.T() * P);
-		glm::vec3 normal = glm::normalize(glm::vec3(P));
-		result.hitNormal = glm::normalize(glm::vec3(m_transform.invTransT() * (P - glm::vec4(0, 0, 0, 1))));
+		glm::vec3 normal = glm::vec3(P);
+		result.hitNormal = glm::normalize(glm::vec3(m_transform.invTransT() * glm::vec4(normal, 0)));
+
+		// To compute tangent, convert to spherical coordinate, then rotate by pi/2
+		float radius = glm::length(P);
+		float theta = acos(P.z / radius);
+		float phi = atan2(P.y, P.x);
+		theta += PI / 2.0;
+		Direction tangent(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+		result.hitTangent = glm::normalize(glm::vec3(m_transform.invTransT() * glm::vec4(tangent, 0 )));
+		result.hitBitangent = glm::cross(result.hitNormal, result.hitTangent);
+
 		result.hitTextureColor = m_material->m_colorDiffuse;
 		result.t = glm::distance(result.hitPoint, r.m_origin);
 		result.hitObject = this;
@@ -103,9 +113,10 @@ Intersection Cube::GetIntersection(const Ray& r) {
 		glm::vec4 P = glm::vec4(r_loc.m_origin + t_n * r_loc.m_direction, 1);
 		result.hitPoint = glm::vec3(m_transform.T() * P);
 		result.hitNormal = glm::normalize(glm::vec3(m_transform.invTransT() * GetCubeNormal(P)));
+		result.hitTangent = glm::normalize(glm::vec3(m_transform.invTransT() * GetCubeTangent(P)));
+		result.hitBitangent = glm::cross(result.hitNormal, result.hitTangent);
 		result.hitObject = this;
 		result.t = glm::distance(result.hitPoint, r.m_origin);
-		//			result.hitTextureColor = Material::GetImageColorInterp(GetUVCoordinates(glm::vec3(P)), material->texture);
 		result.hitTextureColor = m_material->m_colorDiffuse;
 		return result;
 	}
@@ -182,6 +193,8 @@ Intersection Triangle::GetIntersection(const Ray& r) {
 	CheckerTexture checkerTexture;
 	isx.hitPoint = r.GetPointOnRay(t);
 	isx.hitNormal = normalize(norm0 * (1 - u - v) + norm1 * u + norm2 * v);
+	isx.hitTangent = normalize(vert0 - isx.hitPoint); // @todo: For now, pick any tangent
+	isx.hitBitangent = glm::cross(isx.hitNormal, isx.hitTangent);
 	isx.t = t;
 	isx.hitTextureColor = m_material->m_texture == nullptr ? checkerTexture.value(uv, isx.hitPoint) : m_material->m_texture->value(uv, isx.hitPoint);
 	isx.hitObject = this;
