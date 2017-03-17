@@ -27,6 +27,14 @@ public:
 		return m_data;
 	}
 
+	inline uint32_t GetWidth() const {
+		return m_width;
+	}
+
+	inline uint32_t GetHeight() const {
+		return m_height;
+	}
+
 private:
 	uint32_t m_width;
 	uint32_t m_height;

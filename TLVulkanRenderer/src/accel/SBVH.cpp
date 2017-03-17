@@ -544,7 +544,7 @@ SBVH::BuildRecursive(
 	}
 	
 	// == GENERATE SINGLE GEOMETRY LEAF NODE
-	if (numPrimitives == 1 || depth == 20) {
+	if (numPrimitives == 1 || depth == 10) {
 		return CreateLeaf(nullptr, first, last, nodeCount, primInfos, orderedGeoms, bboxAllGeoms);
 	}
 

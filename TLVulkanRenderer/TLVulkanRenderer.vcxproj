@@ -171,6 +171,7 @@
     <ClInclude Include="src\accel\SBVH.h" />
     <ClInclude Include="src\geometry\materials\MetalMaterial.h" />
     <ClInclude Include="src\geometry\Transform.h" />
+    <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanHybridRenderer.h" />
     <ClInclude Include="src\Texture.h" />
     <ClInclude Include="src\MathUtil.h" />

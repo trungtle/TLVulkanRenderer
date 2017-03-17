@@ -148,6 +148,7 @@
     <ClInclude Include="src\Color.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanHybridRenderer.h" />
     <ClInclude Include="src\geometry\materials\EmissiveMaterial.h" />
+    <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">
