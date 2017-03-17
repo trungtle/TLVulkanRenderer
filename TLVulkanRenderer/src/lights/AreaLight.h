@@ -2,23 +2,18 @@
 #pragma once
 #include "Light.h"
 
-class PointLight : public Light
+class AreaLight : public Light, public SquarePlane
 {
 public:
 
-	PointLight() : Light() {};
-	PointLight(vec3 pos, vec3 color, float radius) :
-		Light(pos, color), m_radius(radius)
+	AreaLight() : Light(), SquarePlane() {};
+	AreaLight(vec3 pos, vec3 scale, vec3 normal, vec3 color, Material* material) :
+		Light(pos, color), SquarePlane(pos, scale, normal, material)
 	{
 	}
 
 	float Attenuation(const vec3& point) override {
-		float dist = glm::distance(m_position, point);
-		return m_radius / glm::max(0.1f, glm::pow(dist, 2.0f)) + 0.1;
+		return 1.0f;
 	}
 
-protected:
-
-	glm::vec3 normal;
-	glm::
 };

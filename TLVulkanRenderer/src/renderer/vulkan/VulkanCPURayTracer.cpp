@@ -10,7 +10,7 @@
 
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 	vec3 color;
-	int depth = 2;
+	int depth = 3;
 	for (auto light : scene->lights) {
 		for (int i = 0; i < depth; i++)
 		{
@@ -25,6 +25,11 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 
 				// Shade material
 				vec3 newColor = isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay.m_direction, newRay.m_direction);
+				if (isx.hitObject->GetMaterial()->m_refracti < 1.0)
+				{
+					i = depth;
+				}
+				newRay.m_origin = isx.hitPoint;
 				newColor *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler
@@ -238,7 +243,7 @@ VulkanCPURaytracer::Render() {
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	);
 
-	m_vulkanDevice->CopyImage(m_graphics.queue, m_graphics.commandPool, m_displayImage.image, m_stagingImage.image, m_width, m_height);
+	m_vulkanDevice->CopyImage(m_graphics.queue , m_graphics.commandPool, m_displayImage.image, m_stagingImage.image, m_width, m_height);
 
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,

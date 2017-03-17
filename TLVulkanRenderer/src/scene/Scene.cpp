@@ -4,6 +4,7 @@
 #include <iostream>
 #include "accel/SBVH.h"
 #include "geometry/materials/MetalMaterial.h"
+#include "geometry/materials/GlassMaterial.h"
 
 Scene::Scene(
 	std::string fileName,
@@ -101,16 +102,12 @@ void Scene::PrepareTestScene()
 	camera.eye = vec3(0, 0, 7);
 	camera.RecomputeAttributes();
 
-	// Setup materials
-	LambertMaterial* reflectiveMat = new LambertMaterial();
-	reflectiveMat->m_colorDiffuse = vec3(0.2, 0.3, 0.6);
-	reflectiveMat->m_reflectivity = 0.5;
-	reflectiveMat->m_colorReflective = vec3(1, 1, 1);
-	materials.push_back(reflectiveMat);
-
-
 	MetalMaterial* mirror = new MetalMaterial();
-	mirror->m_colorReflective = vec3(0.8, 0.8, 0.8);
+	mirror->m_colorReflective = ColorRGB(0.8, 0.8, 0.8);
+
+	GlassMaterial* glass = new GlassMaterial();
+	glass->m_colorTransparent = ColorRGB(0.8, 0.8, 0.8);
+	glass->m_refracti = 1.333f;
 
 	for (auto mat : materials) {
 		mat->m_colorAmbient = vec3(0.1, 0.1, 0.1);
@@ -132,11 +129,20 @@ void Scene::PrepareTestScene()
 	// Add spheres
 	int numSpheres = 5;
 	for (int i = 0; i < numSpheres; i++) {
+		Material* mat;
+		if (i % 2)
+		{
+			mat = mirror;
+		}
+		else
+		{
+			mat = glass;
+		}
 		std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
 			sin(glm::radians(360.0f * i / numSpheres)) * 1,
 			-2.4 + (0.5 + i * 0.25) * 0.5,
 			cos(glm::radians(360.0f * i / numSpheres)) * 1
-			), 0.5 + i * 0.25, mirror));
+			), 0.5 + i * 0.25, mat));
 		std::string name = "Sphere" + i;
 		s.get()->SetName(name);
 		geometries.push_back(s);

@@ -3,6 +3,7 @@
 #include <vector>
 #include <Texture.h>
 #include <scene/SceneUtil.h>
+#include <Color.h>
 
 class Intersection;
 
@@ -25,19 +26,19 @@ public:
 	{};
 	virtual ~Material() {}
 
-	virtual glm::vec3 EvaluateEnergy(
+	virtual ColorRGB EvaluateEnergy(
 		const Intersection& isx, 
-		const glm::vec3& lightDirection,
-		const glm::vec3& in, 
-		glm::vec3& out) = 0;
+		const Direction& lightDirection,
+		const Direction& in,
+		Direction& out) = 0;
 
 
-	glm::vec3	m_colorDiffuse;
-	glm::vec3	m_colorAmbient;
-	glm::vec3	m_colorEmission;
-	glm::vec3	m_colorSpecular;
-	glm::vec3   m_colorReflective;
-	glm::vec3   m_colorTransparent;
+	ColorRGB	m_colorDiffuse;
+	ColorRGB	m_colorAmbient;
+	ColorRGB	m_colorEmission;
+	ColorRGB	m_colorSpecular;
+	ColorRGB   m_colorReflective;
+	ColorRGB   m_colorTransparent;
 	float		m_shininess;
 	float		m_refracti;
 	float	    m_reflectivity;

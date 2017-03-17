@@ -48,6 +48,7 @@
     <ClCompile Include="src\geometry\materials\MetalMaterial.cpp" />
     <ClCompile Include="src\geometry\materials\GlassMaterial.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanHybridRenderer.cpp" />
+    <ClCompile Include="src\geometry\materials\EmissiveMaterial.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -146,6 +147,7 @@
     <ClInclude Include="src\geometry\materials\GlassMaterial.h" />
     <ClInclude Include="src\Color.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanHybridRenderer.h" />
+    <ClInclude Include="src\geometry\materials\EmissiveMaterial.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

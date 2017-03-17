@@ -1,33 +1,13 @@
 #include "LambertMaterial.h"
 #include <geometry/Geometry.h>
 
-glm::vec3 LambertMaterial::EvaluateEnergy(
+ColorRGB LambertMaterial::EvaluateEnergy(
 	const Intersection& isx, 
-	const glm::vec3& lightDirection, 
-	const glm::vec3& in, 
-	glm::vec3& out)
+	const Direction& lightDirection,
+	const Direction& in,
+	Direction& out)
 {
-	vec3 color;
-
-	// === Refraction === //
-	if (false)
-	{
-		// heckbert method
-		// t = lerp(0.225m 0.465, cos theta)
-		// Rv = lerp(i, -n, t)
-		float ei = 1.0;
-		float et = 1.5;
-		float cosi = clamp(dot(in, isx.hitNormal), -1.0f, 1.0f);
-		bool entering = cosi < 0;
-		if (!entering)
-		{
-			float t = ei;
-			ei = et;
-			et = t;
-		}
-		float eta = ei / et;
-		out = normalize(refract(in, isx.hitNormal, eta));
-	}
+	ColorRGB color;
 	
 	// Use half lambert here to pop up the color
 	float diffuse = glm::dot(lightDirection, isx.hitNormal) * 0.5 + 0.5;
