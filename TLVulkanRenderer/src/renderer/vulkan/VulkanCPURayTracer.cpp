@@ -10,7 +10,7 @@
 #define MULTITHREAD
 
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
-	vec3 color;
+	vec3 color; 
 	int depth = 3;
 	for (auto light : scene->lights) {
 		int i = 0;
@@ -140,8 +140,8 @@ VulkanCPURaytracer::VulkanCPURaytracer(
 
 VulkanCPURaytracer::~VulkanCPURaytracer()
 {
-	Destroy2DImage(m_vulkanDevice, m_stagingImage);
-	Destroy2DImage(m_vulkanDevice, m_displayImage);
+	DestroyVulkanImage(m_vulkanDevice, m_stagingImage);
+	DestroyVulkanImage(m_vulkanDevice, m_displayImage);
 	
 	m_wireframeBVHVertices.Destroy();
 	m_wireframeBVHIndices.Destroy();
@@ -951,7 +951,7 @@ void VulkanCPURaytracer::PrepareTextures() {
 
 
 	// Stage image
-	m_stagingImage = VulkanImage::Create2DImage(
+	m_stagingImage = VulkanImage::CreateVulkanImage(
 		m_vulkanDevice,
 		m_width,
 		m_height,
@@ -988,7 +988,7 @@ void VulkanCPURaytracer::PrepareTextures() {
 	);
 
 	// Create our display image
-	m_displayImage = VulkanImage::Create2DImage(
+	m_displayImage = VulkanImage::CreateVulkanImage(
 		m_vulkanDevice,
 		m_width, 
 		m_height,

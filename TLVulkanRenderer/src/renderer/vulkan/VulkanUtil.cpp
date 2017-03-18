@@ -375,6 +375,35 @@ namespace VulkanUtil {
 			return module;
 		}
 
+		VkImageCreateInfo MakeImageCreateInfo(
+			uint32_t width,
+			uint32_t height,
+			uint32_t depth,
+			VkImageType imageType,
+			VkFormat format,
+			VkImageTiling tiling,
+			VkImageUsageFlags usage
+		)
+		{
+			VkImageCreateInfo imageInfo = {};
+			imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+			imageInfo.imageType = imageType;
+			imageInfo.extent.width = width;
+			imageInfo.extent.height = height;
+			imageInfo.extent.depth = depth;
+			imageInfo.mipLevels = 1;
+			imageInfo.arrayLayers = 1;
+			imageInfo.format = format;
+			imageInfo.tiling = tiling;
+			imageInfo.usage = usage;
+			imageInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+			imageInfo.samples = VK_SAMPLE_COUNT_1_BIT; // For multisampling
+			imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // used only by one queue that supports transfer operations
+			imageInfo.flags = 0; // We might look into this for flags that support sparse image (if we need to do voxel 3D texture for volumetric)
+
+			return imageInfo;
+		}
+
 		VkRenderPassBeginInfo
 		MakeRenderPassBeginInfo(
 			const VkRenderPass& renderPass,

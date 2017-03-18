@@ -196,6 +196,20 @@ namespace VulkanUtil {
 				const std::string& filepath
 			);
 
+		// ===================
+		// IMAGE
+		// ===================
+		VkImageCreateInfo
+			MakeImageCreateInfo(
+				uint32_t width,
+				uint32_t height,
+				uint32_t depth,
+				VkImageType imageType,
+				VkFormat format,
+				VkImageTiling tiling,
+				VkImageUsageFlags usage
+			);
+
 
 		// ===================
 		// RENDERPASS

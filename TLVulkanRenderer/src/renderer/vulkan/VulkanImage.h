@@ -15,10 +15,11 @@ namespace VulkanImage {
 		VkDeviceMemory imageMemory;
 		VkSampler sampler;
 		VkDescriptorImageInfo descriptor;
+		VkFormat format;
 	};
 
 	Image
-	Create2DImage(
+	CreateVulkanImage(
 		VulkanDevice* device,
 		uint32_t width, 
 		uint32_t height,
@@ -28,7 +29,7 @@ namespace VulkanImage {
 	);
 
 	void
-	Destroy2DImage(
+	DestroyVulkanImage(
 		VulkanDevice* device,
 		Image image
 	);

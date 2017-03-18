@@ -2,6 +2,13 @@
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
 
+// Texture properties
+#define TEX_DIM 2048
+#define TEX_FILTER VK_FILTER_LINEAR
+
+// Offscreen frame buffer properties
+#define FB_DIM TEX_DIM
+
 class VulkanHybridRenderer : public VulkanRenderer
 {
 
@@ -20,38 +27,67 @@ public:
 
 	virtual ~VulkanHybridRenderer() final;
 
-protected:
-
-	// -----------
-	// GRAPHICS PIPELINE
-	// -----------
 	void
-		Prepare() final;
+	Prepare() final;
 
 	VkResult
-		PreparePipelines() final;
+	PreparePipelines() final;
 
 	VkResult
-		PrepareVertexBuffers() final;
+	PrepareVertexBuffers() final;
 
 	// --- Descriptor
 
 	VkResult
-		PrepareDescriptorPool() final;
+	PrepareDescriptorPool() final;
 
 	VkResult
-		PrepareDescriptorLayouts() final;
+	PrepareDescriptorLayouts() final;
 
 	VkResult
-		PrepareDescriptorSets() final;
+	PrepareDescriptorSets() final;
 
 	// --- Command buffers
 
 	VkResult
-		BuildCommandBuffers() final;
+	BuildCommandBuffers() final;
+
+protected:
+
+	struct SFrameBuffer
+	{
+		uint32_t width, height;
+		VkFramebuffer frameBuffer;
+		VulkanImage::Image position, normal, albedo;
+		VulkanImage::Image depth;
+		VkRenderPass renderPass;
+	};
 
 	// -----------
-	// COMPUTE PIPELINE (for raytracing)
+	// DEFFERED PIPEPLINE
+	// -----------
+
+	void
+	CreateAttachment(
+		VkFormat format,
+		VkImageUsageFlagBits usage,
+		VulkanImage::Image& attachment
+	);
+
+	void
+		PrepareDeferredAttachments();
+
+	// -----------
+	// ON SCREEN
+	// -----------
+	
+	// -----------
+	// DEFERRED
+	// -----------
+
+
+	// -----------
+	// RAY TRACING
 	// -----------
 
 	void
@@ -78,6 +114,7 @@ protected:
 	VkResult
 		BuildComputeCommandBuffers();
 
+
 	struct Quad
 	{
 		std::vector<uint16_t> indices;
@@ -85,8 +122,35 @@ protected:
 		std::vector<vec2> uvs;
 	} m_quad;
 
+	struct Deferred
+	{
+		SFrameBuffer framebuffer;
+		VkCommandBuffer commandBuffer;
+		VkSemaphore semaphore;
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+		VkDescriptorSetLayout descriptorLayout;
+		VkDescriptorSet descriptor;
+	} m_deferred;
 
-	struct Compute
+	struct Wireframe
+	{
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+		VkDescriptorSetLayout descriptorLayout;
+		VkDescriptorSet descriptor;
+	} m_wireframe;
+
+	struct Onscreen
+	{
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+		VkDescriptorSetLayout descriptorLayout;
+		VkDescriptorSet descriptor;
+	} m_onscreen;
+
+
+	struct Raytrace
 	{
 		// -- Compute compatible queue
 		VkQueue queue;
@@ -135,5 +199,5 @@ protected:
 			float aspectRatio = 45.0f;
 		} ubo;
 
-	} m_compute;
+	} m_raytrace;
 };
