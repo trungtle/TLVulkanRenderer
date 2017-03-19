@@ -29,6 +29,7 @@ static std::map<int, int> GLTF_COMPONENT_BYTE_SIZE_LOOKUP = {
 	{ TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE, 1 },
 	{ TINYGLTF_COMPONENT_TYPE_SHORT, 2 },
 	{ TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT, 2 },
+	{ TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT, 4 },
 	{ TINYGLTF_COMPONENT_TYPE_FLOAT, 4 }
 };
 
@@ -837,6 +838,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 	// -------- For each mesh -----------
 
+	unsigned int idxOffset = 0;
+	unsigned vertOffset = 0;
 	for (auto& nodeString : nodeString2Matrix) {
 
 		const tinygltf::Node& node = tinygltfScene.nodes.at(nodeString.first);
@@ -844,7 +847,6 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 		const glm::mat3& matrixNormal = glm::transpose(glm::inverse(glm::mat3(matrix)));
 
 		int materialId = 0;
-		int idxOffset = 0;
 		for (auto& meshName : node.meshes) {
 			auto& mesh = tinygltfScene.meshes.at(meshName);
 			for (size_t i = 0; i < mesh.primitives.size(); i++) {
@@ -866,8 +868,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(indexAccessor.componentType);
 
 					// Extra index data
-					int bufferOffset = indexBufferView.byteOffset + indexAccessor.byteOffset;
-					int bufferLength = indexAccessor.count * componentLength * componentTypeByteSize;
+					unsigned int bufferOffset = indexBufferView.byteOffset + indexAccessor.byteOffset;
+					unsigned int bufferLength = indexAccessor.count * componentLength * componentTypeByteSize;
 					auto first = indexBuffer.data.begin() + bufferOffset;
 					auto last = indexBuffer.data.begin() + bufferOffset + bufferLength;
 					std::vector<Byte> data = std::vector<Byte>(first, last);
@@ -957,7 +959,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 					//TextureData* dev_diffuseTex = NULL;
 					MaterialPacked materialPacked;
-					Texture texture;
+					Texture* texture = nullptr;
 					if (!primitive.material.empty()) {
 						const tinygltf::Material& mat = tinygltfScene.materials.at(primitive.material);
 
@@ -969,11 +971,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 									const tinygltf::Image& image = tinygltfScene.images.at(tex.source);
 
 									// Texture bytes
-									texture.width = image.width;
-									texture.height = image.height;
-									texture.component = image.component;
-									texture.name = image.name;
-									texture.image = image.image;
+									texture = new ImageTexture(image.name, image.image, image.width, image.height);
 								}
 							}
 							else {
@@ -1018,20 +1016,21 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 				scene->meshesData.push_back(geom);
 
 				Mesh newMesh;
-				for (int j = idxOffset; j < scene->indices.size(); j++)
+				for (unsigned int j = idxOffset; j < scene->indices.size(); j++)
 				{
 					ivec4 idx = scene->indices[j];
+					
 
 					if (scene->verticeUVs.size() == 0) {
 						// No UVs
 						newMesh.triangles.push_back(
 							Triangle(
-								scene->verticePositions[idx.x],
-								scene->verticePositions[idx.y],
-								scene->verticePositions[idx.z],
-								scene->verticeNormals[idx.x],
-								scene->verticeNormals[idx.y],
-								scene->verticeNormals[idx.z],
+								scene->verticePositions[idx.x + vertOffset],
+								scene->verticePositions[idx.y + vertOffset],
+								scene->verticePositions[idx.z + vertOffset],
+								scene->verticeNormals[idx.x + vertOffset],
+								scene->verticeNormals[idx.y + vertOffset],
+								scene->verticeNormals[idx.z + vertOffset],
 								scene->materials[materialId - 1]
 							)
 						);
@@ -1040,15 +1039,15 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					{
 						newMesh.triangles.push_back(
 							Triangle(
-								scene->verticePositions[idx.x],
-								scene->verticePositions[idx.y],
-								scene->verticePositions[idx.z],
-								scene->verticeNormals[idx.x],
-								scene->verticeNormals[idx.y],
-								scene->verticeNormals[idx.z],
-								scene->verticeUVs[idx.x],
-								scene->verticeUVs[idx.y],
-								scene->verticeUVs[idx.z],
+								scene->verticePositions[idx.x + vertOffset],
+								scene->verticePositions[idx.y + vertOffset],
+								scene->verticePositions[idx.z + vertOffset],
+								scene->verticeNormals[idx.x + vertOffset],
+								scene->verticeNormals[idx.y + vertOffset],
+								scene->verticeNormals[idx.z + vertOffset],
+								scene->verticeUVs[idx.x + vertOffset],
+								scene->verticeUVs[idx.y + vertOffset],
+								scene->verticeUVs[idx.z + vertOffset],
 								scene->materials[materialId - 1]
 							)
 						);
@@ -1056,6 +1055,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 				}
 				scene->meshes.push_back(newMesh);
 				idxOffset = scene->indices.size();
+				vertOffset = scene->verticePositions.size();
+
 			} // -- End of mesh primitives
 		} // -- End of meshes
 	}

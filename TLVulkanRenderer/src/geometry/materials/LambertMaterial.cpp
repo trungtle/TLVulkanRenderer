@@ -1,47 +1,45 @@
+#include <random>
 #include "LambertMaterial.h"
 #include <geometry/Geometry.h>
+#include <ctime>
 
-glm::vec3 LambertMaterial::EvaluateEnergy(const Intersection& isx, const glm::vec3& in, glm::vec3& out) 
+Point3 RandomInUnitSphere() {
+	srand((int)time(0));
+	Point3 p;
+	float len = glm::length(p);
+	do {
+		float r1 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		float r2 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		float r3 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		p = 2.0f * Point3(r1, r2, r3) - Point3(1, 1, 1);
+		len = glm::length(p);
+	} while (len * len >= 1.0);
+
+	return p;
+}
+
+ColorRGB LambertMaterial::EvaluateEnergy(
+	const Intersection& isx,
+	const Direction& lightDirection,
+	const Ray& in,
+	Ray& out,
+	bool& shouldTerminate
+)
 {
-	vec3 color;
-	// @todo: Back face culling
-	//if (dot(in, isx.hitNormal) < 0)
-	//{
-	//	return color;
-	//}
-
-	// === Reflection === //
-	if (m_reflectivity > 0)
-	{
-		out = normalize(reflect(out, isx.hitNormal));
-		return m_colorReflective;
-	}
-
-	// === Refraction === //
-	if (false)
-	{
-		float ei = 1.0;
-		float et = 1.5;
-		float cosi = clamp(dot(in, isx.hitNormal), -1.0f, 1.0f);
-		bool entering = cosi < 0;
-		if (!entering)
-		{
-			float t = ei;
-			ei = et;
-			et = t;
-		}
-		float eta = ei / et;
-		out = normalize(refract(in, isx.hitNormal, eta));
-	}
+	ColorRGB color;
 	
 	// Use half lambert here to pop up the color
-	float lambert = glm::dot(in, isx.hitNormal) * 0.5 + 0.5;
+	float diffuse = glm::dot(lightDirection, isx.hitNormal) * 0.5 + 0.5;
+	//float specular = (m_shininess + 8) / (8 * PI)
 	color = glm::clamp(
-		lambert, 0.0f, 1.0f) * m_colorDiffuse * isx.hitTextureColor + m_colorAmbient;
+		diffuse, 0.0f, 1.0f) * isx.hitTextureColor + m_colorAmbient;
 
-	if (m_reflectivity > 0) {
-		color *= m_colorReflective;
-	}
+	// Out direction is some random on the hemisphere
+	Point3 target = isx.hitPoint + isx.hitNormal + RandomInUnitSphere();
+	out.m_direction = glm::normalize(target - isx.hitPoint);
+	out.m_origin = isx.hitPoint;
+
+	shouldTerminate = true;
 
 	return color;
 }

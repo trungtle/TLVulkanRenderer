@@ -1,6 +1,6 @@
 #pragma once
 
-const float EPSILON = 0.001;
+const float EPSILON = 0.0001;
 const float PI = 3.14159265358979323846f;
 const float TWO_PI = 2 * PI;
 const float DEG2RAD = PI / 180.f;

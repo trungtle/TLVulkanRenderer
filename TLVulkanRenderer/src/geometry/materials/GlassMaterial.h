@@ -1,11 +1,11 @@
 #pragma once
 #include "Material.h"
 
-class LambertMaterial : public Material
+class GlassMaterial : public Material
 {
 public:
-	LambertMaterial() : Material() {};
-	LambertMaterial(MaterialPacked packed, Texture* texture) :
+	GlassMaterial() : Material() {};
+	GlassMaterial(MaterialPacked packed, Texture* texture) :
 		Material(packed, texture)
 	{}
 

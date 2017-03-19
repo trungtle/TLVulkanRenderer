@@ -44,6 +44,36 @@ public:
 	virtual ~VulkanRenderer() override;
 
 	virtual void
+	Prepare();
+	
+	virtual VkResult
+	PrepareDescriptorPool();
+
+	virtual VkResult
+	PrepareDescriptorLayouts();
+
+	virtual VkResult
+	PrepareDescriptorSets();
+
+	virtual VkResult
+	PreparePipelines();
+
+	virtual VkResult
+	PrepareCommandPool();
+
+	virtual VkResult
+	BuildCommandBuffers();
+
+	virtual VkResult
+	PrepareUniforms();
+
+	virtual VkResult
+	PrepareVertexBuffers();
+
+	virtual void
+	PrepareTextures();
+
+	virtual void
 	Update() override;
 
 	virtual void
@@ -52,20 +82,11 @@ public:
 protected:
 
 	VkResult
-	PrepareShaderModule(
-		const std::string& filepath,
-		VkShaderModule& shaderModule
-	) const;
-
-	VkResult
 	PrepareRenderPass();
 
 	// ----------------
 	// GRAPHICS PIPELINE
 	// ----------------
-
-	virtual void
-	PrepareGraphics();
 
 	/**
 	 * \brief The graphics pipeline are often fixed. Create a new pipeline if we need a different pipeline settings
@@ -75,38 +96,7 @@ protected:
 	PrepareGraphicsPipeline();
 
 	virtual VkResult
-	PrepareGraphicsVertexBuffer();
-
-	virtual VkResult
-	PrepareGraphicsUniformBuffer();
-
-	// -----------
-	// DESCRIPTOR
-	// -----------
-
-	virtual VkResult
-	PrepareGraphicsDescriptorPool();
-
-	virtual VkResult
-	PrepareGraphicsDescriptorSetLayout();
-
-	virtual VkResult
-	PrepareGraphicsDescriptorSets();
-
-	// --------------
-	// COMMAND BUFFERS
-	// ---------------
-
-	/**
-	* \brief Vulkan commands are created in advance and submitted to the queue,
-	*        instead of using direct function calls.
-	* \return
-	*/
-	VkResult
-	PrepareGraphicsCommandPool();
-
-	virtual VkResult
-	PrepareGraphicsCommandBuffers();
+	PreparePostProcessingPipeline();
 
 	// ----------------
 	// SYCHRONIZATION
@@ -114,14 +104,6 @@ protected:
 
 	VkResult
 	PrepareSemaphores();
-
-	// ----------------
-	// COMPUTE PIPELINE
-	// ----------------
-
-	virtual void
-	PrepareCompute() {
-	} ;
 
 	/**
 	* \brief Helper to determine the memory type to allocate from our graphics card
@@ -196,7 +178,16 @@ protected:
 		*/
 		VkQueue queue;
 
+
 	} m_graphics;
+
+	struct Quad
+	{
+		std::vector<uint16_t> indices;
+		std::vector<vec2> positions;
+		std::vector<vec2> uvs;
+	} m_post_quad;
+
 
 	/**
 	 * \brief Semaphores to signal when to acquire and present swapchain images

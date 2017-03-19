@@ -8,8 +8,8 @@ VulkanGPURaytracer::VulkanGPURaytracer(
 	std::shared_ptr<std::map<string, string>> config
 	): VulkanRenderer(window, scene, config) {
 
-	PrepareCompute();
-	PrepareGraphics();
+	PrepareComputeRaytrace();
+	Prepare();
 }
 
 void
@@ -124,17 +124,17 @@ VulkanGPURaytracer::~VulkanGPURaytracer() {
 
 }
 
-void VulkanGPURaytracer::PrepareGraphics() {
-	PrepareGraphicsVertexBuffer();
-	PrepareGraphicsDescriptorPool();
-	PrepareGraphicsDescriptorSetLayout();
-	PrepareGraphicsDescriptorSets();
-	PrepareGraphicsPipeline();
-	PrepareGraphicsCommandBuffers();
+void VulkanGPURaytracer::Prepare() {
+	PrepareVertexBuffers();
+	PrepareDescriptorPool();
+	PrepareDescriptorLayouts();
+	PrepareDescriptorSets();
+	PreparePipelines();
+	BuildCommandBuffers();
 }
 
 VkResult
-VulkanGPURaytracer::PrepareGraphicsVertexBuffer() {
+VulkanGPURaytracer::PrepareVertexBuffers() {
 	m_graphics.geometryBuffers.clear();
 
 	const std::vector<uint16_t> indices = {
@@ -245,7 +245,7 @@ VulkanGPURaytracer::PrepareGraphicsVertexBuffer() {
 }
 
 VkResult
-VulkanGPURaytracer::PrepareGraphicsDescriptorPool() {
+VulkanGPURaytracer::PrepareDescriptorPool() {
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		// Image sampler
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
@@ -266,7 +266,7 @@ VulkanGPURaytracer::PrepareGraphicsDescriptorPool() {
 }
 
 VkResult
-VulkanGPURaytracer::PrepareGraphicsDescriptorSetLayout() {
+VulkanGPURaytracer::PrepareDescriptorLayouts() {
 	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 		// Binding 0: Fragment shader image sampler
 		MakeDescriptorSetLayoutBinding(
@@ -298,7 +298,7 @@ VulkanGPURaytracer::PrepareGraphicsDescriptorSetLayout() {
 }
 
 VkResult
-VulkanGPURaytracer::PrepareGraphicsDescriptorSets() {
+VulkanGPURaytracer::PrepareDescriptorSets() {
 	VkDescriptorSetAllocateInfo descriptorSetAllocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_graphics.descriptorSetLayout);
 
 	CheckVulkanResult(
@@ -325,16 +325,14 @@ VulkanGPURaytracer::PrepareGraphicsDescriptorSets() {
 }
 
 VkResult
-VulkanGPURaytracer::PrepareGraphicsPipeline() {
+VulkanGPURaytracer::PreparePipelines() {
 	VkResult result = VK_SUCCESS;
 
 	// Load SPIR-V bytecode
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
-	VkShaderModule vertShader;
-	PrepareShaderModule("shaders/raytracing/raytrace.vert.spv", vertShader);
-	VkShaderModule fragShader;
-	PrepareShaderModule("shaders/raytracing/raytrace.frag.spv", fragShader);
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/raytrace.vert.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/raytrace.frag.spv");
 
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// 1. Vertex input stage
@@ -501,7 +499,7 @@ VulkanGPURaytracer::PrepareGraphicsPipeline() {
 
 
 VkResult
-VulkanGPURaytracer::PrepareGraphicsCommandBuffers() {
+VulkanGPURaytracer::BuildCommandBuffers() {
 	m_graphics.commandBuffers.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
 	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
 	VkCommandBufferAllocateInfo allocInfo = MakeCommandBufferAllocateInfo(m_graphics.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_vulkanDevice->m_swapchain.framebuffers.size());
@@ -604,20 +602,20 @@ VulkanGPURaytracer::PrepareGraphicsCommandBuffers() {
 // ===========================================================================================
 
 void
-VulkanGPURaytracer::PrepareCompute() {
+VulkanGPURaytracer::PrepareComputeRaytrace() {
 	vkGetDeviceQueue(m_vulkanDevice->device, m_vulkanDevice->queueFamilyIndices.computeFamily, 0, &m_compute.queue);
 
-	PrepareComputeCommandPool();
-	PrepareRayTraceTextureResources();
-	PrepareComputeStorageBuffer();
-	PrepareComputeUniformBuffer();
-	PrepareComputeDescriptors();
-	PrepareComputePipeline();
-	PrepareComputeCommandBuffers();
+	PrepareComputeRaytraceCommandPool();
+	PrepareComputeRaytraceTextureResources();
+	PrepareComputeRaytraceStorageBuffer();
+	PrepareComputeRaytraceUniformBuffer();
+	PrepareComputeRaytraceDescriptorSets();
+	PrepareComputeRaytracePipeline();
+	BuildComputeCommandBuffers();
 }
 
 void
-VulkanGPURaytracer::PrepareComputeDescriptors() {
+VulkanGPURaytracer::PrepareComputeRaytraceDescriptorSets() {
 	// 2. Create descriptor set layout
 
 	std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -758,7 +756,7 @@ VulkanGPURaytracer::PrepareComputeDescriptors() {
 }
 
 void
-VulkanGPURaytracer::PrepareComputeCommandPool() {
+VulkanGPURaytracer::PrepareComputeRaytraceCommandPool() {
 	VkCommandPoolCreateInfo commandPoolCreateInfo = MakeCommandPoolCreateInfo(m_vulkanDevice->queueFamilyIndices.computeFamily);
 
 	CheckVulkanResult(
@@ -777,10 +775,8 @@ struct Plane {
 	glm::ivec3 _pad;
 };
 
-uint32_t currentId = 0; // Id used to identify objects by the ray tracing shader
-
 void
-VulkanGPURaytracer::PrepareComputeStorageBuffer() {
+VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 	// =========== INDICES
 	VulkanBuffer::StorageBuffer stagingBuffer;
 	VkDeviceSize bufferSize = m_scene->indices.size() * sizeof(ivec4);
@@ -916,7 +912,7 @@ VulkanGPURaytracer::PrepareComputeStorageBuffer() {
 
 }
 
-void VulkanGPURaytracer::PrepareComputeUniformBuffer() {
+void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 	// Initialize camera's ubo
 	//calculate fov based on resolution
 	float yscaled = tan(m_compute.ubo.fov * (glm::pi<float>() / 180.0f));
@@ -1016,7 +1012,7 @@ void VulkanGPURaytracer::PrepareComputeUniformBuffer() {
 }
 
 VkResult
-VulkanGPURaytracer::PrepareRayTraceTextureResources() {
+VulkanGPURaytracer::PrepareComputeRaytraceTextureResources() {
 	VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 	m_vulkanDevice->CreateImage(
@@ -1065,7 +1061,7 @@ VulkanGPURaytracer::PrepareRayTraceTextureResources() {
 }
 
 VkResult
-VulkanGPURaytracer::PrepareComputePipeline() {
+VulkanGPURaytracer::PrepareComputeRaytracePipeline() {
 
 	// 5. Create pipeline layout
 
@@ -1079,11 +1075,7 @@ VulkanGPURaytracer::PrepareComputePipeline() {
 	VkComputePipelineCreateInfo computePipelineCreateInfo = MakeComputePipelineCreateInfo(m_compute.pipelineLayout, 0);
 
 	// Create shader modules from bytecodes
-	VkShaderModule raytraceShader;
-	PrepareShaderModule(
-		"shaders/raytracing/raytrace.comp.spv",
-		raytraceShader
-	);
+	VkShaderModule raytraceShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/raytrace.comp.spv");
 	m_logger->info("Loaded {} comp shader", "shaders/raytracing/raytrace.comp.spv");
 
 
@@ -1107,7 +1099,7 @@ VulkanGPURaytracer::PrepareComputePipeline() {
 
 
 VkResult
-VulkanGPURaytracer::PrepareComputeCommandBuffers() {
+VulkanGPURaytracer::BuildComputeCommandBuffers() {
 
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = MakeCommandBufferAllocateInfo(m_compute.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
 

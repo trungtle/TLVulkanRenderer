@@ -37,6 +37,7 @@ public:
 private:
 
 	void PrepareTestScene();
+	void PrepareCornellBox();
 
 	std::unique_ptr<SceneLoader> m_sceneLoader;	
 	bool m_useAccel;

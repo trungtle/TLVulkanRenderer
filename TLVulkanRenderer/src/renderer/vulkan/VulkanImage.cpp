@@ -4,7 +4,7 @@
 namespace VulkanImage {
 
 	Image 
-	Create2DImage(
+	CreateVulkanImage(
 		VulkanDevice* device, 
 		uint32_t width, 
 		uint32_t height,
@@ -23,7 +23,7 @@ namespace VulkanImage {
 			width,
 			height,
 			1, // only a 2D depth image
-			VK_IMAGE_TYPE_2D,
+			VK_IMAGE_TYPE_2D, 
 			imageFormat,
 			tiling,
 			// Image is sampled in fragment shader and used as storage for compute output
@@ -37,7 +37,7 @@ namespace VulkanImage {
 	}
 
 	void 
-	Destroy2DImage(VulkanDevice* device, Image image) {
+	DestroyVulkanImage(VulkanDevice* device, Image image) {
 		vkDestroySampler(device->device, image.sampler, nullptr);
 		vkDestroyImageView(device->device, image.imageView, nullptr);
 		vkDestroyImage(device->device, image.image, nullptr);

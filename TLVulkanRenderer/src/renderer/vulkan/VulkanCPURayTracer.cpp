@@ -4,41 +4,67 @@
 #include "geometry/Geometry.h"
 #include "scene/Camera.h"
 #include "renderer/samplers/UniformSampler.h"
+#include "renderer/samplers/StratifiedSampler.h"
 #include <iostream>
 
 #define MULTITHREAD
 
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
-	vec3 color;
-	int depth = 1;
+	vec3 color; 
+	int depth = 3;
 	for (auto light : scene->lights) {
-		for (int i = 0; i < depth; i++)
+		int i = 0;
+		for (i = 0; i < depth; i++)
 		{
 			Intersection isx = scene->GetIntersection(newRay);
 			if (isx.t > 0)
 			{
-				vec3 lightDirection = glm::normalize(light->m_position - isx.hitPoint);
+				vec3 lightDirection = glm::normalize(light->GetPosition() - isx.hitPoint);
 
 				if (i == 0) {
 					color = vec3(1, 1, 1);
 				}
 
 				// Shade material
-				color *= isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay.m_direction);
-				color *= light->Attenuation(isx.hitPoint);
+				bool shouldTerminate = false;
+				Ray reflectedRay;
+				vec3 newColor = isx.hitObject->GetMaterial()->EvaluateEnergy(isx, lightDirection, newRay, reflectedRay, shouldTerminate);
+				if (shouldTerminate)
+				{
+					i = depth;
+				}
+				newRay = reflectedRay;
+				newColor *= light->Attenuation(isx.hitPoint);
 
 				// Shadow feeler
-				//Ray shadowFeeler(isx.hitPoint + 0.01f * lightDirection, lightDirection);
-				//if (scene->DoesIntersect(shadowFeeler))
-				//{
-				//	color *= 0.1f;
-				//} else {
-				//	color *= light->m_color;
-				//}
+				// Jitter shadow feeler for sotf shadow
+				//static float r1 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+				//r1 = r1 * 2.0f - 1.0f; // Spread between -1, and 1
+				//static float r2 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+				//r2 = r2 * 2.0f - 1.0f; // Spread between -1, and 1
+				//static float r3 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+				//r3 = r3 * 2.0f - 1.0f; // Spread between -1, and 1
+				Point3 jitter = isx.hitPoint;// t + isx.hitTangent * x;
+				Direction dir = normalize(light->GetPosition() - jitter);
+				jitter += EPSILON * dir;
+
+				Ray shadowFeeler(jitter, dir);
+				if (scene->DoesIntersect(shadowFeeler))
+				{
+					newColor *= 0.1f;
+				}
+				else
+				{
+					newColor *= light->GetColor();
+				}
+
+				color = newColor;
 			}
 			else
 			{
-				color *= 0.0f;
+				// Shade background
+				float t = 0.5 * newRay.m_direction.y + 1.0f;
+				color = (1.0f - t) * vec3(1, 1, 1) + t * vec3(0.5, 0.7, 1.0);
 				break;
 			}
 		}
@@ -71,11 +97,11 @@ void Task(
 	uint32_t endY = (tileY + 1) * sizeY;
 	endY = std::min(endY, height);
 
+	UniformSampler sampler(ESamples::X4);
 	for (uint32_t x = startX; x < endX; x++)
 	{
 		for (uint32_t y = startY; y < endY; y++)
 		{
-			UniformSampler sampler(ESamples::X1);
 			vector<vec2> samples = sampler.Get2DSamples(vec2(x, y));
 
 			vec3 color;
@@ -109,13 +135,13 @@ VulkanCPURaytracer::VulkanCPURaytracer(
 	std::shared_ptr<std::map<string, string>> config
 	) : VulkanRenderer(window, scene, config), m_film{Film(m_width, m_height)}
 {
-	PrepareGraphics();
+	Prepare();
 }
 
 VulkanCPURaytracer::~VulkanCPURaytracer()
 {
-	Destroy2DImage(m_vulkanDevice, m_stagingImage);
-	Destroy2DImage(m_vulkanDevice, m_displayImage);
+	DestroyVulkanImage(m_vulkanDevice, m_stagingImage);
+	DestroyVulkanImage(m_vulkanDevice, m_displayImage);
 	
 	m_wireframeBVHVertices.Destroy();
 	m_wireframeBVHIndices.Destroy();
@@ -234,7 +260,7 @@ VulkanCPURaytracer::Render() {
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	);
 
-	m_vulkanDevice->CopyImage(m_graphics.queue, m_graphics.commandPool, m_displayImage.image, m_stagingImage.image, m_width, m_height);
+	m_vulkanDevice->CopyImage(m_graphics.queue , m_graphics.commandPool, m_displayImage.image, m_stagingImage.image, m_width, m_height);
 
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,
@@ -247,16 +273,16 @@ VulkanCPURaytracer::Render() {
 }
 
 void 
-VulkanCPURaytracer::PrepareGraphics() 
+VulkanCPURaytracer::Prepare() 
 {
-	PrepareResources();
-	PrepareGraphicsUniformBuffer();
-	PrepareGraphicsVertexBuffer();
-	PrepareGraphicsDescriptorPool();
-	PrepareGraphicsDescriptorSetLayout();
-	PrepareGraphicsDescriptorSets();
+	PrepareTextures();
+	PrepareUniforms();
+	PrepareVertexBuffers();
+	PrepareDescriptorPool();
+	PrepareDescriptorLayouts();
+	PrepareDescriptorSets();
 	PrepareGraphicsPipeline();
-	PrepareGraphicsCommandBuffers();
+	BuildCommandBuffers();
 
 }
 
@@ -268,10 +294,8 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 	// Load SPIR-V bytecode
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
-	VkShaderModule vertShader;
-	PrepareShaderModule("shaders/raytracing/quad.vert.spv", vertShader);
-	VkShaderModule fragShader;
-	PrepareShaderModule("shaders/raytracing/quad.frag.spv", fragShader);
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/quad.vert.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/quad.frag.spv");
 
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// 1. Vertex input stage
@@ -434,10 +458,8 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 		VK_CULL_MODE_NONE, 
 		VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
-	VkShaderModule wireframeVertShader;
-	PrepareShaderModule("shaders/raytracing/wireframe.vert.spv", wireframeVertShader);
-	VkShaderModule wireframeFragShader;
-	PrepareShaderModule("shaders/raytracing/wireframe.frag.spv", wireframeFragShader);
+	VkShaderModule wireframeVertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/wireframe.vert.spv");
+	VkShaderModule wireframeFragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/wireframe.frag.spv");
 
 	shaderCreateInfos = {
 		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, wireframeVertShader),
@@ -518,7 +540,7 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 	return result;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsVertexBuffer() {
+VkResult VulkanCPURaytracer::PrepareVertexBuffers() {
 	m_graphics.geometryBuffers.clear();
 
 	const std::vector<uint16_t> indices = {
@@ -628,9 +650,9 @@ VkResult VulkanCPURaytracer::PrepareGraphicsVertexBuffer() {
 	return VK_SUCCESS;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsUniformBuffer() 
+VkResult VulkanCPURaytracer::PrepareUniforms() 
 {
-	VulkanRenderer::PrepareGraphicsUniformBuffer();
+	VulkanRenderer::PrepareUniforms();
 
 	// === Quad === //
 	m_quadUniform.Create(
@@ -651,7 +673,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsUniformBuffer()
 	return VK_SUCCESS;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorPool() {
+VkResult VulkanCPURaytracer::PrepareDescriptorPool() {
 	std::array<VkDescriptorPoolSize, 2> poolSizes = {
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2)
@@ -667,7 +689,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorPool() {
 	return VK_SUCCESS;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSetLayout() 
+VkResult VulkanCPURaytracer::PrepareDescriptorLayouts() 
 {
 	// === Quad
 	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
@@ -735,7 +757,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSetLayout()
 	return result;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
+VkResult VulkanCPURaytracer::PrepareDescriptorSets() {
 
 	// === Quad
 	VkDescriptorSetAllocateInfo allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_graphics.descriptorSetLayout);
@@ -805,7 +827,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsDescriptorSets() {
 	return VK_SUCCESS;
 }
 
-VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
+VkResult VulkanCPURaytracer::BuildCommandBuffers() {
 	m_graphics.commandBuffers.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
 	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
 	VkCommandBufferAllocateInfo allocInfo = MakeCommandBufferAllocateInfo(m_graphics.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_vulkanDevice->m_swapchain.framebuffers.size());
@@ -901,7 +923,7 @@ VkResult VulkanCPURaytracer::PrepareGraphicsCommandBuffers() {
 	return result;
 }
 
-void VulkanCPURaytracer::PrepareResources() {
+void VulkanCPURaytracer::PrepareTextures() {
 
 	GenerateWireframeBVHNodes();
 
@@ -929,7 +951,7 @@ void VulkanCPURaytracer::PrepareResources() {
 
 
 	// Stage image
-	m_stagingImage = VulkanImage::Create2DImage(
+	m_stagingImage = VulkanImage::CreateVulkanImage(
 		m_vulkanDevice,
 		m_width,
 		m_height,
@@ -966,7 +988,7 @@ void VulkanCPURaytracer::PrepareResources() {
 	);
 
 	// Create our display image
-	m_displayImage = VulkanImage::Create2DImage(
+	m_displayImage = VulkanImage::CreateVulkanImage(
 		m_vulkanDevice,
 		m_width, 
 		m_height,

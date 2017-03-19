@@ -3,6 +3,8 @@
 #include "sceneLoaders/gltfLoader.h"
 #include <iostream>
 #include "accel/SBVH.h"
+#include "geometry/materials/MetalMaterial.h"
+#include "geometry/materials/GlassMaterial.h"
 
 Scene::Scene(
 	std::string fileName,
@@ -19,7 +21,7 @@ Scene::Scene(
 	// Construct SBVH
 	m_accel.reset(new SBVH(
 		100,
-		SBVH::SpatialSplit_SAH
+		SBVH::Spatial
 		));
 
 	ParseSceneFile(fileName);
@@ -96,31 +98,16 @@ Scene::DoesIntersect(Ray& ray)
 
 void Scene::PrepareTestScene()
 {
-	camera.eye = vec3(0, 5, 45);
+	//camera.eye = vec3(0, 20 , 200);
+	camera.eye = vec3(0, 0, 7);
 	camera.RecomputeAttributes();
 
-	// Setup materials
-	LambertMaterial* reflectiveMat = new LambertMaterial();
-	reflectiveMat->m_colorDiffuse = vec3(0.2, 0.3, 0.6);
-	reflectiveMat->m_reflectivity = 0.5;
-	reflectiveMat->m_colorReflective = vec3(1, 1, 1);
-	materials.push_back(reflectiveMat);
+	MetalMaterial* mirror = new MetalMaterial();
+	mirror->m_colorReflective = ColorRGB(0.8, 0.8, 0.8);
 
-	LambertMaterial* lambertGreen = new LambertMaterial();
-	lambertGreen->m_colorDiffuse = vec3(0, 0.6, 0);
-	materials.push_back(lambertGreen);
-
-	LambertMaterial* lambertLime = new LambertMaterial();
-	lambertLime->m_colorDiffuse = vec3(0.6, 0.8, 0);
-	materials.push_back(lambertLime);
-
-	LambertMaterial* lambertRed = new LambertMaterial();
-	lambertRed->m_colorDiffuse = vec3(0.6, 0.1, 0);
-	materials.push_back(lambertRed);
-
-	LambertMaterial* lambertWhite = new LambertMaterial();
-	lambertWhite->m_colorDiffuse = vec3(0.5, 0.5, 0.5);
-	materials.push_back(lambertWhite);
+	GlassMaterial* glass = new GlassMaterial();
+	glass->m_colorTransparent = ColorRGB(0.8, 0.8, 0.8);
+	glass->m_refracti = 1.333f;
 
 	for (auto mat : materials) {
 		mat->m_colorAmbient = vec3(0.1, 0.1, 0.1);
@@ -128,50 +115,40 @@ void Scene::PrepareTestScene()
 
 
 	// Turn meshes into triangles
-	for (int m = 0; m < meshes.size(); m++)
-	{
-		//meshes[m].SetTransform(Transform(glm::vec3(0, 0, 0), glm::vec3(0), glm::vec3(1, 1, 1)));
-		for (int t = 0; t < meshes[m].triangles.size(); t++)
-		{
-			std::string name = "triangle" + t;
-			meshes[m].triangles[t].SetName(name);
-			geometries.push_back(std::shared_ptr<Geometry>(&meshes[m].triangles[t]));
-		}
-	}
+	//for (int m = 0; m < meshes.size(); m++)
+	//{
+	//	//meshes[m].SetTransform(Transform(glm::vec3(0, 0, 0), glm::vec3(0), glm::vec3(1, 1, 1)));
+	//	for (int t = 0; t < meshes[m].triangles.size(); t++)
+	//	{
+	//		std::string name = "triangle" + t;
+	//		meshes[m].triangles[t].SetName(name);
+	//		geometries.push_back(std::shared_ptr<Geometry>(&meshes[m].triangles[t]));
+	//	}
+	//}
 
 	// Add spheres
-	int numSpheres = 0;
+	int numSpheres = 5;
 	for (int i = 0; i < numSpheres; i++) {
+		Material* mat;
+		if (i % 2)
+		{
+			mat = mirror;
+		}
+		else
+		{
+			mat = glass;
+		}
 		std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
-			sin(glm::radians(360.0f * i / numSpheres)) * 2,
-			cos(glm::radians(360.0f * i / numSpheres)) * 2,
-			-1), 1, lambertWhite));
+			sin(glm::radians(360.0f * i / numSpheres)) * 1,
+			-2.4 + (0.5 + i * 0.25) * 0.5,
+			cos(glm::radians(360.0f * i / numSpheres)) * 1
+			), 0.5 + i * 0.25, mat));
 		std::string name = "Sphere" + i;
 		s.get()->SetName(name);
 		geometries.push_back(s);
 	}
 
-	// Add planes
-	//std::shared_ptr<Cube> floor(new Cube(vec3(0, -2.5, 0), vec3(5, 0.2, 5), lambertRed));
-	//floor.get()->SetName(std::string("Floor"));
-	//geometries.push_back(floor);
-
-	//std::shared_ptr<Cube> leftWall(new Cube(vec3(2.5, 0, 0), vec3(0.2, 5, 5), lambertLime));
-	//leftWall.get()->SetName(std::string("Left Wall"));
-	//geometries.push_back(leftWall);
-
-	//std::shared_ptr<Cube> rightWall(new Cube(vec3(-2.5, 0, 0), vec3(0.2, 5, 5), lambertGreen));
-	//rightWall.get()->SetName(std::string("Right Wall"));
-	//geometries.push_back(rightWall);
-
-	//std::shared_ptr<Cube> backwall(new Cube(vec3(0, 0, -2.5), vec3(5, 5, 0.2), lambertWhite));
-	//backwall.get()->SetName(std::string("Back Wall"));
-	//geometries.push_back(backwall);
-
-	//std::shared_ptr<Cube> ceiling(new Cube(vec3(0, 2.5, 0), vec3(5, 0.2, 5), lambertWhite));
-	//ceiling.get()->SetName(std::string("Ceiling"));
-	//geometries.push_back(ceiling);
-
+	PrepareCornellBox();
 
 	// Add lights
 	PointLight* light = new PointLight(vec3(0, 10.0, 10.0), vec3(1, 1, 1), 200);
@@ -186,4 +163,44 @@ void Scene::PrepareTestScene()
 	}
 
 	std::cout << "Number of triangles: " << indices.size() << std::endl;
+}
+
+void Scene::PrepareCornellBox() {
+
+	LambertMaterial* lambertGreen = new LambertMaterial();
+	lambertGreen->m_colorDiffuse = vec3(0, 0.6, 0);
+	materials.push_back(lambertGreen);
+
+	LambertMaterial* lambertLime = new LambertMaterial();
+	lambertLime->m_colorDiffuse = vec3(0.6, 0.8, 0);
+	materials.push_back(lambertLime);
+
+	LambertMaterial* lambertRed = new LambertMaterial();
+	lambertRed->m_colorDiffuse = vec3(0.6, 0.2, 0.1);
+	materials.push_back(lambertRed);
+
+	LambertMaterial* lambertWhite = new LambertMaterial();
+	lambertWhite->m_colorDiffuse = vec3(0.6, 0.6, 0.7);
+	materials.push_back(lambertWhite);
+
+
+	std::shared_ptr<Cube> floor(new Cube(vec3(0, -2.5, 0), vec3(5, 0.2, 5), lambertRed));
+	floor.get()->SetName(std::string("Floor"));
+	geometries.push_back(floor);
+
+	std::shared_ptr<Cube> leftWall(new Cube(vec3(2.5, 0, 0), vec3(0.2, 5, 5), lambertLime));
+	leftWall.get()->SetName(std::string("Left Wall"));
+	geometries.push_back(leftWall);
+
+	std::shared_ptr<Cube> rightWall(new Cube(vec3(-2.5, 0, 0), vec3(0.2, 5, 5), lambertGreen));
+	rightWall.get()->SetName(std::string("Right Wall"));
+	geometries.push_back(rightWall);
+
+	std::shared_ptr<Cube> backwall(new Cube(vec3(0, 0, -2.5), vec3(5, 5, 0.2), lambertWhite));
+	backwall.get()->SetName(std::string("Back Wall"));
+	geometries.push_back(backwall);
+
+	std::shared_ptr<Cube> ceiling(new Cube(vec3(0, 2.5, 0), vec3(5, 0.2, 5), lambertWhite));
+	ceiling.get()->SetName(std::string("Ceiling"));
+	geometries.push_back(ceiling);
 }

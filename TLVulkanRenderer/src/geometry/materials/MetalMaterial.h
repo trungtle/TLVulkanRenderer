@@ -1,11 +1,11 @@
 #pragma once
 #include "Material.h"
 
-class LambertMaterial : public Material
+class MetalMaterial : public Material
 {
 public:
-	LambertMaterial() : Material() {};
-	LambertMaterial(MaterialPacked packed, Texture* texture) :
+	MetalMaterial() : Material() {};
+	MetalMaterial(MaterialPacked packed, Texture* texture) :
 		Material(packed, texture)
 	{}
 
@@ -15,6 +15,7 @@ public:
 		const Ray& in,
 		Ray& out,
 		bool& shouldTerminate
+
 	) override;
 };
 
