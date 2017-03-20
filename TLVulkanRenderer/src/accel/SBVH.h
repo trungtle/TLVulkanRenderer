@@ -246,6 +246,8 @@ protected:
 	int m_maxGeomsInNode;
 	ESplitMethod m_splitMethod;
 	std::vector<std::shared_ptr<Geometry>> m_prims;
+	unsigned int m_maxDepth = 10;
 	size_t m_spatialSplitBudget = 20;
+	unsigned int m_spatialSplitCount = 0;
 };
 

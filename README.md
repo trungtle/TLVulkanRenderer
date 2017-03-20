@@ -12,7 +12,42 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 # Updates
 
-### March 10, 2017 - Added texture, refactored SBVH, added background
+### March 20 - New memory scheme for SBVH
+
+I rewrote the SBVH memory scheme based on [Parallel Spatial Splits in Bounding Volume Hierarchies  ](http://rapt.technology/data/pssbvh.pdf). 
+
+SBVH construction requires temporary memory to store fragments (from triangle split) and primitive references (full triangle) created during splitting. Previously, the memory was packed tightly inside an array and shuffled to partition the references into left and right sides of the split. However, this has created complication with additinal fragments due to triangle splits where child nodes can have larger memory than parent nodes. So before construction starts, I allocate an additional 20% memory of buffer space for the potential fragments. The availabe buffer space is assigned to the function stack in each recursive calls using the first and last pointers. During the partitioning phase, the fragments of the left and right child sets are aligned to the upper and lower boundary and grow toward the center. Free space is reserved in between. Then I recursively distribute the fragments again based on this scheme, applying to both spatial and object splits, until a leaf node is create. Once no free memory is available, the construction switches to using full object splits. 
+
+The advantage of this division scheme is that the application can determine ahead of time how much memory to allocate, and each local task has full access to all its available memory without affecting other tasks. For potential parallel SBVH construction, this is extremely beneficial for lock-free multithreading since tasks don't need memory sychronization.
+
+![](TLVulkanRenderer/renders/charts/SBVH_memory.png)
+_The first level is partially filled with primitive references, and the the rest is filled with free space. The number on the right represents hiearchy levels. At each subdivision, the sets are then aligned to the left and right border of the buffer space assigned for that stack_
+
+To simplify implementation, I use a `PrimInfo` struct to also mean a fragment reference. This does not necessarily mean that a primitive is duplicated, it's just that two or more nodes can point to the same primitive.
+```
+struct PrimInfo {
+    PrimID primitiveID;
+    BBox bbox;
+}
+```
+
+The `PrimInfo` is then used to construct leaf nodes when splitting is no longer beneficial.
+
+Some scenes can potentially generate a deep tree, so I limit the amount of spatial splits based on a split budget. It is a counter that decrements each time a spatial split happens. Once the budget is fully consumed, the construction switches to using full object splits.
+
+In some performance tests, SBVH can save up to 20-30ms of traversal time, with the cost of increased memory. However, not all scenes benefit from SBVH, although SBVH never performs less than BVH. By tweaking the spatial split budget and limiting tree depth, I observed that performance is significantly affected. There seems to be an optimal threshold for the budget and the tree depth, so I will need to do some additional tests.
+
+Other misc. tasks:
+- Texture mapping
+- Added tangent & bitangent for triangle, sphere, square plane, cube
+- Material class interface, with metal, glass, Lambert materials
+- Fixed gltf loader for multiple meshes
+- Fake skybox using a gradient
+
+### Plan
+
+Since the infrastructure has diverged quite a bit from my codes for hybrid rendering, I'm working on re-porting that codes into this repo. With hybrid, I will only need to trace secondary rays for refractive & reflective materials. With shadow rays, I'm thinking of voxelizing the space, then store lighting information for each voxel to speed up shadow computation. However, it doesn't seem to be a big bottleneck at this point yet.
+
 
 ### Feb 26, 2017 - More SBVH fixes
 

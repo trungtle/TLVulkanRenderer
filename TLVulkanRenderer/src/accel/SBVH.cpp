@@ -39,6 +39,8 @@ SBVH::Build(
 	m_root = BuildRecursive(first, last, totalNodes, primInfos, orderedGeoms, 0, true);
 	//m_geoms.swap(orderedGeoms);
 	Flatten();
+	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
+	std::cout << "Number of spatial splits: " << m_spatialSplitCount << std::endl;
 }
 
 void SBVH::PartitionEqualCounts(
@@ -544,7 +546,7 @@ SBVH::BuildRecursive(
 	}
 	
 	// == GENERATE SINGLE GEOMETRY LEAF NODE
-	if (numPrimitives == 1 || depth == 10) {
+	if (numPrimitives == 1 || depth >= m_maxDepth) {
 		return CreateLeaf(nullptr, first, last, nodeCount, primInfos, orderedGeoms, bboxAllGeoms);
 	}
 
@@ -679,6 +681,7 @@ SBVH::BuildRecursive(
 
 					if (isSpatialSplit) {
 						PartitionSpatial(std::get<BucketID>(spatialSplitCost), allGeomsDim, first, last, mid, primInfos, bboxAllGeoms);
+						++m_spatialSplitCount;
 
 					} else {
 						PartitionObjects(std::get<BucketID>(objSplitCost), dim, first, last, mid, primInfos, bboxCentroids);
@@ -959,7 +962,6 @@ void SBVH::FlattenRecursive(
 void SBVH::Flatten() {
 
 	FlattenRecursive(m_root);
-	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
 }
 
 void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices)
