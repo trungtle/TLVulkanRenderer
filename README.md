@@ -14,6 +14,8 @@ This README also documents my learning progress with Vulkan and GPU programming.
 
 ### March 20 - New memory scheme for SBVH
 
+![](TLVulkanRenderer/renders/truck_spheres.png)
+
 I rewrote the SBVH memory scheme based on [Parallel Spatial Splits in Bounding Volume Hierarchies  ](http://rapt.technology/data/pssbvh.pdf). 
 
 SBVH construction requires temporary memory to store fragments (from triangle split) and primitive references (full triangle) created during splitting. Previously, the memory was packed tightly inside an array and shuffled to partition the references into left and right sides of the split. However, this has created complication with additinal fragments due to triangle splits where child nodes can have larger memory than parent nodes. So before construction starts, I allocate an additional 20% memory of buffer space for the potential fragments. The availabe buffer space is assigned to the function stack in each recursive calls using the first and last pointers. During the partitioning phase, the fragments of the left and right child sets are aligned to the upper and lower boundary and grow toward the center. Free space is reserved in between. Then I recursively distribute the fragments again based on this scheme, applying to both spatial and object splits, until a leaf node is create. Once no free memory is available, the construction switches to using full object splits. 

@@ -98,8 +98,8 @@ Scene::DoesIntersect(Ray& ray)
 
 void Scene::PrepareTestScene()
 {
-	static const Point3 TRUCK_EYE(13.3348, 5.5646, 2.984);
-	static const Point3 TRUCK_LOOKAT(-1.755, 1.7106, -2.9679);
+	static const Point3 TRUCK_EYE(4.548, 4.427, 13.23);
+	static const Point3 TRUCK_LOOKAT(0.926, 2.763, -2.958);
 	//camera.eye = vec3(0, 5, 45);
 	//camera.eye = vec3(2, 7, 15);
 	camera.eye = TRUCK_EYE;
@@ -135,7 +135,7 @@ void Scene::PrepareTestScene()
 	}
 
 	// Add buildings
-	std::shared_ptr<Cube> road(new Cube(vec3(0, -0.5, -1), vec3(30, 1, 6), lambertWhite));
+	std::shared_ptr<Cube> road(new Cube(vec3(0, -0.5, -1), vec3(30, 1, 10), lambertWhite));
 	road.get()->SetName(std::string("road"));
 	geometries.push_back(road);
 
@@ -151,39 +151,27 @@ void Scene::PrepareTestScene()
 	bulding3.get()->SetName(std::string("bulding2"));
 	geometries.push_back(bulding3);
 
-	//std::shared_ptr<Cube> rightWall(new Cube(vec3(-2.5, 0, 0), vec3(0.2, 5, 5), lambertWhite));
-	//rightWall.get()->SetName(std::string("Right Wall"));
-	//geometries.push_back(rightWall);
-
-	//std::shared_ptr<Cube> backwall(new Cube(vec3(0, 0, -2.5), vec3(5, 5, 0.2), lambertWhite));
-	//backwall.get()->SetName(std::string("Back Wall"));
-	//geometries.push_back(backwall);
-
-	//std::shared_ptr<Cube> ceiling(new Cube(vec3(0, 2.5, 0), vec3(5, 0.2, 5), lambertWhite));
-	//ceiling.get()->SetName(std::string("Ceiling"));
-	//geometries.push_back(ceiling);
-
-	// Add spheres
-	//int numSpheres = 5;
-	//for (int i = 0; i < numSpheres; i++) {
-	//	Material* mat;
-	//	if (i % 2)
-	//	{
-	//		mat = mirror;
-	//	}
-	//	else
-	//	{
-	//		mat = glass;
-	//	}
-	//	std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
-	//		sin(glm::radians(360.0f * i / numSpheres)) * 1,
-	//		-2.4 + (0.5 + i * 0.25) * 0.5,
-	//		cos(glm::radians(360.0f * i / numSpheres)) * 1
-	//		), 0.5 + i * 0.25, mat));
-	//	std::string name = "Sphere" + i;
-	//	s.get()->SetName(name);
-	//	geometries.push_back(s);
-	//}
+	 //Add spheres
+	int numSpheres = 5;
+	for (int i = 0; i < numSpheres; i++) {
+		Material* mat;
+		if (i % 2)
+		{
+			mat = mirror;
+		}
+		else
+		{
+			mat = glass;
+		}
+		std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
+			sin(glm::radians(360.0f * i / numSpheres)) * 1,
+			-2.4 + (0.5 + i * 0.25) * 0.5 + 2.5,
+			cos(glm::radians(360.0f * i / numSpheres)) * 1 + 3
+			), 0.5 + i * 0.25, mat));
+		std::string name = "Sphere" + i;
+		s.get()->SetName(name);
+		geometries.push_back(s);
+	}
 
 	//PrepareCornellBox();
 
