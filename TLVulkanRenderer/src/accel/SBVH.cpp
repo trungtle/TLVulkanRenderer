@@ -879,6 +879,62 @@ bool SBVH::DoesIntersect(
 	return DoesIntersectRecursive(r, m_root->m_nearChild) || DoesIntersectRecursive(r, m_root->m_farChild);
 }
 
+bool 
+SBVH::ShadowRay(
+	Ray& ray,
+	ColorRGB& color)
+{
+	if (m_root->IsLeaf())
+	{
+		bool result = false;
+		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(m_root);
+		if (leaf->m_numGeoms < 4 || m_root->m_bbox.DoesIntersect(ray))
+		{
+			float minT = INFINITY;
+			// Find the first opaque object that can cast shadow
+			for (auto geomId : leaf->m_geomIds)
+			{
+				std::shared_ptr<Geometry> geom = m_prims[geomId];
+
+				if (geom->GetMaterial()->m_translucent == false)
+				{
+					ray.m_traversalCost += COST_INTERSECTION;
+
+					Intersection isx = geom->GetIntersection(ray);
+					if (isx.t > 0 && isx.t < minT)
+					{
+						minT = isx.t;
+						color *= 0.1f;
+						result = true;
+						break;
+					}
+				}
+			}
+
+			// Shade with other colored shadows
+			for (auto geomId : leaf->m_geomIds)
+			{
+				std::shared_ptr<Geometry> geom = m_prims[geomId];
+
+				if (geom->GetMaterial()->m_translucent)
+				{
+					Intersection isx = geom->GetIntersection(ray);
+					if (isx.t > 0 && isx.t < minT)
+					{
+						color *= isx.hitObject->GetMaterial()->m_colorTransparent * 0.9f;
+						result = true;
+					}
+				}
+			}			
+
+		}
+		return result;
+	}
+
+	// Traverse children
+	return ShadowRayRecursive(ray, color, m_root->m_nearChild) || ShadowRayRecursive(ray, color, m_root->m_farChild);
+}
+
 bool SBVH::DoesIntersectRecursive(
 	Ray& r, 
 	SBVHNode* node
@@ -920,11 +976,77 @@ bool SBVH::DoesIntersectRecursive(
 
 
 
+bool SBVH::ShadowRayRecursive(
+	Ray& ray,
+	ColorRGB& color,
+	SBVHNode* node
+)
+{
+	if (node == nullptr)
+	{
+		return false;
+	}
+
+	bool result = false;
+	if (node->IsLeaf())
+	{
+		SBVHLeaf* leaf = dynamic_cast<SBVHLeaf*>(node);
+		if (leaf->m_numGeoms < 4 || node->m_bbox.DoesIntersect(ray))
+		{
+			float minT = INFINITY;
+			// Find the first opaque object that can cast shadow
+			for (auto geomId : leaf->m_geomIds)
+			{
+				std::shared_ptr<Geometry> geom = m_prims[geomId];
+
+				if (geom->GetMaterial()->m_translucent == false)
+				{
+					ray.m_traversalCost += COST_INTERSECTION;
+
+					Intersection isx = geom->GetIntersection(ray);
+					if (isx.t > 0 && isx.t < minT)
+					{
+						minT = isx.t;
+						color *= 0.1f;
+						result = true;
+						break;
+					}
+				}
+			}
+
+			// Shade with other colored shadows
+			for (auto geomId : leaf->m_geomIds)
+			{
+				std::shared_ptr<Geometry> geom = m_prims[geomId];
+
+				if (geom->GetMaterial()->m_translucent)
+				{
+					Intersection isx = geom->GetIntersection(ray);
+					if (isx.t > 0 && isx.t < minT)
+					{
+						color *= isx.hitObject->GetMaterial()->m_colorTransparent * 0.5f;
+						result = true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	if (node->m_bbox.DoesIntersect(ray))
+	{
+		// Traverse children
+		return ShadowRayRecursive(ray, color, node->m_nearChild) || ShadowRayRecursive(ray, color, node->m_farChild);
+	}
+	return result;
+}
+
+
 void SBVH::Destroy() {
 	DestroyRecursive(m_root);
 }
 
-void 
+void
 SBVH::DestroyRecursive(SBVHNode* node) {
 
 	if (node == nullptr) {

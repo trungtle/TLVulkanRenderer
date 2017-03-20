@@ -16,7 +16,8 @@ public:
 
 	void ParseSceneFile(std::string fileName);
 	Intersection GetIntersection(Ray& ray);
-	bool DoesIntersect(Ray& ray);
+	bool DoesIntersect(Ray & ray);
+	bool ShadowRay(Ray& ray, ColorRGB& color);
 
 	Camera camera;
 	

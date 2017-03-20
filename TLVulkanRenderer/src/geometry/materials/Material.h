@@ -14,6 +14,9 @@ public:
 		: m_shininess(0), m_refracti(0), m_reflectivity(0)
 	{};
 	Material(MaterialPacked packed, Texture* texture = nullptr) :
+		m_castShadow(false), // Optimize out shadows calculation
+		m_receiveShadow(false),
+		m_translucent(false),
 		m_colorDiffuse(packed.diffuse),
 		m_colorAmbient(packed.ambient),
 		m_colorEmission(packed.emission),
@@ -35,6 +38,9 @@ public:
 		bool& shouldTerminate
 	) = 0;
 
+	bool m_castShadow;
+	bool m_receiveShadow;
+	bool m_translucent;
 
 	ColorRGB	m_colorDiffuse;
 	ColorRGB	m_colorAmbient;

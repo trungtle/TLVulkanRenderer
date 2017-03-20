@@ -170,6 +170,7 @@
     <ClInclude Include="src\geometry\materials\Material.h" />
     <ClInclude Include="src\accel\SBVH.h" />
     <ClInclude Include="src\geometry\materials\MetalMaterial.h" />
+    <ClInclude Include="src\geometry\materials\TranslucentMaterial.h" />
     <ClInclude Include="src\geometry\Transform.h" />
     <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanHybridRenderer.h" />
@@ -233,6 +234,7 @@
     <ClCompile Include="src\geometry\materials\LambertMaterial.cpp" />
     <ClCompile Include="src\accel\SBVH.cpp" />
     <ClCompile Include="src\geometry\materials\MetalMaterial.cpp" />
+    <ClCompile Include="src\geometry\materials\TranslucentMaterial.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanCPURayTracer.cpp" />

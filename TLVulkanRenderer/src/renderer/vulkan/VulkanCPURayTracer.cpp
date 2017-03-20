@@ -12,6 +12,7 @@
 vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 	vec3 color; 
 	int depth = 3;
+	bool blend = false;
 	for (auto light : scene->lights) {
 		int i = 0;
 		for (i = 0; i < depth; i++)
@@ -33,6 +34,11 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 				{
 					i = depth;
 				}
+				blend = isx.hitObject->GetMaterial()->m_translucent;
+				if (blend)
+				{
+					//newColor *= color;
+				}
 				newRay = reflectedRay;
 				newColor *= light->Attenuation(isx.hitPoint);
 
@@ -48,23 +54,34 @@ vec3 ShadeMaterial(Scene* scene, Ray& newRay) {
 				Direction dir = normalize(light->GetPosition() - jitter);
 				jitter += EPSILON * dir;
 
-				Ray shadowFeeler(jitter, dir);
-				if (scene->DoesIntersect(shadowFeeler))
+				if (isx.hitObject->GetMaterial()->m_receiveShadow)
 				{
-					newColor *= 0.1f;
+					Ray shadowFeeler(jitter, dir);
+					ColorRGB shadowedColor = newColor;
+					if (scene->ShadowRay(shadowFeeler, shadowedColor))
+					{
+						newColor = shadowedColor;
+					}
+					else
+					{
+						newColor *= light->GetColor();
+					}
 				}
-				else
-				{
-					newColor *= light->GetColor();
-				}
-
 				color = newColor;
 			}
 			else
 			{
 				// Shade background
 				float t = 0.5 * newRay.m_direction.y + 1.0f;
-				color = (1.0f - t) * vec3(1, 1, 1) + t * vec3(0.5, 0.7, 1.0);
+				ColorRGB skyColor = (1.0f - t) * vec3(1, 1, 1) + t * vec3(0.5, 0.7, 1.0);
+				if (blend)
+				{
+					color *= skyColor;
+				}
+				else
+				{
+					color = skyColor;
+				}
 				break;
 			}
 		}
@@ -97,7 +114,7 @@ void Task(
 	uint32_t endY = (tileY + 1) * sizeY;
 	endY = std::min(endY, height);
 
-	UniformSampler sampler(ESamples::X8);
+	UniformSampler sampler(ESamples::X1);
 	for (uint32_t x = startX; x < endX; x++)
 	{
 		for (uint32_t y = startY; y < endY; y++)

@@ -130,6 +130,9 @@ public:
 	void GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices) override;
 	Intersection GetIntersection(Ray& r) override;
 	bool DoesIntersect(Ray& r) override;
+	bool ShadowRay(
+		Ray& ray,
+		ColorRGB& color) override;
 
 	void Destroy() override;
 
@@ -158,6 +161,12 @@ protected:
 	bool 
 	DoesIntersectRecursive(
 		Ray& r,
+		SBVHNode* node);
+
+	bool 
+	ShadowRayRecursive(
+		Ray& ray, 
+		ColorRGB& color,
 		SBVHNode* node);
 
 	void 

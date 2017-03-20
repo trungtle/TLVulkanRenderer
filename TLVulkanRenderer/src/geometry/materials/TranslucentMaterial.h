@@ -1,16 +1,16 @@
 #pragma once
 #include "Material.h"
 
-class GlassMaterial : public Material
+class TranslucentMaterial : public Material
 {
 public:
-	GlassMaterial() : Material() {};
-	GlassMaterial(MaterialPacked packed, Texture* texture) :
+	TranslucentMaterial() : Material() {};
+	TranslucentMaterial(MaterialPacked packed, Texture* texture) :
 		Material(packed, texture)
 	{
 		m_castShadow = true;
-		m_receiveShadow = true;
-		m_translucent = false;
+		m_receiveShadow = false;
+		m_translucent = true;
 	}
 
 	ColorRGB EvaluateEnergy(

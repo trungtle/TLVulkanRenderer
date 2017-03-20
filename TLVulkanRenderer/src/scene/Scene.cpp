@@ -5,6 +5,7 @@
 #include "accel/SBVH.h"
 #include "geometry/materials/MetalMaterial.h"
 #include "geometry/materials/GlassMaterial.h"
+#include "geometry/materials/TranslucentMaterial.h"
 
 Scene::Scene(
 	std::string fileName,
@@ -78,16 +79,65 @@ Scene::GetIntersection(Ray& ray)
 }
 
 bool 
-Scene::DoesIntersect(Ray& ray) 
+Scene::ShadowRay(
+	Ray& ray, 
+	ColorRGB& color
+)
 {
 	if (m_useAccel) {
-		return m_accel->DoesIntersect(ray);
+		return m_accel->ShadowRay(ray, color);
 	} else {
+		// Loop through all objects and find any intersection
+
+		bool result = false;
+		float minT = INFINITY;
+		// Find the first opaque object that can cast shadow
+		for (auto geo : geometries)
+		{
+			if (geo->GetMaterial()->m_translucent == false)
+			{
+				Intersection isx = geo->GetIntersection(ray);
+				if (isx.t > 0 && isx.t < minT && isx.hitObject->GetMaterial()->m_castShadow == true)
+				{
+					minT = isx.t;
+					color *= 0.1f;
+					result = true;
+					break;
+				}
+			}
+		}
+
+		// Color shadows if there are other translucent objects in front of it
+		for (auto geo : geometries)
+		{
+			if (geo->GetMaterial()->m_translucent)
+			{
+				Intersection isx = geo->GetIntersection(ray);
+				if (isx.t > 0 && isx.t < minT)
+				{
+					color *= isx.hitObject->GetMaterial()->m_colorTransparent * 0.9f;
+					result = true;
+				}
+			}
+		}
+
+		return result;
+	}
+}
+
+bool Scene::DoesIntersect(Ray & ray)
+{
+	if (m_useAccel)
+	{
+		return m_accel->DoesIntersect(ray);
+	}
+	else
+	{
 		// Loop through all objects and find any intersection
 		for (auto geo : geometries)
 		{
 			Intersection isx = geo->GetIntersection(ray);
-			if (isx.t > 0)
+			if (isx.t > 0 && isx.hitObject->GetMaterial()->m_castShadow == true) // Bypass translucent objects
 			{
 				return true;
 			}
@@ -116,6 +166,10 @@ void Scene::PrepareTestScene()
 	LambertMaterial* lambertWhite = new LambertMaterial();
 	lambertWhite->m_colorDiffuse = vec3(0.6, 0.6, 0.7);
 	materials.push_back(lambertWhite);
+
+	TranslucentMaterial* translucent = new TranslucentMaterial();
+	translucent->m_colorTransparent = vec3(0.6, 0.6, 0.0);
+
 
 	for (auto mat : materials) {
 		mat->m_colorAmbient = vec3(0.1, 0.1, 0.1);
@@ -148,8 +202,12 @@ void Scene::PrepareTestScene()
 	geometries.push_back(bulding2);
 
 	std::shared_ptr<Cube> bulding3(new Cube(vec3(-9, 3, -5.5), vec3(6, 9, 5), lambertWhite));
-	bulding3.get()->SetName(std::string("bulding2"));
+	bulding3.get()->SetName(std::string("bulding3"));
 	geometries.push_back(bulding3);
+
+	//std::shared_ptr<Cube> screen(new Cube(vec3(-1, 2.5, 5), vec3(5, 5, 1), translucent));
+	//screen.get()->SetName(std::string("screen"));
+	//geometries.push_back(screen);
 
 	 //Add spheres
 	int numSpheres = 5;
