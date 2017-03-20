@@ -21,7 +21,8 @@ SBVH construction requires temporary memory to store fragments (from triangle sp
 The advantage of this division scheme is that the application can determine ahead of time how much memory to allocate, and each local task has full access to all its available memory without affecting other tasks. For potential parallel SBVH construction, this is extremely beneficial for lock-free multithreading since tasks don't need memory sychronization.
 
 ![](TLVulkanRenderer/renders/charts/SBVH_memory.png)
-_The first level is partially filled with primitive references, and the the rest is filled with free space. The number on the right represents hiearchy levels. At each subdivision, the sets are then aligned to the left and right border of the buffer space assigned for that stack_
+
+#### _The number on the right represents hiearchy levels. At each subdivision, the sets are then aligned to the upper and lower boundary of the buffer space and grow towards the center_
 
 To simplify implementation, I use a `PrimInfo` struct to also mean a fragment reference. This does not necessarily mean that a primitive is duplicated, it's just that two or more nodes can point to the same primitive.
 ```
