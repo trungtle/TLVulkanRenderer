@@ -97,7 +97,7 @@ void Task(
 	uint32_t endY = (tileY + 1) * sizeY;
 	endY = std::min(endY, height);
 
-	UniformSampler sampler(ESamples::X4);
+	UniformSampler sampler(ESamples::X1);
 	for (uint32_t x = startX; x < endX; x++)
 	{
 		for (uint32_t y = startY; y < endY; y++)

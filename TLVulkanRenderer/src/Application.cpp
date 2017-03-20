@@ -1,6 +1,6 @@
 #include <iostream>
 #include <functional>
-
+#include "glm/gtx/string_cast.hpp"
 #include "Application.h"
 #include "renderer/vulkan/VulkanRenderer.h"
 #include "renderer/vulkan/VulkanGPURaytracer.h"
@@ -207,6 +207,7 @@ void Application::Run() {
 			translateX = 0;
 			translateY = 0;
 			camchanged = false;
+			std::cout << "Camera changed. Eye: " << glm::to_string(m_scene->camera.eye) << ", Ref: " << glm::to_string(m_scene->camera.lookAt) << std::endl;
 		}
 
 		// Draw
