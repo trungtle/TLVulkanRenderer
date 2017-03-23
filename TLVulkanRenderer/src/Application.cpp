@@ -2,10 +2,11 @@
 #include <functional>
 #include "glm/gtx/string_cast.hpp"
 #include "Application.h"
+#include "scene/Camera.h"
 #include "renderer/vulkan/VulkanRenderer.h"
 #include "renderer/vulkan/VulkanGPURaytracer.h"
-#include "scene/Camera.h"
 #include "renderer/vulkan/VulkanCPURayTracer.h"
+#include "renderer/vulkan/VulkanHybridRenderer.h"
 
 static int fpstracker;
 static int fps = 0;
@@ -149,6 +150,9 @@ Application::Application(
 			break;
 		case ERenderingMode::RAYTRACING_CPU:
 			m_renderer = new VulkanCPURaytracer(m_window, m_scene, configPtr);
+			break;
+		case ERenderingMode::HYBRID:
+			m_renderer = new VulkanHybridRenderer(m_window, m_scene, configPtr);
 			break;
 		default:
 			m_renderer = new VulkanRenderer(m_window, m_scene, configPtr);

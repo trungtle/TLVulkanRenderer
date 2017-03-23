@@ -105,7 +105,7 @@ VulkanRenderer::~VulkanRenderer() {
 	for (auto& imageView : m_vulkanDevice->m_swapchain.imageViews) {
 		vkDestroyImageView(m_vulkanDevice->device, imageView, nullptr);
 	}
-	vkDestroyPipeline(m_vulkanDevice->device, m_graphics.m_graphicsPipeline, nullptr);
+	vkDestroyPipeline(m_vulkanDevice->device, m_graphics.m_pipeline, nullptr);
 
 	delete m_vulkanDevice;
 }
@@ -227,8 +227,8 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 	// Load SPIR-V bytecode
 	// The SPIR_V files can be compiled by running glsllangValidator.exe from the VulkanSDK or
 	// by invoking the custom script shaders/compileShaders.bat
-	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/vertShader.spv");
-	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/fragShader.spv");
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/forward/vertShader.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/forward/fragShader.spv");
 
 	// -- VERTEX INPUT STAGE
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
@@ -386,7 +386,7 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 			1, // Pipeline count
 			&graphicsPipelineCreateInfo,
 			nullptr,
-			&m_graphics.m_graphicsPipeline // Pipelines
+			&m_graphics.m_pipeline // Pipelines
 		),
 		"Failed to create graphics pipeline"
 	);
@@ -551,7 +551,7 @@ VkResult VulkanRenderer::PreparePostProcessingPipeline() {
 			1, // Pipeline count
 			&graphicsPipelineCreateInfo,
 			nullptr,
-			&m_graphics.m_graphicsPipeline // Pipelines
+			&m_graphics.m_pipeline // Pipelines
 		),
 		"Failed to create graphics pipeline"
 	);
@@ -734,7 +734,7 @@ VulkanRenderer::PrepareDescriptorSets() {
 	VkDescriptorSetAllocateInfo allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_graphics.descriptorSetLayout);
 
 	CheckVulkanResult(
-		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_graphics.descriptorSets),
+		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_graphics.descriptorSet),
 		"Failed to allocate descriptor set"
 	);
 
@@ -743,7 +743,7 @@ VulkanRenderer::PrepareDescriptorSets() {
 	// Update descriptor set info
 	VkWriteDescriptorSet descriptorWrite = MakeWriteDescriptorSet(
 		VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-		m_graphics.descriptorSets,
+		m_graphics.descriptorSet,
 		0,
 		1,
 		&bufferInfo,
@@ -793,7 +793,7 @@ VulkanRenderer::BuildCommandBuffers() {
 		vkCmdBeginRenderPass(m_graphics.commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		// Record binding the graphics pipeline
-		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.m_graphicsPipeline);
+		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.m_pipeline);
 
 		for (int b = 0; b < m_graphics.geometryBuffers.size(); ++b) {
 			VulkanBuffer::GeometryBuffer& geomBuffer = m_graphics.geometryBuffers[b];
@@ -807,7 +807,7 @@ VulkanRenderer::BuildCommandBuffers() {
 			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], geomBuffer.vertexBuffer, geomBuffer.bufferLayout.vertexBufferOffsets.at(INDEX), VK_INDEX_TYPE_UINT16);
 
 			// Bind uniform buffer
-			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSets, 0, nullptr);
+			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSet, 0, nullptr);
 
 			// Record draw command for the triangle!
 			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_scene->meshesData[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);

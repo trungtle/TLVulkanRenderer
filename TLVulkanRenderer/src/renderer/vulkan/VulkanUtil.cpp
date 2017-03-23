@@ -506,6 +506,38 @@ namespace VulkanUtil {
 			);
 		}
 
+		VkSamplerCreateInfo 
+		MakeSamplerCreateInfo(
+			VkFilter magFilter, 
+			VkFilter minFilter, 
+			VkSamplerMipmapMode mipmapMode,
+			VkSamplerAddressMode addressModeU, 
+			VkSamplerAddressMode addressModeV, 
+			VkSamplerAddressMode addressModeW, 
+			float mipLodBias, 
+			float maxAnisotropy, 
+			float minLod, 
+			float maxLod, 
+			VkBorderColor borderColor
+			) 
+		{
+			VkSamplerCreateInfo samplerCreateInfo = {};
+			samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+			samplerCreateInfo.magFilter = magFilter;
+			samplerCreateInfo.minFilter = minFilter;
+			samplerCreateInfo.mipmapMode = mipmapMode;
+			samplerCreateInfo.addressModeU = addressModeU;
+			samplerCreateInfo.addressModeV = addressModeV;
+			samplerCreateInfo.addressModeW = addressModeW;
+			samplerCreateInfo.mipLodBias = mipLodBias;
+			samplerCreateInfo.maxAnisotropy = maxAnisotropy;
+			samplerCreateInfo.minLod = minLod;
+			samplerCreateInfo.maxLod = maxLod;
+			samplerCreateInfo.borderColor = borderColor;
+
+			return samplerCreateInfo;
+		}
+
 		VkCommandPoolCreateInfo
 		MakeCommandPoolCreateInfo(
 			uint32_t queueFamilyIndex

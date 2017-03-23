@@ -54,6 +54,12 @@ public:
 
 protected:
 
+	struct SInputTextures
+	{
+		VulkanImage::Texture m_colorMap;
+		VulkanImage::Texture m_normalMap;
+	};
+
 	struct SFrameBuffer
 	{
 		uint32_t width, height;
@@ -63,9 +69,32 @@ protected:
 		VkRenderPass renderPass;
 	};
 
-	// -----------
-	// DEFFERED PIPEPLINE
-	// -----------
+	struct SVertexShaderUniforms
+	{
+		glm::mat4 m_projection;
+		glm::mat4 m_model;
+		glm::mat4 m_view;
+	};
+
+	struct SSceneLight
+	{
+		glm::vec4 position;
+		glm::vec3 color;
+		float radius;
+	};
+
+	struct SFragShaderUniforms
+	{
+		SSceneLight m_lights[6];
+		glm::vec4	m_viewPos;
+	};
+
+	struct Quad
+	{
+		std::vector<uint16_t> indices;
+		std::vector<vec2> positions;
+		std::vector<vec2> uvs;
+	} m_quad;
 
 	void
 	CreateAttachment(
@@ -74,16 +103,68 @@ protected:
 		VulkanImage::Image& attachment
 	);
 
-	void
-		PrepareDeferredAttachments();
+	VkSampler m_colorSampler;
+	SInputTextures m_vulkanTextures;
+
+	// -----------
+	// WIREFRAME
+	// -----------
+
+	struct Wireframe
+	{
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+		VkDescriptorSetLayout descriptorSetLayout;
+		VkDescriptorSet descriptorSet;
+	} m_wireframe;
 
 	// -----------
 	// ON SCREEN
 	// -----------
-	
+
+	struct Onscreen
+	{
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+		VkDescriptorSetLayout descriptorSetLayout;
+		VkDescriptorSet descriptorSet;
+	} m_onscreen;
+
 	// -----------
 	// DEFERRED
 	// -----------
+
+	void
+		PrepareDeferredDescriptorLayout();
+
+	void
+		PrepareDeferredDescriptorSet();
+
+	void
+		PrepareDeferredUniformBuffer();
+
+	void
+		PrepareDeferredAttachments();
+
+	VkResult
+		PrepareDeferredPipeline();
+
+	struct Deferred
+	{
+		SFrameBuffer framebuffer;
+		VkCommandBuffer commandBuffer;
+		VkSemaphore semaphore;
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+		VkDescriptorSetLayout descriptorSetLayout;
+		VkDescriptorSet descriptorSet;
+
+		SVertexShaderUniforms mvpUnif;
+
+		VulkanBuffer::StorageBuffer mvpUnifStorage;
+		VulkanBuffer::StorageBuffer lightsUnifStorage;
+	} m_deferred;
+
 
 
 	// -----------
@@ -94,7 +175,10 @@ protected:
 		PrepareComputeRaytrace();
 
 	void
-		PrepareComputeRaytraceDescriptorSets();
+		PrepareComputeRaytraceDescriptorLayout();
+
+	void
+		PrepareComputeRaytraceDescriptorSet();
 
 	void
 		PrepareComputeRaytraceCommandPool();
@@ -112,42 +196,8 @@ protected:
 		PrepareComputeRaytracePipeline();
 
 	VkResult
-		BuildComputeCommandBuffers();
+		BuildComputeRaytraceCommandBuffers();
 
-
-	struct Quad
-	{
-		std::vector<uint16_t> indices;
-		std::vector<vec2> positions;
-		std::vector<vec2> uvs;
-	} m_quad;
-
-	struct Deferred
-	{
-		SFrameBuffer framebuffer;
-		VkCommandBuffer commandBuffer;
-		VkSemaphore semaphore;
-		VkPipelineLayout pipelineLayout;
-		VkPipeline pipeline;
-		VkDescriptorSetLayout descriptorLayout;
-		VkDescriptorSet descriptor;
-	} m_deferred;
-
-	struct Wireframe
-	{
-		VkPipelineLayout pipelineLayout;
-		VkPipeline pipeline;
-		VkDescriptorSetLayout descriptorLayout;
-		VkDescriptorSet descriptor;
-	} m_wireframe;
-
-	struct Onscreen
-	{
-		VkPipelineLayout pipelineLayout;
-		VkPipeline pipeline;
-		VkDescriptorSetLayout descriptorLayout;
-		VkDescriptorSet descriptor;
-	} m_onscreen;
 
 
 	struct Raytrace
@@ -157,9 +207,8 @@ protected:
 		VkFence fence;
 
 		// -- Descriptor
-		VkDescriptorPool descriptorPool;
 		VkDescriptorSetLayout descriptorSetLayout;
-		VkDescriptorSet descriptorSets;
+		VkDescriptorSet descriptorSet;
 
 		// -- Pipeline
 		VkPipelineLayout pipelineLayout;
@@ -187,16 +236,21 @@ protected:
 		VulkanImage::Image storageRaytraceImage;
 
 		// -- Uniforms
-		struct UBOCompute
+		struct UBO
 		{ // Compute shader uniform block object
-			glm::vec4 position = glm::vec4(0.0, 2.5f, 15.0f, 1.0f);
-			glm::vec4 right = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);;
-			glm::vec4 lookat = glm::vec4(0.0, 2.5f, 0.0f, 0.0f);
-			glm::vec4 forward;
-			glm::vec4 up = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-			glm::vec2 pixelLength;
-			float fov = 40.0f;
-			float aspectRatio = 45.0f;
+			glm::vec4	m_cameraPosition;
+			SSceneLight m_lights[6];
+			uint32_t	m_lightCount;
+			uint32_t    m_materialCount;
+
+			// toggle flags
+			uint32_t	m_isBVH = false;
+			uint32_t    m_isShadows = false;
+			uint32_t    m_isTransparency = false;
+			uint32_t    m_isReflection = false;
+			uint32_t    m_isColorByRayBounces = false;
+
+			// Padding to be 16 bytes aligned
 		} ubo;
 
 	} m_raytrace;

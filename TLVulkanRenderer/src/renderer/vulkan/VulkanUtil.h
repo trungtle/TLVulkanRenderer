@@ -232,6 +232,21 @@ namespace VulkanUtil {
 			VkSampler* sampler
 		);
 
+		VkSamplerCreateInfo
+		MakeSamplerCreateInfo(
+			VkFilter magFilter,
+			VkFilter minFilter,
+			VkSamplerMipmapMode mipmapMode,
+			VkSamplerAddressMode addressModeU,
+			VkSamplerAddressMode addressModeV,
+			VkSamplerAddressMode addressModeW,
+			float mipLodBias,
+			float maxAnisotropy,
+			float minLod,
+			float maxLod,
+			VkBorderColor borderColor
+		);
+
 		// ===================
 		// COMMANDS
 		// ===================

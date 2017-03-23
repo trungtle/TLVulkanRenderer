@@ -11,10 +11,7 @@
 #include "spdlog/spdlog.h"
 #include "renderer/Renderer.h"
 #include "VulkanDevice.h"
-#include "VulkanSwapchain.h"
 #include "VulkanUtil.h"
-#include "Typedef.h"
-#include "VulkanImage.h"
 #include "VulkanBuffer.h"
 
 using namespace VulkanUtil;
@@ -135,7 +132,7 @@ protected:
 		/**
 		* \brief Descriptor set for our resources
 		*/
-		VkDescriptorSet descriptorSets;
+		VkDescriptorSet descriptorSet;
 
 		/**
 		* \brief This describes the uniforms inside shaders
@@ -160,7 +157,7 @@ protected:
 		/**
 		* \brief Graphics pipeline
 		*/
-		VkPipeline m_graphicsPipeline;
+		VkPipeline m_pipeline;
 
 		/**
 		* \brief Command pool

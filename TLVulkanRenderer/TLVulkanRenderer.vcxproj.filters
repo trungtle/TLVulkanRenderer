@@ -151,21 +151,16 @@
     <ClInclude Include="src\geometry\materials\EmissiveMaterial.h" />
     <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
     <ClInclude Include="src\geometry\materials\TranslucentMaterial.h" />
+    <ClInclude Include="src\VDeleter.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">
-      <Filter>Resources\Shaders</Filter>
-    </None>
-    <None Include="shaders\fragShader.frag">
       <Filter>Resources\Shaders</Filter>
     </None>
     <None Include="shaders\raytracing\raytrace.frag">
       <Filter>Resources\Shaders</Filter>
     </None>
     <None Include="shaders\raytracing\raytrace.vert">
-      <Filter>Resources\Shaders</Filter>
-    </None>
-    <None Include="shaders\vertShader.vert">
       <Filter>Resources\Shaders</Filter>
     </None>
     <None Include="shaders\raytracing\quad.vert">
@@ -177,10 +172,34 @@
     <None Include="shaders\raytracing\wireframe.vert" />
     <None Include="shaders\raytracing\wireframe.frag" />
     <None Include="..\README.md" />
-    <None Include="shaders\fragShader.spv" />
-    <None Include="shaders\vertShader.spv" />
     <None Include="shaders\raytracing\pass-through.vert" />
-    <None Include="shaders\raytracing\ACESfilm.frag" />
+    <None Include="shaders\forward\compileShaders.bat" />
+    <None Include="shaders\forward\fragShader.frag" />
+    <None Include="shaders\forward\fragShader.spv" />
+    <None Include="shaders\forward\vertShader.spv" />
+    <None Include="shaders\forward\vertShader.vert" />
+    <None Include="shaders\hybrid\generate-spirv.bat" />
+    <None Include="shaders\hybrid\hybrid.frag" />
+    <None Include="shaders\hybrid\hybrid.frag.spv" />
+    <None Include="shaders\hybrid\hybrid.vert" />
+    <None Include="shaders\hybrid\hybrid.vert.spv" />
+    <None Include="shaders\hybrid\wireframe.frag" />
+    <None Include="shaders\hybrid\wireframe.frag.spv" />
+    <None Include="shaders\hybrid\wireframe.vert" />
+    <None Include="shaders\hybrid\wireframe.vert.spv" />
+    <None Include="shaders\post\ACESfilm.frag" />
+    <None Include="shaders\deferred\debug.frag" />
+    <None Include="shaders\deferred\debug.frag.spv" />
+    <None Include="shaders\deferred\debug.vert" />
+    <None Include="shaders\deferred\debug.vert.spv" />
+    <None Include="shaders\deferred\generate-spirv.bat" />
+    <None Include="shaders\deferred\mrt.frag" />
+    <None Include="shaders\deferred\mrt.frag.spv" />
+    <None Include="shaders\deferred\mrt.vert" />
+    <None Include="shaders\deferred\mrt.vert.spv" />
+    <None Include="shaders\raytracing\wireframe.frag.spv" />
+    <None Include="shaders\hybrid\hybrid.comp" />
+    <None Include="shaders\hybrid\hybrid.comp.spv" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

@@ -18,6 +18,19 @@ namespace VulkanImage {
 		VkFormat format;
 	};
 
+	struct Texture
+	{
+		VkSampler sampler;
+		VkImage image;
+		VkImageLayout imageLayout;
+		VkDeviceMemory deviceMemory;
+		VkImageView view;
+		uint32_t width, height;
+		uint32_t mipLevels;
+		uint32_t layerCount;
+		VkDescriptorImageInfo descriptor;
+	};
+
 	Image
 	CreateVulkanImage(
 		VulkanDevice* device,

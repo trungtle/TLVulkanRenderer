@@ -199,6 +199,7 @@
     <ClInclude Include="src\scene\SceneUtil.h" />
     <ClInclude Include="src\Typedef.h" />
     <ClInclude Include="src\Utilities.h" />
+    <ClInclude Include="src\VDeleter.h" />
     <ClInclude Include="thirdparty\tinygltfloader\picojson.h" />
     <ClInclude Include="thirdparty\tinygltfloader\stb_image.h" />
     <ClInclude Include="thirdparty\tinygltfloader\tiny_gltf_loader.h" />
@@ -211,9 +212,32 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md" />
-    <None Include="shaders\fragShader.frag" />
-    <None Include="shaders\fragShader.spv" />
-    <None Include="shaders\raytracing\ACESfilm.frag" />
+    <None Include="shaders\deferred\debug.frag" />
+    <None Include="shaders\deferred\debug.frag.spv" />
+    <None Include="shaders\deferred\debug.vert" />
+    <None Include="shaders\deferred\debug.vert.spv" />
+    <None Include="shaders\deferred\generate-spirv.bat" />
+    <None Include="shaders\deferred\mrt.frag" />
+    <None Include="shaders\deferred\mrt.frag.spv" />
+    <None Include="shaders\deferred\mrt.vert" />
+    <None Include="shaders\deferred\mrt.vert.spv" />
+    <None Include="shaders\forward\compileShaders.bat" />
+    <None Include="shaders\forward\fragShader.frag" />
+    <None Include="shaders\forward\fragShader.spv" />
+    <None Include="shaders\forward\vertShader.spv" />
+    <None Include="shaders\forward\vertShader.vert" />
+    <None Include="shaders\hybrid\generate-spirv.bat" />
+    <None Include="shaders\hybrid\hybrid.frag" />
+    <None Include="shaders\hybrid\hybrid.frag.spv" />
+    <None Include="shaders\hybrid\hybrid.vert" />
+    <None Include="shaders\hybrid\hybrid.vert.spv" />
+    <None Include="shaders\hybrid\hybrid.comp" />
+    <None Include="shaders\hybrid\hybrid.comp.spv" />
+    <None Include="shaders\hybrid\wireframe.frag" />
+    <None Include="shaders\hybrid\wireframe.frag.spv" />
+    <None Include="shaders\hybrid\wireframe.vert" />
+    <None Include="shaders\hybrid\wireframe.vert.spv" />
+    <None Include="shaders\post\ACESfilm.frag" />
     <None Include="shaders\raytracing\pass-through.vert" />
     <None Include="shaders\raytracing\quad.frag" />
     <None Include="shaders\raytracing\quad.vert" />
@@ -221,9 +245,8 @@
     <None Include="shaders\raytracing\raytrace.frag" />
     <None Include="shaders\raytracing\raytrace.vert" />
     <None Include="shaders\raytracing\wireframe.frag" />
+    <None Include="shaders\raytracing\wireframe.frag.spv" />
     <None Include="shaders\raytracing\wireframe.vert" />
-    <None Include="shaders\vertShader.spv" />
-    <None Include="shaders\vertShader.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Application.cpp" />

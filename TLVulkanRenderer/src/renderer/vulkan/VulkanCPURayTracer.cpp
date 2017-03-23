@@ -458,7 +458,7 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 			1, // Pipeline count
 			&graphicsPipelineCreateInfo,
 			nullptr,
-			&m_graphics.m_graphicsPipeline // Pipelines
+			&m_graphics.m_pipeline // Pipelines
 		),
 		"Failed to create graphics pipeline"
 	);
@@ -780,7 +780,7 @@ VkResult VulkanCPURaytracer::PrepareDescriptorSets() {
 	VkDescriptorSetAllocateInfo allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_graphics.descriptorSetLayout);
 
 	CheckVulkanResult(
-		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_graphics.descriptorSets),
+		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_graphics.descriptorSet),
 		"Failed to allocate descriptor set"
 	);
 
@@ -802,7 +802,7 @@ VkResult VulkanCPURaytracer::PrepareDescriptorSets() {
 	{
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			m_graphics.descriptorSets,
+			m_graphics.descriptorSet,
 			0,
 			1,
 			nullptr,
@@ -810,7 +810,7 @@ VkResult VulkanCPURaytracer::PrepareDescriptorSets() {
 		),
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			m_graphics.descriptorSets,
+			m_graphics.descriptorSet,
 			1,
 			1,
 			&m_quadUniform.descriptor,
@@ -882,7 +882,7 @@ VkResult VulkanCPURaytracer::BuildCommandBuffers() {
 		vkCmdBeginRenderPass(m_graphics.commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		// Record binding the graphics pipeline
-		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.m_graphicsPipeline);
+		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.m_pipeline);
 
 		VkViewport viewport = MakeFullscreenViewport(m_vulkanDevice->m_swapchain.extent);
 		vkCmdSetViewport(m_graphics.commandBuffers[i], 0, 1, &viewport);
@@ -905,7 +905,7 @@ VkResult VulkanCPURaytracer::BuildCommandBuffers() {
 			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], geomBuffer.vertexBuffer, geomBuffer.bufferLayout.vertexBufferOffsets.at(INDEX), VK_INDEX_TYPE_UINT16);
 
 			// Bind uniform buffer
-			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSets, 0, nullptr);
+			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSet, 0, nullptr);
 
 			// Record draw command for the triangle!
 			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_quad.indices.size(), 1, 0, 0, 0);
