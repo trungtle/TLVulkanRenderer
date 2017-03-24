@@ -56,7 +56,10 @@ public:
 	PreparePipelines();
 
 	virtual VkResult
-	PrepareCommandPool();
+	PrepareGraphicsCommandPool();
+
+	virtual VkResult
+	PrepareComputeCommandPool();
 
 	virtual VkResult
 	BuildCommandBuffers();
@@ -177,6 +180,11 @@ protected:
 
 
 	} m_graphics;
+
+	struct Compute
+	{
+		VkCommandPool commandPool;
+	} m_compute;
 
 	struct Quad
 	{

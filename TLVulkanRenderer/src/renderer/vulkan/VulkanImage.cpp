@@ -8,23 +8,24 @@ namespace VulkanImage {
 		VulkanDevice* device, 
 		uint32_t width, 
 		uint32_t height,
+		VkFormat format,
 		VkImageTiling tiling,
 		VkImageUsageFlags usage, 
 		VkMemoryPropertyFlags properties
 		) 
 	{
-		VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 		Image image; 
 
 		image.width = width;
 		image.height = height;
+		image.format = format;
 
 		device->CreateImage(
 			width,
 			height,
 			1, // only a 2D depth image
 			VK_IMAGE_TYPE_2D, 
-			imageFormat,
+			format,
 			tiling,
 			// Image is sampled in fragment shader and used as storage for compute output
 			usage,

@@ -130,5 +130,5 @@ protected:
 			float aspectRatio = 45.0f;
 		} ubo;
 
-	} m_compute;
+	} m_raytrace;
 };

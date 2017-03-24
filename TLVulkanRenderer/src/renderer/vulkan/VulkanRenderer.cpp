@@ -42,7 +42,8 @@ VulkanRenderer::VulkanRenderer(
 	vkGetDeviceQueue(m_vulkanDevice->device, m_vulkanDevice->queueFamilyIndices.presentFamily, 0, &m_presentQueue);
 
 	VkResult result;
-	result = PrepareCommandPool();
+	result = PrepareGraphicsCommandPool();
+	result = PrepareComputeCommandPool();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created command pool");
 
@@ -564,7 +565,7 @@ VkResult VulkanRenderer::PreparePostProcessingPipeline() {
 }
 
 VkResult
-VulkanRenderer::PrepareCommandPool() {
+VulkanRenderer::PrepareGraphicsCommandPool() {
 	VkResult result = VK_SUCCESS;
 
 	// Command pool for the graphics queue
@@ -572,6 +573,23 @@ VulkanRenderer::PrepareCommandPool() {
 
 	result = vkCreateCommandPool(m_vulkanDevice->device, &graphicsCommandPoolCreateInfo, nullptr, &m_graphics.commandPool);
 	if (result != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create command pool.");
+		return result;
+	}
+
+	return result;
+}
+
+VkResult VulkanRenderer::PrepareComputeCommandPool()
+{
+	VkResult result = VK_SUCCESS;
+
+	// Command pool for the graphics queue
+	VkCommandPoolCreateInfo computeCommandPoolCreateInfo = MakeCommandPoolCreateInfo(m_vulkanDevice->queueFamilyIndices.computeFamily);
+
+	result = vkCreateCommandPool(m_vulkanDevice->device, &computeCommandPoolCreateInfo, nullptr, &m_compute.commandPool);
+	if (result != VK_SUCCESS)
+	{
 		throw std::runtime_error("Failed to create command pool.");
 		return result;
 	}
@@ -828,8 +846,7 @@ VulkanRenderer::BuildCommandBuffers() {
 
 VkResult
 VulkanRenderer::PrepareSemaphores() {
-	VkSemaphoreCreateInfo semaphoreCreateInfo = {};
-	semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	VkSemaphoreCreateInfo semaphoreCreateInfo = MakeSemaphoreCreateInfo();
 
 	VkResult result = vkCreateSemaphore(m_vulkanDevice->device, &semaphoreCreateInfo, nullptr, &m_imageAvailableSemaphore);
 	if (result != VK_SUCCESS) {

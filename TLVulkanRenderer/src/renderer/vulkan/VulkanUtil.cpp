@@ -630,5 +630,12 @@ namespace VulkanUtil {
 
 			return createInfo;
 		}
+		VkSemaphoreCreateInfo MakeSemaphoreCreateInfo()
+		{
+			VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+			semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+			return semaphoreCreateInfo;
+		}
 	}
 }

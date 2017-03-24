@@ -2,6 +2,8 @@
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
 
+#define VERTEX_BUFFER_BIND_ID 0
+
 // Texture properties
 #define TEX_DIM 2048
 #define TEX_FILTER VK_FILTER_LINEAR
@@ -146,8 +148,11 @@ protected:
 	void
 		PrepareDeferredAttachments();
 
-	VkResult
+	void
 		PrepareDeferredPipeline();
+
+	void
+		BuildDeferredCommandBuffer();
 
 	struct Deferred
 	{
@@ -196,7 +201,7 @@ protected:
 		PrepareComputeRaytracePipeline();
 
 	VkResult
-		BuildComputeRaytraceCommandBuffers();
+		BuildComputeRaytraceCommandBuffer();
 
 
 

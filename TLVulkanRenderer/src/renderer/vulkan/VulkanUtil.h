@@ -282,6 +282,9 @@ namespace VulkanUtil {
 		MakeFenceCreateInfo(
 			VkFenceCreateFlags flags
 		);
+
+		VkSemaphoreCreateInfo
+		MakeSemaphoreCreateInfo();
 	}
 
 	// -----------------------------------------------------

@@ -6,8 +6,9 @@ VulkanHybridRenderer::VulkanHybridRenderer(
 	GLFWwindow* window,
 	Scene* scene,
 	std::shared_ptr<std::map<string, string>> config
-) : VulkanRenderer(window, scene, config) {
-
+) : VulkanRenderer(window, scene, config)
+{
+	m_deferred.commandBuffer = VK_NULL_HANDLE;
 	Prepare();
 }
 
@@ -17,56 +18,7 @@ VulkanHybridRenderer::Update() {
 
 void
 VulkanHybridRenderer::Render() {
-	// Acquire the swapchain
-	uint32_t imageIndex;
-	vkAcquireNextImageKHR(
-		m_vulkanDevice->device,
-		m_vulkanDevice->m_swapchain.swapchain,
-		UINT64_MAX, // Timeout
-		m_imageAvailableSemaphore,
-		VK_NULL_HANDLE,
-		&imageIndex
-	);
-
-	// Submit command buffers
-	std::vector<VkSemaphore> waitSemaphores = { m_imageAvailableSemaphore };
-	std::vector<VkSemaphore> signalSemaphores = { m_renderFinishedSemaphore };
-	std::vector<VkPipelineStageFlags> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkSubmitInfo submitInfo = MakeSubmitInfo(
-		waitSemaphores,
-		signalSemaphores,
-		waitStages,
-		m_graphics.commandBuffers[imageIndex]
-	);
-
-	// Submit to queue
-	CheckVulkanResult(
-		vkQueueSubmit(m_graphics.queue, 1, &submitInfo, VK_NULL_HANDLE),
-		"Failed to submit queue"
-	);
-
-	// Present swapchain image! Use the signal semaphore for present swapchain to wait for the next one
-	std::vector<VkSwapchainKHR> swapchains = { m_vulkanDevice->m_swapchain.swapchain };
-	VkPresentInfoKHR presentInfo = MakePresentInfoKHR(
-		signalSemaphores,
-		swapchains,
-		&imageIndex
-	);
-
-	vkQueuePresentKHR(m_graphics.queue, &presentInfo);
-
-	// -- Submit compute command
-	vkWaitForFences(m_vulkanDevice->device, 1, &m_raytrace.fence, VK_TRUE, UINT64_MAX);
-	vkResetFences(m_vulkanDevice->device, 1, &m_raytrace.fence);
-
-	VkSubmitInfo computeSubmitInfo = MakeSubmitInfo(
-		m_raytrace.commandBuffer
-	);
-
-	CheckVulkanResult(
-		vkQueueSubmit(m_raytrace.queue, 1, &computeSubmitInfo, m_raytrace.fence),
-		"Failed to submit queue"
-	);
+	VulkanRenderer::Render();
 }
 
 VulkanHybridRenderer::~VulkanHybridRenderer() {
@@ -106,12 +58,12 @@ VulkanHybridRenderer::~VulkanHybridRenderer() {
 }
 
 void VulkanHybridRenderer::Prepare() {
-	PrepareDeferredAttachments();
 	PrepareDeferredUniformBuffer();
 	PrepareVertexBuffers();
 	PrepareDescriptorPool();
 	PrepareDescriptorLayouts();
 	PrepareDescriptorSets();
+	PrepareDeferredAttachments();
 	PreparePipelines();
 	BuildCommandBuffers();
 }
@@ -119,6 +71,8 @@ void VulkanHybridRenderer::Prepare() {
 VkResult
 VulkanHybridRenderer::PrepareVertexBuffers() {
 	m_graphics.geometryBuffers.clear();
+
+	// ------------- quad ------------- //
 
 	const std::vector<uint16_t> indices = {
 		0, 1, 2,
@@ -147,82 +101,92 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 
 	// ----------- Vertex attributes --------------
 
-	VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
-	VkDeviceSize indexBufferOffset = 0;
-	VkDeviceSize positionBufferSize = sizeof(positions[0]) * positions.size();
-	VkDeviceSize positionBufferOffset = indexBufferSize;
-	VkDeviceSize uvBufferSize = sizeof(uvs[0]) * uvs.size();
-	VkDeviceSize uvBufferOffset = positionBufferOffset + positionBufferSize;
+	for (MeshData* geomData : m_scene->meshesData)
+	{
+		VulkanBuffer::GeometryBuffer geomBuffer;
 
-	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + uvBufferSize;
-	geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(INDEX, indexBufferOffset));
-	geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(POSITION, positionBufferOffset));
-	geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
+		// ----------- Vertex attributes --------------
 
-	// Stage buffer memory on host
-	// We want staging so that we can map the vertex data on the host but
-	// then transfer it to the device local memory for faster performance
-	// This is the recommended way to allocate buffer memory,
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
+		std::vector<Byte>& indexData = geomData->vertexData.at(INDEX);
+		VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
+		VkDeviceSize indexBufferOffset = 0;
+		std::vector<Byte>& positionData = geomData->vertexData.at(POSITION);
+		VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
+		VkDeviceSize positionBufferOffset = indexBufferSize;
+		std::vector<Byte>& normalData = geomData->vertexData.at(NORMAL);
+		VkDeviceSize normalBufferSize = sizeof(normalData[0]) * normalData.size();
+		VkDeviceSize normalBufferOffset = positionBufferOffset + positionBufferSize;
 
-	m_vulkanDevice->CreateBuffer(
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		stagingBuffer
-	);
+		VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize;
+		geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(INDEX, indexBufferOffset));
+		geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(POSITION, positionBufferOffset));
+		geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(NORMAL, normalBufferOffset));
 
-	// Allocate memory for the buffer
-	m_vulkanDevice->CreateMemory(
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory
-	);
+		// Stage buffer memory on host
+		// We want staging so that we can map the vertex data on the host but
+		// then transfer it to the device local memory for faster performance
+		// This is the recommended way to allocate buffer memory,
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
 
-	// Bind buffer with memory
-	VkDeviceSize memoryOffset = 0;
-	vkBindBufferMemory(m_vulkanDevice->device, stagingBuffer, stagingBufferMemory, memoryOffset);
+		m_vulkanDevice->CreateBuffer(
+			bufferSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			stagingBuffer
+		);
 
-	// Filling the stage buffer with data
-	void* data;
-	vkMapMemory(m_vulkanDevice->device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy((Byte*)data, (Byte*)indices.data(), static_cast<size_t>(indexBufferSize));
-	memcpy((Byte*)data + positionBufferOffset, (Byte*)positions.data(), static_cast<size_t>(positionBufferSize));
-	memcpy((Byte*)data + uvBufferOffset, (Byte*)uvs.data(), static_cast<size_t>(uvBufferSize));
-	vkUnmapMemory(m_vulkanDevice->device, stagingBufferMemory);
+		// Allocate memory for the buffer
+		m_vulkanDevice->CreateMemory(
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			stagingBuffer,
+			stagingBufferMemory
+		);
 
-	// -----------------------------------------
+		// Bind buffer with memory
+		VkDeviceSize memoryOffset = 0;
+		vkBindBufferMemory(m_vulkanDevice->device, stagingBuffer, stagingBufferMemory, memoryOffset);
 
-	m_vulkanDevice->CreateBuffer(
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		geomBuffer.vertexBuffer
-	);
+		// Filling the stage buffer with data
+		void* data;
+		vkMapMemory(m_vulkanDevice->device, stagingBufferMemory, 0, bufferSize, 0, &data);
+		memcpy(data, indexData.data(), static_cast<size_t>(indexBufferSize));
+		memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
+		memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
+		vkUnmapMemory(m_vulkanDevice->device, stagingBufferMemory);
 
-	// Allocate memory for the buffer
-	m_vulkanDevice->CreateMemory(
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		geomBuffer.vertexBuffer,
-		geomBuffer.vertexBufferMemory
-	);
+		// -----------------------------------------
 
-	// Bind buffer with memory
-	vkBindBufferMemory(m_vulkanDevice->device, geomBuffer.vertexBuffer, geomBuffer.vertexBufferMemory, memoryOffset);
+		m_vulkanDevice->CreateBuffer(
+			bufferSize,
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			geomBuffer.vertexBuffer
+		);
 
-	// Copy over to vertex buffer in device local memory
-	m_vulkanDevice->CopyBuffer(
-		m_graphics.queue,
-		m_graphics.commandPool,
-		geomBuffer.vertexBuffer,
-		stagingBuffer,
-		bufferSize
-	);
+		// Allocate memory for the buffer
+		m_vulkanDevice->CreateMemory(
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			geomBuffer.vertexBuffer,
+			geomBuffer.vertexBufferMemory
+		);
 
-	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, stagingBufferMemory, nullptr);
+		// Bind buffer with memory
+		vkBindBufferMemory(m_vulkanDevice->device, geomBuffer.vertexBuffer, geomBuffer.vertexBufferMemory, memoryOffset);
 
-	m_graphics.geometryBuffers.push_back(geomBuffer);
+		// Copy over to vertex buffer in device local memory
+		m_vulkanDevice->CopyBuffer(
+			m_graphics.queue,
+			m_graphics.commandPool,
+			geomBuffer.vertexBuffer,
+			stagingBuffer,
+			bufferSize
+		);
+
+		// Cleanup staging buffer memory
+		vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer, nullptr);
+		vkFreeMemory(m_vulkanDevice->device, stagingBufferMemory, nullptr);
+
+		m_graphics.geometryBuffers.push_back(geomBuffer);
+	}
 
 	return VK_SUCCESS;
 }
@@ -278,103 +242,10 @@ VulkanHybridRenderer::PreparePipelines() {
 
 VkResult
 VulkanHybridRenderer::BuildCommandBuffers() {
-	m_graphics.commandBuffers.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
-	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
-	VkCommandBufferAllocateInfo allocInfo = MakeCommandBufferAllocateInfo(m_graphics.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_vulkanDevice->m_swapchain.framebuffers.size());
+	BuildDeferredCommandBuffer();
+	//BuildComputeRaytraceCommandBuffer();
 
-	VkResult result = vkAllocateCommandBuffers(m_vulkanDevice->device, &allocInfo, m_graphics.commandBuffers.data());
-	if (result != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create command buffers.");
-		return result;
-	}
-
-	for (int i = 0; i < m_graphics.commandBuffers.size(); ++i)
-	{
-		// Begin command recording
-		VkCommandBufferBeginInfo beginInfo = {};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-
-		vkBeginCommandBuffer(m_graphics.commandBuffers[i], &beginInfo);
-
-		// Image memory barrier to make sure that compute shader writes are finished before sampling from the texture
-		VkImageMemoryBarrier imageMemoryBarrier = {};
-		imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-		imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-		imageMemoryBarrier.image = m_raytrace.storageRaytraceImage.image;
-		imageMemoryBarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-		imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		vkCmdPipelineBarrier(
-			m_graphics.commandBuffers[i],
-			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			0,
-			0, nullptr,
-			0, nullptr,
-			1, &imageMemoryBarrier);
-
-		// Begin renderpass
-		std::vector<VkClearValue> clearValues(2);
-		glm::vec4 clearColor = NormalizeColor(0, 67, 100, 255);
-		clearValues[0].color = { clearColor.r, clearColor.g, clearColor.b, clearColor.a };
-		clearValues[1].depthStencil = { 1.0f, 0 };
-		VkRenderPassBeginInfo renderPassBeginInfo = MakeRenderPassBeginInfo(
-			m_graphics.renderPass,
-			m_vulkanDevice->m_swapchain.framebuffers[i],
-			{ 0, 0 },
-			m_vulkanDevice->m_swapchain.extent,
-			clearValues
-		);
-
-		// Record begin renderpass
-		vkCmdBeginRenderPass(m_graphics.commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-		// Record binding the graphics pipeline
-		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.m_pipeline);
-
-		VkViewport viewport = MakeFullscreenViewport(m_vulkanDevice->m_swapchain.extent);
-		vkCmdSetViewport(m_graphics.commandBuffers[i], 0, 1, &viewport);
-
-		VkRect2D scissor = {};
-		scissor.offset = { 0, 0 };
-		scissor.extent = m_vulkanDevice->m_swapchain.extent;
-		vkCmdSetScissor(m_graphics.commandBuffers[i], 0, 1, &scissor);
-
-		for (int b = 0; b < m_graphics.geometryBuffers.size(); ++b)
-		{
-			VulkanBuffer::GeometryBuffer& geomBuffer = m_graphics.geometryBuffers[b];
-
-			// Bind vertex buffer
-			VkBuffer vertexBuffers[] = { geomBuffer.vertexBuffer, geomBuffer.vertexBuffer };
-			VkDeviceSize offsets[] = { geomBuffer.bufferLayout.vertexBufferOffsets.at(POSITION), geomBuffer.bufferLayout.vertexBufferOffsets.at(TEXCOORD) };
-			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 2, vertexBuffers, offsets);
-
-			// Bind index buffer
-			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], geomBuffer.vertexBuffer, geomBuffer.bufferLayout.vertexBufferOffsets.at(INDEX), VK_INDEX_TYPE_UINT16);
-
-			// Bind uniform buffer
-			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSet, 0, nullptr);
-
-			// Record draw command for the triangle!
-			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_quad.indices.size(), 1, 0, 0, 0);
-		}
-
-		// Record end renderpass
-		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
-
-		// End command recording
-		result = vkEndCommandBuffer(m_graphics.commandBuffers[i]);
-		if (result != VK_SUCCESS)
-		{
-			throw std::runtime_error("Failed to record command buffers");
-			return result;
-		}
-	}
-
-	return result;
+	return VK_SUCCESS;
 }
 
 void 
@@ -391,19 +262,19 @@ VulkanHybridRenderer::CreateAttachment(
 	}
 	if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
 	{
-		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 	}
 
 	attachment = VulkanImage::CreateVulkanImage(
 		m_vulkanDevice,
 		m_deferred.framebuffer.width,
 		m_deferred.framebuffer.height,
+		format,
 		VK_IMAGE_TILING_OPTIMAL,
 		usage | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
 
-	attachment.format = format;
 	m_vulkanDevice->CreateImageView(
 		attachment.image,
 		VK_IMAGE_VIEW_TYPE_2D,
@@ -629,24 +500,24 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 			&m_deferred.mvpUnifStorage.descriptor, // buffer info
 			nullptr // image info
 		),
-		// Binding 1: Color map
-		MakeWriteDescriptorSet(
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			m_deferred.descriptorSet,
-			1, // binding
-			1, // descriptor count
-			nullptr, // buffer info
-			&m_vulkanTextures.m_colorMap.descriptor // image info
-		),
-		// Binding 2: Normal map
-		MakeWriteDescriptorSet(
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			m_deferred.descriptorSet,
-			2, // binding
-			1, // descriptor count
-			nullptr, // buffer info
-			&m_vulkanTextures.m_normalMap.descriptor // image info
-		),
+		//// Binding 1: Color map
+		//MakeWriteDescriptorSet(
+		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		//	m_deferred.descriptorSet,
+		//	1, // binding
+		//	1, // descriptor count
+		//	nullptr, // buffer info
+		//	&m_vulkanTextures.m_colorMap.descriptor // image info
+		//),
+		//// Binding 2: Normal map
+		//MakeWriteDescriptorSet(
+		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		//	m_deferred.descriptorSet,
+		//	2, // binding
+		//	1, // descriptor count
+		//	nullptr, // buffer info
+		//	&m_vulkanTextures.m_normalMap.descriptor // image info
+		//),
 	};
 
 	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
@@ -663,7 +534,7 @@ void VulkanHybridRenderer::PrepareDeferredUniformBuffer()
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
 
-	m_deferred.mvpUnifStorage.Create(
+	m_deferred.lightsUnifStorage.Create(
 		m_vulkanDevice,
 		sizeof(m_deferred.lightsUnifStorage),
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -671,7 +542,8 @@ void VulkanHybridRenderer::PrepareDeferredUniformBuffer()
 	);
 }
 
-VkResult VulkanHybridRenderer::PrepareDeferredPipeline() 
+void 
+VulkanHybridRenderer::PrepareDeferredPipeline() 
 {
 	VkResult result = VK_SUCCESS;
 
@@ -695,13 +567,13 @@ VkResult VulkanHybridRenderer::PrepareDeferredPipeline()
 		MakeVertexInputAttributeDescription(
 			0, // binding
 			0, // location
-			VK_FORMAT_R32G32_SFLOAT,
+			VK_FORMAT_R32G32B32_SFLOAT,
 			0 // offset
 		),
 		MakeVertexInputAttributeDescription(
-			1, // binding
+			0, // binding
 			1, // location
-			VK_FORMAT_R32G32_SFLOAT,
+			VK_FORMAT_R32G32B32_SFLOAT,
 			0 // offset
 		)
 	};
@@ -742,7 +614,12 @@ VkResult VulkanHybridRenderer::PrepareDeferredPipeline()
 	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachmentState.blendEnable = VK_FALSE;
 
+	// Blend attachment states required for all color attachments
+	// This is important, as color write mask will otherwise be 0x0 and you
+	// won't see anything rendered to the attachment
 	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
+		colorBlendAttachmentState,
+		colorBlendAttachmentState,
 		colorBlendAttachmentState
 	};
 
@@ -769,7 +646,7 @@ VkResult VulkanHybridRenderer::PrepareDeferredPipeline()
 		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShader)
 	};
 
-	VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo =
+	VkGraphicsPipelineCreateInfo pipelineCreateInfo =
 		MakeGraphicsPipelineCreateInfo(
 			shaderCreateInfos,
 			&vertexInputStageCreateInfo,
@@ -781,8 +658,8 @@ VkResult VulkanHybridRenderer::PrepareDeferredPipeline()
 			&multisampleStateCreateInfo,
 			&depthStencilStateCreateInfo,
 			nullptr,
-			m_graphics.pipelineLayout,
-			m_graphics.renderPass,
+			m_deferred.pipelineLayout,
+			m_deferred.framebuffer.renderPass,
 			0, // Subpass
 			VK_NULL_HANDLE,
 			-1
@@ -793,17 +670,90 @@ VkResult VulkanHybridRenderer::PrepareDeferredPipeline()
 			m_vulkanDevice->device,
 			VK_NULL_HANDLE, // Pipeline caches here
 			1, // Pipeline count
-			&graphicsPipelineCreateInfo,
+			&pipelineCreateInfo,
 			nullptr,
-			&m_graphics.m_pipeline // Pipelines
+			&m_deferred.pipeline // Pipelines
 		),
 		"Failed to create graphics pipeline"
 	);
 
+
 	vkDestroyShaderModule(m_vulkanDevice->device, vertShader, nullptr);
 	vkDestroyShaderModule(m_vulkanDevice->device, fragShader, nullptr);
+}
 
-	return result;
+void VulkanHybridRenderer::BuildDeferredCommandBuffer()
+{
+	if (m_deferred.commandBuffer == VK_NULL_HANDLE)
+	{
+		VkCommandBufferAllocateInfo allocInfo = MakeCommandBufferAllocateInfo(m_graphics.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
+
+		CheckVulkanResult(
+			vkAllocateCommandBuffers(m_vulkanDevice->device, &allocInfo, &m_deferred.commandBuffer),
+			"Failed to create command buffers."
+		); 
+	}
+
+	// Create a semaphore used to synchronize offscreen rendering and usage
+	VkSemaphoreCreateInfo semaphoreCreateInfo = MakeSemaphoreCreateInfo();
+	VkResult result = vkCreateSemaphore(m_vulkanDevice->device, &semaphoreCreateInfo, nullptr, &m_deferred.semaphore);
+
+	VkCommandBufferBeginInfo cmdBufInfo = MakeCommandBufferBeginInfo();
+
+	// Clear values for all attachments written in the fragment sahder
+	std::vector<VkClearValue> clearValues(4);
+	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
+	clearValues[1].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
+	clearValues[2].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
+	clearValues[3].depthStencil = { 1.0f, 0 };
+
+	// Begin renderpassw
+	VkRenderPassBeginInfo renderPassBeginInfo = MakeRenderPassBeginInfo(
+		m_deferred.framebuffer.renderPass, 
+		m_deferred.framebuffer.frameBuffer, 
+		{ 0, 0 }, 
+		{ m_deferred.framebuffer.width, m_deferred.framebuffer.height }, 
+		clearValues
+	);
+
+	CheckVulkanResult(vkBeginCommandBuffer(m_deferred.commandBuffer, &cmdBufInfo), "Failed to create command buffer");
+
+	vkCmdBeginRenderPass(m_deferred.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+	VkViewport viewport = MakeFullscreenViewport({ m_deferred.framebuffer.width, m_deferred.framebuffer.height });
+	vkCmdSetViewport(m_deferred.commandBuffer, 0, 1, &viewport);
+
+	VkRect2D scissor = { m_deferred.framebuffer.width, m_deferred.framebuffer.height, 0, 0 };
+	vkCmdSetScissor(m_deferred.commandBuffer, 0, 1, &scissor);
+
+	vkCmdBindPipeline(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipeline);
+
+	VkDeviceSize offsets[1] = { 0 };
+
+	// Object
+
+	for (int b = 0; b < m_graphics.geometryBuffers.size(); ++b)
+	{
+		VulkanBuffer::GeometryBuffer& geomBuffer = m_graphics.geometryBuffers[b];
+
+		// Bind vertex buffer
+		VkBuffer vertexBuffers[] = { geomBuffer.vertexBuffer, geomBuffer.vertexBuffer };
+		VkDeviceSize offsets[] = { geomBuffer.bufferLayout.vertexBufferOffsets.at(POSITION), geomBuffer.bufferLayout.vertexBufferOffsets.at(NORMAL) };
+		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, 2, vertexBuffers, offsets);
+
+		// Bind index buffer
+		vkCmdBindIndexBuffer(m_deferred.commandBuffer, geomBuffer.vertexBuffer, geomBuffer.bufferLayout.vertexBufferOffsets.at(INDEX), VK_INDEX_TYPE_UINT16);
+
+		// Bind uniform buffer
+		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_deferred.descriptorSet, 0, nullptr);
+
+		// Record draw command for the triangle!
+		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->meshesData[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
+	}
+
+	vkCmdEndRenderPass(m_deferred.commandBuffer);
+
+	CheckVulkanResult(vkEndCommandBuffer(m_deferred.commandBuffer), "Failed to end renderpass");
 }
 
 void
@@ -816,7 +766,7 @@ VulkanHybridRenderer::PrepareComputeRaytrace() {
 	PrepareComputeRaytraceUniformBuffer();
 	PrepareComputeRaytraceDescriptorSet();
 	PrepareComputeRaytracePipeline();
-	BuildComputeRaytraceCommandBuffers();
+	BuildComputeRaytraceCommandBuffer();
 }
 
 void VulkanHybridRenderer::PrepareComputeRaytraceDescriptorLayout() {
@@ -1217,7 +1167,7 @@ VulkanHybridRenderer::PrepareComputeRaytracePipeline() {
 
 
 VkResult
-VulkanHybridRenderer::BuildComputeRaytraceCommandBuffers() {
+VulkanHybridRenderer::BuildComputeRaytraceCommandBuffer() {
 
 	VkCommandBufferAllocateInfo commandBufferAllocInfo = MakeCommandBufferAllocateInfo(m_raytrace.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
 

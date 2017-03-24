@@ -15,25 +15,25 @@ VulkanGPURaytracer::VulkanGPURaytracer(
 void
 VulkanGPURaytracer::Update() {
 	// Update camera ubo
-	m_compute.ubo.position = glm::vec4(m_scene->camera.eye, 1.0f);
-	m_compute.ubo.forward = glm::vec4(m_scene->camera.forward, 0.0f);
-	m_compute.ubo.up = glm::vec4(m_scene->camera.up, 0.0f);
-	m_compute.ubo.right = glm::vec4(m_scene->camera.right, 0.0f);
-	m_compute.ubo.lookat = glm::vec4(m_scene->camera.lookAt, 0.0f);
+	m_raytrace.ubo.position = glm::vec4(m_scene->camera.eye, 1.0f);
+	m_raytrace.ubo.forward = glm::vec4(m_scene->camera.forward, 0.0f);
+	m_raytrace.ubo.up = glm::vec4(m_scene->camera.up, 0.0f);
+	m_raytrace.ubo.right = glm::vec4(m_scene->camera.right, 0.0f);
+	m_raytrace.ubo.lookat = glm::vec4(m_scene->camera.lookAt, 0.0f);
 
 	m_vulkanDevice->MapMemory(
-		&m_compute.ubo,
-		m_compute.buffers.stagingUniform.memory,
-		sizeof(m_compute.ubo),
+		&m_raytrace.ubo,
+		m_raytrace.buffers.stagingUniform.memory,
+		sizeof(m_raytrace.ubo),
 		0
 	);
 
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
-		m_compute.buffers.uniform.buffer,
-		m_compute.buffers.stagingUniform.buffer,
-		sizeof(m_compute.ubo));
+		m_raytrace.queue,
+		m_raytrace.commandPool,
+		m_raytrace.buffers.uniform.buffer,
+		m_raytrace.buffers.stagingUniform.buffer,
+		sizeof(m_raytrace.ubo));
 }
 
 void
@@ -77,15 +77,15 @@ VulkanGPURaytracer::Render() {
 	vkQueuePresentKHR(m_graphics.queue, &presentInfo);
 
 	// -- Submit compute command
-	vkWaitForFences(m_vulkanDevice->device, 1, &m_compute.fence, VK_TRUE, UINT64_MAX);
-	vkResetFences(m_vulkanDevice->device, 1, &m_compute.fence);
+	vkWaitForFences(m_vulkanDevice->device, 1, &m_raytrace.fence, VK_TRUE, UINT64_MAX);
+	vkResetFences(m_vulkanDevice->device, 1, &m_raytrace.fence);
 
 	VkSubmitInfo computeSubmitInfo = MakeSubmitInfo(
-		m_compute.commandBuffer
+		m_raytrace.commandBuffer
 	);
 
 	CheckVulkanResult(
-		vkQueueSubmit(m_compute.queue, 1, &computeSubmitInfo, m_compute.fence),
+		vkQueueSubmit(m_raytrace.queue, 1, &computeSubmitInfo, m_raytrace.fence),
 		"Failed to submit queue"
 	);
 }
@@ -95,32 +95,32 @@ VulkanGPURaytracer::~VulkanGPURaytracer() {
 	// Flush device to make sure all resources can be freed 
 	vkDeviceWaitIdle(m_vulkanDevice->device);
 
-	vkFreeCommandBuffers(m_vulkanDevice->device, m_compute.commandPool, 1, &m_compute.commandBuffer);
-	vkDestroyCommandPool(m_vulkanDevice->device, m_compute.commandPool, nullptr);
+	vkFreeCommandBuffers(m_vulkanDevice->device, m_raytrace.commandPool, 1, &m_raytrace.commandBuffer);
+	vkDestroyCommandPool(m_vulkanDevice->device, m_raytrace.commandPool, nullptr);
 
-	vkDestroyDescriptorSetLayout(m_vulkanDevice->device, m_compute.descriptorSetLayout, nullptr);
-	vkDestroyDescriptorPool(m_vulkanDevice->device, m_compute.descriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(m_vulkanDevice->device, m_raytrace.descriptorSetLayout, nullptr);
+	vkDestroyDescriptorPool(m_vulkanDevice->device, m_raytrace.descriptorPool, nullptr);
 
-	vkDestroyFence(m_vulkanDevice->device, m_compute.fence, nullptr);
+	vkDestroyFence(m_vulkanDevice->device, m_raytrace.fence, nullptr);
 
-	vkDestroyImageView(m_vulkanDevice->device, m_compute.storageRaytraceImage.imageView, nullptr);
-	vkDestroyImage(m_vulkanDevice->device, m_compute.storageRaytraceImage.image, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, m_compute.storageRaytraceImage.imageMemory, nullptr);
+	vkDestroyImageView(m_vulkanDevice->device, m_raytrace.storageRaytraceImage.imageView, nullptr);
+	vkDestroyImage(m_vulkanDevice->device, m_raytrace.storageRaytraceImage.image, nullptr);
+	vkFreeMemory(m_vulkanDevice->device, m_raytrace.storageRaytraceImage.imageMemory, nullptr);
 
-	vkDestroyBuffer(m_vulkanDevice->device, m_compute.buffers.uniform.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, m_compute.buffers.uniform.memory, nullptr);
+	vkDestroyBuffer(m_vulkanDevice->device, m_raytrace.buffers.uniform.buffer, nullptr);
+	vkFreeMemory(m_vulkanDevice->device, m_raytrace.buffers.uniform.memory, nullptr);
 
-	vkDestroyBuffer(m_vulkanDevice->device, m_compute.buffers.stagingUniform.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, m_compute.buffers.stagingUniform.memory, nullptr);
+	vkDestroyBuffer(m_vulkanDevice->device, m_raytrace.buffers.stagingUniform.buffer, nullptr);
+	vkFreeMemory(m_vulkanDevice->device, m_raytrace.buffers.stagingUniform.memory, nullptr);
 
-	vkDestroyBuffer(m_vulkanDevice->device, m_compute.buffers.materials.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, m_compute.buffers.materials.memory, nullptr);
+	vkDestroyBuffer(m_vulkanDevice->device, m_raytrace.buffers.materials.buffer, nullptr);
+	vkFreeMemory(m_vulkanDevice->device, m_raytrace.buffers.materials.memory, nullptr);
 
-	vkDestroyBuffer(m_vulkanDevice->device, m_compute.buffers.indices.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, m_compute.buffers.indices.memory, nullptr);
+	vkDestroyBuffer(m_vulkanDevice->device, m_raytrace.buffers.indices.buffer, nullptr);
+	vkFreeMemory(m_vulkanDevice->device, m_raytrace.buffers.indices.memory, nullptr);
 
-	vkDestroyBuffer(m_vulkanDevice->device, m_compute.buffers.verticePositions.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, m_compute.buffers.verticePositions.memory, nullptr);
+	vkDestroyBuffer(m_vulkanDevice->device, m_raytrace.buffers.verticePositions.buffer, nullptr);
+	vkFreeMemory(m_vulkanDevice->device, m_raytrace.buffers.verticePositions.memory, nullptr);
 
 }
 
@@ -315,7 +315,7 @@ VulkanGPURaytracer::PrepareDescriptorSets() {
 			0, // binding
 			1, // descriptor count
 			nullptr, // buffer info
-			&m_compute.storageRaytraceImage.descriptor // image info
+			&m_raytrace.storageRaytraceImage.descriptor // image info
 		)
 	};
 
@@ -523,7 +523,7 @@ VulkanGPURaytracer::BuildCommandBuffers() {
 		imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 		imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-		imageMemoryBarrier.image = m_compute.storageRaytraceImage.image;
+		imageMemoryBarrier.image = m_raytrace.storageRaytraceImage.image;
 		imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 		imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 		imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -603,7 +603,7 @@ VulkanGPURaytracer::BuildCommandBuffers() {
 
 void
 VulkanGPURaytracer::PrepareComputeRaytrace() {
-	vkGetDeviceQueue(m_vulkanDevice->device, m_vulkanDevice->queueFamilyIndices.computeFamily, 0, &m_compute.queue);
+	vkGetDeviceQueue(m_vulkanDevice->device, m_vulkanDevice->queueFamilyIndices.computeFamily, 0, &m_raytrace.queue);
 
 	PrepareComputeRaytraceCommandPool();
 	PrepareComputeRaytraceTextureResources();
@@ -634,7 +634,7 @@ VulkanGPURaytracer::PrepareComputeRaytraceDescriptorSets() {
 	);
 
 	CheckVulkanResult(
-		vkCreateDescriptorPool(m_vulkanDevice->device, &descriptorPoolCreateInfo, nullptr, &m_compute.descriptorPool),
+		vkCreateDescriptorPool(m_vulkanDevice->device, &descriptorPoolCreateInfo, nullptr, &m_raytrace.descriptorPool),
 		"Failed to create descriptor pool"
 	);
 
@@ -684,16 +684,16 @@ VulkanGPURaytracer::PrepareComputeRaytraceDescriptorSets() {
 			);
 
 	CheckVulkanResult(
-		vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorSetLayoutCreateInfo, nullptr, &m_compute.descriptorSetLayout),
+		vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorSetLayoutCreateInfo, nullptr, &m_raytrace.descriptorSetLayout),
 		"Failed to create descriptor set layout"
 	);
 
 	// 3. Allocate descriptor set
 
-	VkDescriptorSetAllocateInfo descriptorSetAllocInfo = MakeDescriptorSetAllocateInfo(m_compute.descriptorPool, &m_compute.descriptorSetLayout);
+	VkDescriptorSetAllocateInfo descriptorSetAllocInfo = MakeDescriptorSetAllocateInfo(m_raytrace.descriptorPool, &m_raytrace.descriptorSetLayout);
 
 	CheckVulkanResult(
-		vkAllocateDescriptorSets(m_vulkanDevice->device, &descriptorSetAllocInfo, &m_compute.descriptorSets),
+		vkAllocateDescriptorSets(m_vulkanDevice->device, &descriptorSetAllocInfo, &m_raytrace.descriptorSets),
 		"failed to allocate descriptor set"
 	);
 
@@ -703,50 +703,50 @@ VulkanGPURaytracer::PrepareComputeRaytraceDescriptorSets() {
 		// Binding 0, output storage image
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-			m_compute.descriptorSets,
+			m_raytrace.descriptorSets,
 			0, // Binding 0
 			1,
 			nullptr,
-			&m_compute.storageRaytraceImage.descriptor
+			&m_raytrace.storageRaytraceImage.descriptor
 		),
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			m_compute.descriptorSets,
+			m_raytrace.descriptorSets,
 			1, // Binding 1
 			1,
-			&m_compute.buffers.uniform.descriptor,
+			&m_raytrace.buffers.uniform.descriptor,
 			nullptr
 		),
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			m_compute.descriptorSets,
+			m_raytrace.descriptorSets,
 			2, // Binding 2
 			1,
-			&m_compute.buffers.indices.descriptor,
+			&m_raytrace.buffers.indices.descriptor,
 			nullptr
 		),
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			m_compute.descriptorSets,
+			m_raytrace.descriptorSets,
 			3, // Binding 3
 			1,
-			&m_compute.buffers.verticePositions.descriptor,
+			&m_raytrace.buffers.verticePositions.descriptor,
 			nullptr
 		),
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			m_compute.descriptorSets,
+			m_raytrace.descriptorSets,
 			4, // Binding 4
 			1,
-			&m_compute.buffers.verticeNormals.descriptor,
+			&m_raytrace.buffers.verticeNormals.descriptor,
 			nullptr
 		),
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			m_compute.descriptorSets,
+			m_raytrace.descriptorSets,
 			5, // Binding 5
 			1,
-			&m_compute.buffers.materials.descriptor,
+			&m_raytrace.buffers.materials.descriptor,
 			nullptr
 		),
 	};
@@ -760,7 +760,7 @@ VulkanGPURaytracer::PrepareComputeRaytraceCommandPool() {
 	VkCommandPoolCreateInfo commandPoolCreateInfo = MakeCommandPoolCreateInfo(m_vulkanDevice->queueFamilyIndices.computeFamily);
 
 	CheckVulkanResult(
-		vkCreateCommandPool(m_vulkanDevice->device, &commandPoolCreateInfo, nullptr, &m_compute.commandPool),
+		vkCreateCommandPool(m_vulkanDevice->device, &commandPoolCreateInfo, nullptr, &m_raytrace.commandPool),
 		"Failed to create command pool for compute"
 	);
 }
@@ -803,20 +803,20 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_compute.buffers.indices.buffer,
-		m_compute.buffers.indices.memory
+		m_raytrace.buffers.indices.buffer,
+		m_raytrace.buffers.indices.memory
 	);
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
-		m_compute.buffers.indices.buffer,
+		m_raytrace.queue,
+		m_raytrace.commandPool,
+		m_raytrace.buffers.indices.buffer,
 		stagingBuffer.buffer,
 		bufferSize
 	);
 
-	m_compute.buffers.indices.descriptor = MakeDescriptorBufferInfo(m_compute.buffers.indices.buffer, 0, bufferSize);
+	m_raytrace.buffers.indices.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.indices.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
 	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
@@ -847,20 +847,20 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_compute.buffers.verticePositions.buffer,
-		m_compute.buffers.verticePositions.memory
+		m_raytrace.buffers.verticePositions.buffer,
+		m_raytrace.buffers.verticePositions.memory
 	);
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
-		m_compute.buffers.verticePositions.buffer,
+		m_raytrace.queue,
+		m_raytrace.commandPool,
+		m_raytrace.buffers.verticePositions.buffer,
 		stagingBuffer.buffer,
 		bufferSize
 	);
 
-	m_compute.buffers.verticePositions.descriptor = MakeDescriptorBufferInfo(m_compute.buffers.verticePositions.buffer, 0, bufferSize);
+	m_raytrace.buffers.verticePositions.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.verticePositions.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
 	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
@@ -891,20 +891,20 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_compute.buffers.verticeNormals.buffer,
-		m_compute.buffers.verticeNormals.memory
+		m_raytrace.buffers.verticeNormals.buffer,
+		m_raytrace.buffers.verticeNormals.memory
 	);
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
-		m_compute.buffers.verticeNormals.buffer,
+		m_raytrace.queue,
+		m_raytrace.commandPool,
+		m_raytrace.buffers.verticeNormals.buffer,
 		stagingBuffer.buffer,
 		bufferSize
 	);
 
-	m_compute.buffers.verticeNormals.descriptor = MakeDescriptorBufferInfo(m_compute.buffers.verticeNormals.buffer, 0, bufferSize);
+	m_raytrace.buffers.verticeNormals.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.verticeNormals.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
 	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
@@ -915,30 +915,30 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 	// Initialize camera's ubo
 	//calculate fov based on resolution
-	float yscaled = tan(m_compute.ubo.fov * (glm::pi<float>() / 180.0f));
+	float yscaled = tan(m_raytrace.ubo.fov * (glm::pi<float>() / 180.0f));
 	float xscaled = (yscaled * m_vulkanDevice->m_swapchain.aspectRatio);
 
-	m_compute.ubo.forward = glm::normalize(m_compute.ubo.lookat - m_compute.ubo.position);
-	m_compute.ubo.pixelLength = glm::vec2(2 * xscaled / (float)m_vulkanDevice->m_swapchain.extent.width
+	m_raytrace.ubo.forward = glm::normalize(m_raytrace.ubo.lookat - m_raytrace.ubo.position);
+	m_raytrace.ubo.pixelLength = glm::vec2(2 * xscaled / (float)m_vulkanDevice->m_swapchain.extent.width
 	                                      , 2 * yscaled / (float)m_vulkanDevice->m_swapchain.extent.height);
 
-	m_compute.ubo.aspectRatio = (float)m_vulkanDevice->m_swapchain.aspectRatio;
+	m_raytrace.ubo.aspectRatio = (float)m_vulkanDevice->m_swapchain.aspectRatio;
 
 
-	VkDeviceSize bufferSize = sizeof(m_compute.ubo);
+	VkDeviceSize bufferSize = sizeof(m_raytrace.ubo);
 
 	// Stage
 	m_vulkanDevice->CreateBufferAndMemory(
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		m_compute.buffers.stagingUniform.buffer,
-		m_compute.buffers.stagingUniform.memory
+		m_raytrace.buffers.stagingUniform.buffer,
+		m_raytrace.buffers.stagingUniform.memory
 	);
 
 	m_vulkanDevice->MapMemory(
-		&m_compute.ubo,
-		m_compute.buffers.stagingUniform.memory,
+		&m_raytrace.ubo,
+		m_raytrace.buffers.stagingUniform.memory,
 		bufferSize,
 		0
 	);
@@ -949,19 +949,19 @@ void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_compute.buffers.uniform.buffer,
-		m_compute.buffers.uniform.memory
+		m_raytrace.buffers.uniform.buffer,
+		m_raytrace.buffers.uniform.memory
 	);
 
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
-		m_compute.buffers.uniform.buffer,
-		m_compute.buffers.stagingUniform.buffer,
+		m_raytrace.queue,
+		m_raytrace.commandPool,
+		m_raytrace.buffers.uniform.buffer,
+		m_raytrace.buffers.stagingUniform.buffer,
 		bufferSize
 	);
 
-	m_compute.buffers.uniform.descriptor = MakeDescriptorBufferInfo(m_compute.buffers.uniform.buffer, 0, bufferSize);
+	m_raytrace.buffers.uniform.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.uniform.buffer, 0, bufferSize);
 
 	// ====== MATERIALS
 	bufferSize = sizeof(MaterialPacked) * m_scene->materials.size();
@@ -991,19 +991,19 @@ void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_compute.buffers.materials.buffer,
-		m_compute.buffers.materials.memory
+		m_raytrace.buffers.materials.buffer,
+		m_raytrace.buffers.materials.memory
 	);
 
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
-		m_compute.buffers.materials.buffer,
+		m_raytrace.queue,
+		m_raytrace.commandPool,
+		m_raytrace.buffers.materials.buffer,
 		stagingBuffer,
 		bufferSize
 	);
 
-	m_compute.buffers.materials.descriptor = MakeDescriptorBufferInfo(m_compute.buffers.materials.buffer, 0, bufferSize);
+	m_raytrace.buffers.materials.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.materials.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
 	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer, nullptr);
@@ -1025,21 +1025,21 @@ VulkanGPURaytracer::PrepareComputeRaytraceTextureResources() {
 		// Image is sampled in fragment shader and used as storage for compute output
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_compute.storageRaytraceImage.image,
-		m_compute.storageRaytraceImage.imageMemory
+		m_raytrace.storageRaytraceImage.image,
+		m_raytrace.storageRaytraceImage.imageMemory
 	);
 	m_vulkanDevice->CreateImageView(
-		m_compute.storageRaytraceImage.image,
+		m_raytrace.storageRaytraceImage.image,
 		VK_IMAGE_VIEW_TYPE_2D,
 		imageFormat,
 		VK_IMAGE_ASPECT_COLOR_BIT,
-		m_compute.storageRaytraceImage.imageView
+		m_raytrace.storageRaytraceImage.imageView
 	);
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_compute.queue,
-		m_compute.commandPool,
-		m_compute.storageRaytraceImage.image,
+		m_raytrace.queue,
+		m_raytrace.commandPool,
+		m_raytrace.storageRaytraceImage.image,
 		imageFormat,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1047,15 +1047,15 @@ VulkanGPURaytracer::PrepareComputeRaytraceTextureResources() {
 	);
 
 	// Create sampler
-	CreateDefaultImageSampler(m_vulkanDevice->device, &m_compute.storageRaytraceImage.sampler);
+	CreateDefaultImageSampler(m_vulkanDevice->device, &m_raytrace.storageRaytraceImage.sampler);
 
-	m_compute.storageRaytraceImage.width = m_vulkanDevice->m_swapchain.extent.width;
-	m_compute.storageRaytraceImage.height = m_vulkanDevice->m_swapchain.extent.height;
+	m_raytrace.storageRaytraceImage.width = m_vulkanDevice->m_swapchain.extent.width;
+	m_raytrace.storageRaytraceImage.height = m_vulkanDevice->m_swapchain.extent.height;
 
 	// Initialize descriptor
-	m_compute.storageRaytraceImage.descriptor.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	m_compute.storageRaytraceImage.descriptor.imageView = m_compute.storageRaytraceImage.imageView;
-	m_compute.storageRaytraceImage.descriptor.sampler = m_compute.storageRaytraceImage.sampler;
+	m_raytrace.storageRaytraceImage.descriptor.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	m_raytrace.storageRaytraceImage.descriptor.imageView = m_raytrace.storageRaytraceImage.imageView;
+	m_raytrace.storageRaytraceImage.descriptor.sampler = m_raytrace.storageRaytraceImage.sampler;
 
 	return VK_SUCCESS;
 }
@@ -1065,14 +1065,14 @@ VulkanGPURaytracer::PrepareComputeRaytracePipeline() {
 
 	// 5. Create pipeline layout
 
-	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_compute.descriptorSetLayout);
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_raytrace.descriptorSetLayout);
 	CheckVulkanResult(
-		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_compute.pipelineLayout),
+		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_raytrace.pipelineLayout),
 		"Failed to create pipeline layout"
 	);
 
 	// 6. Create compute shader pipeline
-	VkComputePipelineCreateInfo computePipelineCreateInfo = MakeComputePipelineCreateInfo(m_compute.pipelineLayout, 0);
+	VkComputePipelineCreateInfo computePipelineCreateInfo = MakeComputePipelineCreateInfo(m_raytrace.pipelineLayout, 0);
 
 	// Create shader modules from bytecodes
 	VkShaderModule raytraceShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/raytrace.comp.spv");
@@ -1082,7 +1082,7 @@ VulkanGPURaytracer::PrepareComputeRaytracePipeline() {
 	computePipelineCreateInfo.stage = MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_COMPUTE_BIT, raytraceShader);
 
 	CheckVulkanResult(
-		vkCreateComputePipelines(m_vulkanDevice->device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &m_compute.pipeline),
+		vkCreateComputePipelines(m_vulkanDevice->device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &m_raytrace.pipeline),
 		"Failed to create compute pipeline"
 	);
 
@@ -1090,7 +1090,7 @@ VulkanGPURaytracer::PrepareComputeRaytracePipeline() {
 	// 7. Create fence
 	VkFenceCreateInfo fenceCreateInfo = MakeFenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 	CheckVulkanResult(
-		vkCreateFence(m_vulkanDevice->device, &fenceCreateInfo, nullptr, &m_compute.fence),
+		vkCreateFence(m_vulkanDevice->device, &fenceCreateInfo, nullptr, &m_raytrace.fence),
 		"Failed to create fence"
 	);
 
@@ -1101,28 +1101,28 @@ VulkanGPURaytracer::PrepareComputeRaytracePipeline() {
 VkResult
 VulkanGPURaytracer::BuildComputeCommandBuffers() {
 
-	VkCommandBufferAllocateInfo commandBufferAllocInfo = MakeCommandBufferAllocateInfo(m_compute.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
+	VkCommandBufferAllocateInfo commandBufferAllocInfo = MakeCommandBufferAllocateInfo(m_raytrace.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
 
 	CheckVulkanResult(
-		vkAllocateCommandBuffers(m_vulkanDevice->device, &commandBufferAllocInfo, &m_compute.commandBuffer),
+		vkAllocateCommandBuffers(m_vulkanDevice->device, &commandBufferAllocInfo, &m_raytrace.commandBuffer),
 		"Failed to allocate compute command buffers"
 	);
 
 	// Begin command recording
 	VkCommandBufferBeginInfo beginInfo = MakeCommandBufferBeginInfo();
 
-	vkBeginCommandBuffer(m_compute.commandBuffer, &beginInfo);
+	vkBeginCommandBuffer(m_raytrace.commandBuffer, &beginInfo);
 
 	// Record binding to the compute pipeline
-	vkCmdBindPipeline(m_compute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_compute.pipeline);
+	vkCmdBindPipeline(m_raytrace.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_raytrace.pipeline);
 
 	// Bind descriptor sets
-	vkCmdBindDescriptorSets(m_compute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_compute.pipelineLayout, 0, 1, &m_compute.descriptorSets, 0, nullptr);
+	vkCmdBindDescriptorSets(m_raytrace.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_raytrace.pipelineLayout, 0, 1, &m_raytrace.descriptorSets, 0, nullptr);
 
-	vkCmdDispatch(m_compute.commandBuffer, m_compute.storageRaytraceImage.width / 16, m_compute.storageRaytraceImage.height / 16, 1);
+	vkCmdDispatch(m_raytrace.commandBuffer, m_raytrace.storageRaytraceImage.width / 16, m_raytrace.storageRaytraceImage.height / 16, 1);
 
 	CheckVulkanResult(
-		vkEndCommandBuffer(m_compute.commandBuffer),
+		vkEndCommandBuffer(m_raytrace.commandBuffer),
 		"Failed to record command buffers"
 	);
 
