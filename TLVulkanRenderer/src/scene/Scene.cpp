@@ -148,12 +148,14 @@ bool Scene::DoesIntersect(Ray & ray)
 
 void Scene::PrepareTestScene()
 {
+	static const Point3 SPONZA_EYE(10, -5, 1.5);
+	static const Point3 SPONZA_LOOKAT(-6, -6, 0);
 	static const Point3 TRUCK_EYE(4.548, 4.427, 13.23);
 	static const Point3 TRUCK_LOOKAT(0.926, 2.763, -2.958);
 	//camera.eye = vec3(0, 5, 45);
 	//camera.eye = vec3(2, 7, 15);
-	camera.eye = TRUCK_EYE;
-	camera.lookAt = TRUCK_LOOKAT;
+	camera.eye = SPONZA_EYE;
+	camera.lookAt = SPONZA_LOOKAT;
 	camera.RecomputeAttributes();
 
 	MetalMaterial* mirror = new MetalMaterial();

@@ -27,7 +27,6 @@ namespace VulkanImage {
 			VK_IMAGE_TYPE_2D, 
 			format,
 			tiling,
-			// Image is sampled in fragment shader and used as storage for compute output
 			usage,
 			properties,
 			image.image,

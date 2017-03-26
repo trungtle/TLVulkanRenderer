@@ -4,6 +4,21 @@
 class Texture {
 public:
 	virtual glm::vec3 value(glm::vec2 uv, const glm::vec3& p) const = 0;
+	virtual bool hasRawByte() const {
+		return false;
+	}
+	virtual const std::vector<unsigned char>& getRawByte() const {
+		return std::vector<unsigned char>();
+	};
+
+	virtual uint32_t width() {
+		return 0;
+	}
+
+	virtual uint32_t height() {
+		return 0;
+	}
+
 	virtual ~Texture() {};
 };
 
@@ -23,28 +38,45 @@ public:
 class ImageTexture : public Texture {
 public:
 	ImageTexture(std::string name, std::vector<unsigned char> data, int width, int height) :
-		name(name), image(data), width(width), height(height)
+		m_name(name), m_image(data), m_width(width), m_height(height)
 	{};
 
 	glm::vec3 value(glm::vec2 uv, const glm::vec3& p) const override {
-		int i = uv.s * width;
-		int j = (uv.t) * height - 0.001;
+		int i = uv.s * m_width;
+		int j = (uv.t) * m_height - 0.001;
 		if (i < 0) i = 0;
 		if (j < 0) j = 0;
-		if (i > width - 1) i = width - 1;
-		if (j > height - 1) j = height - 1;
+		if (i > m_width - 1) i = m_width - 1;
+		if (j > m_height - 1) j = m_height - 1;
 
-		int index = 3 * i + 3 * width * j;
-		float r = int(image[index]) / 255.0;
-		float g = int(image[index + 1]) / 255.0;
-		float b = int(image[index + 2]) / 255.0;
+		int index = 3 * i + 3 * m_width * j;
+		float r = int(m_image[index]) / 255.0;
+		float g = int(m_image[index + 1]) / 255.0;
+		float b = int(m_image[index + 2]) / 255.0;
 
 		return glm::vec3(r, g, b);
 	}
+
+	bool hasRawByte() const final {
+		return true;
+	}
+
+	const std::vector<unsigned char>& getRawByte() const final {
+		return m_image;
+	}
+
+	uint32_t height() final {
+		return m_height;
+	}
+
+	uint32_t width() final {
+		return m_width;
+	}	
+
 private:
-	std::string name;
-	int width;
-	int height;
-	std::vector<unsigned char> image;
+	std::string m_name;
+	uint32_t m_width;
+	uint32_t m_height;
+	std::vector<unsigned char> m_image;
 
 };

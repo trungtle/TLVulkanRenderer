@@ -151,7 +151,6 @@
     <ClInclude Include="src\geometry\materials\EmissiveMaterial.h" />
     <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
     <ClInclude Include="src\geometry\materials\TranslucentMaterial.h" />
-    <ClInclude Include="src\VDeleter.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

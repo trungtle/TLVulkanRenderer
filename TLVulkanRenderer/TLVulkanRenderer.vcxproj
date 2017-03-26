@@ -199,7 +199,6 @@
     <ClInclude Include="src\scene\SceneUtil.h" />
     <ClInclude Include="src\Typedef.h" />
     <ClInclude Include="src\Utilities.h" />
-    <ClInclude Include="src\VDeleter.h" />
     <ClInclude Include="thirdparty\tinygltfloader\picojson.h" />
     <ClInclude Include="thirdparty\tinygltfloader\stb_image.h" />
     <ClInclude Include="thirdparty\tinygltfloader\tiny_gltf_loader.h" />

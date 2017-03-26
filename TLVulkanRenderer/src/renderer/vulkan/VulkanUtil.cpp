@@ -114,7 +114,7 @@ namespace VulkanUtil {
 		}
 
 		VkDescriptorImageInfo
-		MakeDescriptorImageInfo(
+		SetDescriptorImageInfo(
 			VkImageLayout layout,
 			VulkanImage::Image& image
 		) 

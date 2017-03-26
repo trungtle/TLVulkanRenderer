@@ -21,10 +21,10 @@ public:
 		std::shared_ptr<std::map<string, string>> config
 	);
 
-	virtual void
+	void
 		Update() final;
 
-	virtual void
+	void
 		Render() final;
 
 	virtual ~VulkanHybridRenderer() final;
@@ -33,42 +33,22 @@ public:
 	Prepare() final;
 
 	VkResult
-	PreparePipelines() final;
-
-	VkResult
 	PrepareVertexBuffers() final;
+
+	void
+		PrepareTextures() final;
 
 	// --- Descriptor
 
 	VkResult
 	PrepareDescriptorPool() final;
 
-	VkResult
-	PrepareDescriptorLayouts() final;
-
-	VkResult
-	PrepareDescriptorSets() final;
-
-	// --- Command buffers
-
-	VkResult
-	BuildCommandBuffers() final;
-
 protected:
 
 	struct SInputTextures
 	{
-		VulkanImage::Texture m_colorMap;
-		VulkanImage::Texture m_normalMap;
-	};
-
-	struct SFrameBuffer
-	{
-		uint32_t width, height;
-		VkFramebuffer frameBuffer;
-		VulkanImage::Image position, normal, albedo;
-		VulkanImage::Image depth;
-		VkRenderPass renderPass;
+		VulkanImage::Image m_colorMap;
+		VulkanImage::Image m_normalMap;
 	};
 
 	struct SVertexShaderUniforms
@@ -98,16 +78,6 @@ protected:
 		std::vector<vec2> uvs;
 	} m_quad;
 
-	void
-	CreateAttachment(
-		VkFormat format,
-		VkImageUsageFlagBits usage,
-		VulkanImage::Image& attachment
-	);
-
-	VkSampler m_colorSampler;
-	SInputTextures m_vulkanTextures;
-
 	// -----------
 	// WIREFRAME
 	// -----------
@@ -123,18 +93,47 @@ protected:
 	// -----------
 	// ON SCREEN
 	// -----------
+	void
+		PrepareOnscreen();
+
+	void
+		PrepareOnScreenQuadVertexBuffer();
+
+	void
+		PrepareOnscreenDescriptorLayout();
+
+	void
+		PrepareOnscreenDescriptorSet();
+
+	void
+		PrepareOnscreenUniformBuffer();
+
+	void
+		PrepareOnscreenPipeline();
+
+	void
+		BuildOnscreenCommandBuffer();
 
 	struct Onscreen
 	{
-		VkPipelineLayout pipelineLayout;
-		VkPipeline pipeline;
-		VkDescriptorSetLayout descriptorSetLayout;
-		VkDescriptorSet descriptorSet;
+		VulkanBuffer::StorageBuffer unifBuffer;
+		VulkanBuffer::GeometryBuffer quadBuffer;
 	} m_onscreen;
 
 	// -----------
 	// DEFERRED
 	// -----------
+	void
+		CreateAttachment(
+			VkFormat format,
+			VkImageUsageFlagBits usage,
+			VulkanImage::Image& attachment
+		) const;
+
+
+
+	void
+		PrepareDeferred();
 
 	void
 		PrepareDeferredDescriptorLayout();
@@ -154,20 +153,45 @@ protected:
 	void
 		BuildDeferredCommandBuffer();
 
+
+	struct SFrameBuffer
+	{
+		uint32_t width, height;
+		VkFramebuffer vkFrameBuffer;
+		VkRenderPass renderPass;
+		VkSampler sampler;
+
+		VulkanImage::Image position, normal, albedo;
+		VulkanImage::Image depth;
+	};
+
 	struct Deferred
 	{
+		// -- Textures
+		SInputTextures textures;
+
+		// -- Framebuffer
 		SFrameBuffer framebuffer;
+
+		// -- Command
 		VkCommandBuffer commandBuffer;
 		VkSemaphore semaphore;
+
+		// -- Pipeline
 		VkPipelineLayout pipelineLayout;
 		VkPipeline pipeline;
+
+		// -- Descriptor
 		VkDescriptorSetLayout descriptorSetLayout;
 		VkDescriptorSet descriptorSet;
 
+		// -- Uniforms
 		SVertexShaderUniforms mvpUnif;
 
-		VulkanBuffer::StorageBuffer mvpUnifStorage;
-		VulkanBuffer::StorageBuffer lightsUnifStorage;
+		struct {
+			VulkanBuffer::StorageBuffer mvpUnifStorage;
+			VulkanBuffer::StorageBuffer lightsUnifStorage;
+		} buffers;
 	} m_deferred;
 
 
@@ -195,7 +219,7 @@ protected:
 		PrepareComputeRaytraceUniformBuffer();
 
 	VkResult
-		PrepareComputeRaytraceTextureResources();
+		PrepareComputeRaytraceTextures();
 
 	VkResult
 		PrepareComputeRaytracePipeline();
@@ -225,15 +249,17 @@ protected:
 
 		struct
 		{
-			// -- Uniform buffer
 			VulkanBuffer::StorageBuffer uniform;
 			VulkanBuffer::StorageBuffer stagingUniform;
+
+			// -- Uniform buffer
 			VulkanBuffer::StorageBuffer materials;
 
 			// -- Shapes buffers
 			VulkanBuffer::StorageBuffer indices;
-			VulkanBuffer::StorageBuffer verticePositions;
-			VulkanBuffer::StorageBuffer verticeNormals;
+			VulkanBuffer::StorageBuffer positions;
+			VulkanBuffer::StorageBuffer normals;
+			VulkanBuffer::StorageBuffer bvh;
 
 		} buffers;
 
@@ -259,4 +285,6 @@ protected:
 		} ubo;
 
 	} m_raytrace;
+
+	VulkanImage::Image m_stagingImage;
 };

@@ -784,7 +784,7 @@ VkResult VulkanCPURaytracer::PrepareDescriptorSets() {
 		"Failed to allocate descriptor set"
 	);
 
-	VkDescriptorImageInfo imageInfo = VulkanUtil::Make::MakeDescriptorImageInfo(
+	VkDescriptorImageInfo imageInfo = VulkanUtil::Make::SetDescriptorImageInfo(
 		VK_IMAGE_LAYOUT_GENERAL,
 		m_displayImage
 	);
@@ -1005,7 +1005,7 @@ void VulkanCPURaytracer::PrepareTextures() {
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
 	);
 
-	// Create our display image
+	// Create our display imageMakeDescriptorImageInfo
 	m_displayImage = VulkanImage::CreateVulkanImage(
 		m_vulkanDevice,
 		m_width, 

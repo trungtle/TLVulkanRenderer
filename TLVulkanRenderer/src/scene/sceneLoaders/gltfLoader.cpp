@@ -884,9 +884,24 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					geom->vertexData.insert(std::make_pair(EVertexAttribute::INDEX, data));
 
 					int indicesCount = indexAccessor.count;
-					uint16_t* in = reinterpret_cast<uint16_t*>(data.data());
-					for (auto iCount = 0; iCount < indicesCount; iCount += 3) {
-						scene->indices.push_back(glm::ivec4(in[iCount], in[iCount + 1], in[iCount + 2], materialId));
+					switch (GLTF_COMPONENT_LENGTH_LOOKUP.at(componentTypeByteSize)) {
+						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+							uint16_t* id16 = reinterpret_cast<uint16_t*>(data.data());
+							for (auto iCount = 0; iCount < indicesCount; iCount += 3)
+							{
+								scene->indices.push_back(glm::ivec4(id16[iCount], id16[iCount + 1], id16[iCount + 2], materialId));
+							}
+							break;
+						}
+						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+						default: {
+							uint32_t* id32 = reinterpret_cast<uint32_t*>(data.data());
+							for (auto iCount = 0; iCount < indicesCount; iCount += 3)
+							{
+								scene->indices.push_back(glm::ivec4(id32[iCount], id32[iCount + 1], id32[iCount + 2], materialId));
+							}
+							break;
+						}
 					}
 				}
 

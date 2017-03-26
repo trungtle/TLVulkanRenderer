@@ -141,7 +141,7 @@ public:
 		void* data,
 		VkDeviceMemory& memory,
 		VkDeviceSize size,
-		VkDeviceSize offset
+		VkDeviceSize offset = 0
 	);
 
 	void
