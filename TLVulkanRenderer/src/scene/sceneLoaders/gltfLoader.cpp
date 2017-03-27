@@ -884,8 +884,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					geom->vertexData.insert(std::make_pair(EVertexAttribute::INDEX, data));
 
 					int indicesCount = indexAccessor.count;
-					switch (GLTF_COMPONENT_LENGTH_LOOKUP.at(componentTypeByteSize)) {
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+					switch (componentTypeByteSize) {
+						case 2: {							
 							uint16_t* id16 = reinterpret_cast<uint16_t*>(data.data());
 							for (auto iCount = 0; iCount < indicesCount; iCount += 3)
 							{
@@ -893,7 +893,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 							}
 							break;
 						}
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+						case 4:
 						default: {
 							uint32_t* id32 = reinterpret_cast<uint32_t*>(data.data());
 							for (auto iCount = 0; iCount < indicesCount; iCount += 3)
@@ -903,6 +903,16 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 							break;
 						}
 					}
+
+					// Add material ID buffer
+					std::vector<Byte> materialIdData;
+					for (int mid = 0; mid < indicesCount; ++mid)
+					{
+						materialIdData.push_back(materialId);
+					}
+
+					geom->attribInfo.insert(std::make_pair(EVertexAttribute::MATERIALID, attributeInfo));
+					geom->vertexData.insert(std::make_pair(EVertexAttribute::MATERIALID, materialIdData));
 				}
 
 				// -------- Attributes -----------
@@ -944,7 +954,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 						int normalCount = accessor.count;
 						glm::vec3* normals = reinterpret_cast<glm::vec3*>(data.data());
 						for (auto p = 0; p < normalCount; ++p) {
-							normals[p] = glm::normalize(matrixNormal * glm::vec4(normals[p], 1.0f));
+							normals[p] = glm::normalize(matrixNormal * glm::vec4(normals[p], 0.0f));
 							scene->verticeNormals.push_back(glm::vec4(normals[p], 0.0f));
 						}
 					}
@@ -974,6 +984,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 					//TextureData* dev_diffuseTex = NULL;
 					MaterialPacked materialPacked;
+					std::vector<Byte> materialIdData = std::vector<Byte>(first, last);
 					Texture* texture = nullptr;
 					if (!primitive.material.empty()) {
 						const tinygltf::Material& mat = tinygltfScene.materials.at(primitive.material);
@@ -984,9 +995,13 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 								const tinygltf::Texture& tex = tinygltfScene.textures.at(diffuseTexName);
 								if (tinygltfScene.images.find(tex.source) != tinygltfScene.images.end()) {
 									const tinygltf::Image& image = tinygltfScene.images.at(tex.source);
+									int texWidth, texHeight, texChannels;
+									std::string path = "scenes/textures/";
+									path += image.uri;
+									Byte* imageBytes = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
 									// Texture bytes
-									texture = new ImageTexture(image.name, image.image, image.width, image.height);
+									texture = new ImageTexture(image.name, image.image, imageBytes, image.width, image.height);
 								}
 							}
 							else {

@@ -152,10 +152,10 @@ void Scene::PrepareTestScene()
 	static const Point3 SPONZA_LOOKAT(-6, -6, 0);
 	static const Point3 TRUCK_EYE(4.548, 4.427, 13.23);
 	static const Point3 TRUCK_LOOKAT(0.926, 2.763, -2.958);
-	//camera.eye = vec3(0, 5, 45);
+	camera.eye = vec3(0, -20, 45);
 	//camera.eye = vec3(2, 7, 15);
-	camera.eye = SPONZA_EYE;
-	camera.lookAt = SPONZA_LOOKAT;
+	//camera.eye = SPONZA_EYE;
+	//camera.lookAt = SPONZA_LOOKAT;
 	camera.RecomputeAttributes();
 
 	MetalMaterial* mirror = new MetalMaterial();
@@ -191,47 +191,47 @@ void Scene::PrepareTestScene()
 	}
 
 	// Add buildings
-	std::shared_ptr<Cube> road(new Cube(vec3(0, -0.5, -1), vec3(30, 1, 10), lambertWhite));
-	road.get()->SetName(std::string("road"));
-	geometries.push_back(road);
+	//std::shared_ptr<Cube> road(new Cube(vec3(0, -0.5, -1), vec3(30, 1, 10), lambertWhite));
+	//road.get()->SetName(std::string("road"));
+	//geometries.push_back(road);
 
-	std::shared_ptr<Cube> bulding1(new Cube(vec3(2, 4, -5.5), vec3(6, 10, 5), lambertWhite));
-	bulding1.get()->SetName(std::string("bulding1"));
-	geometries.push_back(bulding1);
+	//std::shared_ptr<Cube> bulding1(new Cube(vec3(2, 4, -5.5), vec3(6, 10, 5), lambertWhite));
+	//bulding1.get()->SetName(std::string("bulding1"));
+	//geometries.push_back(bulding1);
 
-	std::shared_ptr<Cube> bulding2(new Cube(vec3(-4, 2.5, -5.5), vec3(8, 7, 5), lambertWhite));
-	bulding2.get()->SetName(std::string("bulding2"));
-	geometries.push_back(bulding2);
+	//std::shared_ptr<Cube> bulding2(new Cube(vec3(-4, 2.5, -5.5), vec3(8, 7, 5), lambertWhite));
+	//bulding2.get()->SetName(std::string("bulding2"));
+	//geometries.push_back(bulding2);
 
-	std::shared_ptr<Cube> bulding3(new Cube(vec3(-9, 3, -5.5), vec3(6, 9, 5), lambertWhite));
-	bulding3.get()->SetName(std::string("bulding3"));
-	geometries.push_back(bulding3);
+	//std::shared_ptr<Cube> bulding3(new Cube(vec3(-9, 3, -5.5), vec3(6, 9, 5), lambertWhite));
+	//bulding3.get()->SetName(std::string("bulding3"));
+	//geometries.push_back(bulding3);
 
 	//std::shared_ptr<Cube> screen(new Cube(vec3(-1, 2.5, 5), vec3(5, 5, 1), translucent));
 	//screen.get()->SetName(std::string("screen"));
 	//geometries.push_back(screen);
 
 	 //Add spheres
-	int numSpheres = 5;
-	for (int i = 0; i < numSpheres; i++) {
-		Material* mat;
-		if (i % 2)
-		{
-			mat = mirror;
-		}
-		else
-		{
-			mat = glass;
-		}
-		std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
-			sin(glm::radians(360.0f * i / numSpheres)) * 1,
-			-2.4 + (0.5 + i * 0.25) * 0.5 + 2.5,
-			cos(glm::radians(360.0f * i / numSpheres)) * 1 + 3
-			), 0.5 + i * 0.25, mat));
-		std::string name = "Sphere" + i;
-		s.get()->SetName(name);
-		geometries.push_back(s);
-	}
+	//int numSpheres = 5;
+	//for (int i = 0; i < numSpheres; i++) {
+	//	Material* mat;
+	//	if (i % 2)
+	//	{
+	//		mat = mirror;
+	//	}
+	//	else
+	//	{
+	//		mat = glass;
+	//	}
+	//	std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
+	//		sin(glm::radians(360.0f * i / numSpheres)) * 1,
+	//		-2.4 + (0.5 + i * 0.25) * 0.5 + 2.5,
+	//		cos(glm::radians(360.0f * i / numSpheres)) * 1 + 3
+	//		), 0.5 + i * 0.25, mat));
+	//	std::string name = "Sphere" + i;
+	//	s.get()->SetName(name);
+	//	geometries.push_back(s);
+	//}
 
 	//PrepareCornellBox();
 

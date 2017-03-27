@@ -81,11 +81,10 @@ public:
 struct SBVHNodePacked {
 	int32_t id;
 	int32_t parent;
-	int32_t nearChild;
-	int32_t farChild;
-	glm::vec3 min;
-	glm::vec3 max;
 	int32_t geomId;
+	glm::vec4 min; // .w := left aabb child index.
+	glm::vec4 max;// .w := right aabb child index.
+	int32_t _pad;
 };
 
 class SBVHLeaf : public SBVHNode {

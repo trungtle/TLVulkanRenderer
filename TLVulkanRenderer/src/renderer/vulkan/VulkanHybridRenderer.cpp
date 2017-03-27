@@ -3,6 +3,7 @@
 #include "scene/Camera.h"
 #include "tinygltfloader/tiny_gltf_loader.h"
 #include "accel/SBVH.h"
+#include "tinygltfloader/stb_image.h"
 
 VulkanHybridRenderer::VulkanHybridRenderer(
 	GLFWwindow* window,
@@ -16,7 +17,7 @@ VulkanHybridRenderer::VulkanHybridRenderer(
 
 void
 VulkanHybridRenderer::Update() {
-	m_deferred.mvpUnif.m_model = glm::mat4();
+	m_deferred.mvpUnif.m_model = glm::mat4(1.0);
 	m_deferred.mvpUnif.m_projection = m_scene->camera.GetProj();
 	m_deferred.mvpUnif.m_view = m_scene->camera.GetView();
 
@@ -193,12 +194,16 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 			uvBufferSize = sizeof(uvData[0]) * uvData.size();
 			uvBufferOffset = normalBufferOffset + normalBufferSize;
 		}
+		std::vector<Byte>& materialIDData = geomData->vertexData.at(MATERIALID);
+		VkDeviceSize materialIDBufferSize = sizeof(materialIDData[0]) * materialIDData.size();
+		VkDeviceSize materialIDBufferOffset = uvBufferOffset + uvBufferSize;
 
-		VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize + uvBufferSize;
+		VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize + uvBufferSize + materialIDBufferSize;
 		vertexBuffer.offsets.insert(std::make_pair(INDEX, indexBufferOffset));
 		vertexBuffer.offsets.insert(std::make_pair(POSITION, positionBufferOffset));
 		vertexBuffer.offsets.insert(std::make_pair(NORMAL, normalBufferOffset));
 		vertexBuffer.offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
+		vertexBuffer.offsets.insert(std::make_pair(MATERIALID, materialIDBufferOffset));
 
 		// Stage buffer memory on host
 		// We want staging so that we can map the vertex data on the host but
@@ -220,6 +225,7 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 		memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
 		memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
 		memcpy((Byte*)data + uvBufferOffset, uvData.data(), static_cast<size_t>(uvBufferSize));
+		memcpy((Byte*)data + materialIDBufferOffset, materialIDData.data(), static_cast<size_t>(materialIDBufferSize));
 		vkUnmapMemory(m_vulkanDevice->device, staging.memory);
 
 		// -----------------------------------------
@@ -252,7 +258,7 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 VkResult
 VulkanHybridRenderer::PrepareDescriptorPool() {
 	std::vector<VkDescriptorPoolSize> poolSizes = {
-		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 12),
+		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 13),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 14),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10)
@@ -865,11 +871,26 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 
 void VulkanHybridRenderer::PrepareTextures()
 {
+	VkDeviceSize imageSize = 0;
+	size_t texWidth = 512, texHeight = 512;
+
+	for (auto m : m_scene->materials)
+	{
+		if (m->m_texture != nullptr && m->m_texture->hasRawByte())
+		{
+			texWidth = m->m_texture->width();
+			texHeight = m->m_texture->height();
+			break;
+		}
+	}
+
+
+
 	// Stage image
 	m_stagingImage = VulkanImage::CreateVulkanImage(
 		m_vulkanDevice,
-		m_width,
-		m_height,
+		texWidth,
+		texHeight,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_LINEAR,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -887,23 +908,24 @@ void VulkanHybridRenderer::PrepareTextures()
 
 	for (auto m : m_scene->materials) {
 		if (m->m_texture != nullptr && m->m_texture->hasRawByte()) {
-			VkDeviceSize imageSize = m->m_texture->width() *  m->m_texture->width() * 4;
+
+			imageSize = m->m_texture->width() *  m->m_texture->width() * 4;
 
 			vkMapMemory(m_vulkanDevice->device, m_stagingImage.imageMemory, 0, imageSize, 0, &data);
-			//if (stagingImageLayout.rowPitch == m->m_texture->width() * 4)
-			//{
-				memcpy(data, m->m_texture->getRawByte().data(), (size_t)imageSize);
-			//}
-			//else
-			//{
-			//	uint8_t* dataBytes = reinterpret_cast<uint8_t*>(data);
+			if (stagingImageLayout.rowPitch == m->m_texture->width() * 4)
+			{
+				memcpy(data, m->m_texture->getRawByte(), (size_t)imageSize);
+			}
+			else
+			{
+				uint8_t* dataBytes = reinterpret_cast<uint8_t*>(data);
 
-			//	for (int y = 0; y <  m->m_texture->height(); y++)
-			//	{
-			//		memcpy(&dataBytes[y * stagingImageLayout.rowPitch], &m->m_texture->getRawByte().data()[y *  m->m_texture->width() * 4], m->m_texture->width() * 4);
-			//	}
-			//}
-			
+				for (int y = 0; y <  m->m_texture->height(); y++)
+				{
+					memcpy(&dataBytes[y * stagingImageLayout.rowPitch], &m->m_texture->getRawByte()[y *  m->m_texture->width() * 4], m->m_texture->width() * 4);
+				}
+			}
+
 			vkUnmapMemory(m_vulkanDevice->device, m_stagingImage.imageMemory);
 			break;
 		}
@@ -923,8 +945,8 @@ void VulkanHybridRenderer::PrepareTextures()
 	// Create our display imageMakeDescriptorImageInfo
 	m_deferred.textures.m_colorMap = VulkanImage::CreateVulkanImage(
 		m_vulkanDevice,
-		m_width,
-		m_height,
+		texWidth,
+		texHeight,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -941,7 +963,9 @@ void VulkanHybridRenderer::PrepareTextures()
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	);
 
-	m_vulkanDevice->CopyImage(m_graphics.queue, m_graphics.commandPool, m_deferred.textures.m_colorMap.image, m_stagingImage.image, m_width, m_height);
+	if (imageSize) {
+		m_vulkanDevice->CopyImage(m_graphics.queue, m_graphics.commandPool, m_deferred.textures.m_colorMap.image, m_stagingImage.image, texWidth, texHeight);
+	}
 
 	// Create image view
 	m_vulkanDevice->CreateImageView(
@@ -958,7 +982,8 @@ void VulkanHybridRenderer::PrepareTextures()
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,
 		m_graphics.commandPool,
-		m_deferred.textures.m_colorMap.image, VK_FORMAT_R8G8B8A8_UNORM,
+		m_deferred.textures.m_colorMap.image, 
+		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -991,12 +1016,12 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorLayout() {
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
 			),
-		// Binding 2 : Normals texture target
-		MakeDescriptorSetLayoutBinding(
-			2,
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			VK_SHADER_STAGE_FRAGMENT_BIT
-			)
+		//// Binding 2 : Normals texture target
+		//MakeDescriptorSetLayoutBinding(
+		//	2,
+		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		//	VK_SHADER_STAGE_FRAGMENT_BIT
+		//	)
 	};
 
 	VkDescriptorSetLayoutCreateInfo descriptorLayout =
@@ -1039,7 +1064,7 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 			&m_deferred.buffers.mvpUnifStorage.descriptor, // buffer info
 			nullptr // image info
 		),
-		// Binding 1: Color map
+		 //Binding 1: Color map
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			m_deferred.descriptorSet,
@@ -1073,6 +1098,18 @@ void VulkanHybridRenderer::PrepareDeferredUniformBuffer()
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
 
+	m_deferred.mvpUnif.m_model = glm::mat4(1.0);
+	m_deferred.mvpUnif.m_projection = m_scene->camera.GetProj();
+	m_deferred.mvpUnif.m_view = m_scene->camera.GetView();
+
+	m_vulkanDevice->MapMemory(
+		&m_deferred.mvpUnif,
+		m_deferred.buffers.mvpUnifStorage.memory,
+		sizeof(m_deferred.mvpUnif)
+	);
+
+	// Light buffer
+
 	m_deferred.buffers.lightsUnifStorage.Create(
 		m_vulkanDevice,
 		sizeof(m_deferred.buffers.lightsUnifStorage),
@@ -1104,7 +1141,13 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			2, // binding
 			sizeof(glm::vec2), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
+		),
+		MakeVertexInputBindingDescription(
+			3, // binding
+			sizeof(Byte), // stride
+			VK_VERTEX_INPUT_RATE_VERTEX
 		)
+
 	};
 
 	std::vector<VkVertexInputAttributeDescription> attribDesc = {
@@ -1115,15 +1158,21 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			0 // offset
 		),
 		MakeVertexInputAttributeDescription(
-			0, // binding
+			1, // binding
 			1, // location
 			VK_FORMAT_R32G32B32_SFLOAT,
 			0 // offset
 		),
 		MakeVertexInputAttributeDescription(
-			0, // binding
+			2, // binding
 			2, // location
 			VK_FORMAT_R32G32_SFLOAT,
+			0 // offset
+		),
+		MakeVertexInputAttributeDescription(
+			3, // binding
+			3, // location
+			VK_FORMAT_R8_SINT,
 			0 // offset
 		)
 	};
@@ -1153,7 +1202,7 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = MakePipelineRasterizationStateCreateInfo(
 		VK_POLYGON_MODE_FILL, 
 		VK_CULL_MODE_BACK_BIT, 
-		VK_FRONT_FACE_CLOCKWISE);
+		VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
 	VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo =
 		MakePipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT);
@@ -1161,7 +1210,7 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 	VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = MakePipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
-	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachmentState.colorWriteMask = 0xf;
 	colorBlendAttachmentState.blendEnable = VK_FALSE;
 
 	// Blend attachment states required for all color attachments
@@ -1237,7 +1286,7 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 	// Create a semaphore used to synchronize offscreen rendering and usage
 	VkSemaphoreCreateInfo semaphoreCreateInfo = MakeSemaphoreCreateInfo();
-	VkResult result = vkCreateSemaphore(m_vulkanDevice->device, &semaphoreCreateInfo, nullptr, &m_deferred.semaphore);
+	vkCreateSemaphore(m_vulkanDevice->device, &semaphoreCreateInfo, nullptr, &m_deferred.semaphore);
 
 	VkCommandBufferBeginInfo cmdBufInfo = MakeCommandBufferBeginInfo();
 
@@ -1279,12 +1328,14 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 		std::vector<VkBuffer> vertexBuffers = { 
 			vertexBuffer.storageBuffer.buffer, 
 			vertexBuffer.storageBuffer.buffer,
+			vertexBuffer.storageBuffer.buffer,
 			vertexBuffer.storageBuffer.buffer
 		};
 		std::vector<VkDeviceSize> offsets = { 
 			vertexBuffer.offsets.at(POSITION),
 			vertexBuffer.offsets.at(NORMAL),
-			vertexBuffer.offsets.at(TEXCOORD)
+			vertexBuffer.offsets.at(TEXCOORD),
+			vertexBuffer.offsets.at(MATERIALID)
 		};
 		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
 
@@ -1311,7 +1362,7 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	static float timer = 0.0f;
 	timer += 0.005f;
-	float SPEED = 32.0f;
+	float SPEED = 0;// 32.0f;
 
 	// White
 	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -2.0f, 0.0f, 1.0f);
@@ -1429,6 +1480,12 @@ void VulkanHybridRenderer::PrepareComputeRaytraceDescriptorLayout() {
 			8,
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 9 : albedo 
+		MakeDescriptorSetLayoutBinding(
+			9,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_COMPUTE_BIT
 		)
 	};
 
@@ -1544,6 +1601,15 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			&m_raytrace.buffers.bvh.descriptor,
 			nullptr
 		),
+		// Binding 9 : albedo
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			9, // Binding 9
+			1,
+			nullptr,
+			&m_deferred.framebuffer.albedo.descriptor
+		),
 	};
 
 	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
@@ -1568,12 +1634,11 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	VkDeviceSize bufferSize = m_scene->indices.size() * sizeof(ivec4);
 
 	// Stage
-	m_vulkanDevice->CreateBufferAndMemory(
+	stagingBuffer.Create(
+		m_vulkanDevice,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer.buffer,
-		stagingBuffer.memory
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
 
 	m_vulkanDevice->MapMemory(
@@ -1585,12 +1650,11 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 
 	// -----------------------------------------
 
-	m_vulkanDevice->CreateBufferAndMemory(
+	m_raytrace.buffers.indices.Create(
+		m_vulkanDevice,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_raytrace.buffers.indices.buffer,
-		m_raytrace.buffers.indices.memory
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
 
 	// Copy over to vertex buffer in device local memory
@@ -1602,11 +1666,8 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 		bufferSize
 	);
 
-	m_raytrace.buffers.indices.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.indices.buffer, 0, bufferSize);
-
 	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
+	stagingBuffer.Destroy();
 
 	// =========== VERTICE POSITIONS
 	bufferSize = m_scene->verticePositions.size() * sizeof(glm::vec4);
@@ -1649,8 +1710,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	m_raytrace.buffers.positions.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.positions.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
+	stagingBuffer.Destroy();
 
 	// =========== VERTICE NORMALS
 	bufferSize = m_scene->verticeNormals.size() * sizeof(glm::vec4);
@@ -1692,12 +1752,11 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	m_raytrace.buffers.normals.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.normals.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
+	stagingBuffer.Destroy();
 
 	// =========== BVH
 	SBVH* sbvh = reinterpret_cast<SBVH*>(m_scene->m_accel.get());
-	bufferSize = sbvh->m_nodes.size() * sizeof(SBVHNode);
+	bufferSize = sbvh->m_nodesPacked.size() * sizeof(SBVHNodePacked);
 
 	// Stage
 	m_vulkanDevice->CreateBufferAndMemory(
@@ -1708,11 +1767,11 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 		stagingBuffer.memory
 	);
 
-	//m_vulkanDevice->MapMemory(
-	//	sbvh->m_nodes.data(),
-	//	stagingBuffer.memory,
-	//	bufferSize
-	//);
+	m_vulkanDevice->MapMemory(
+		sbvh->m_nodesPacked.data(),
+		stagingBuffer.memory,
+		bufferSize
+	);
 
 	// -----------------------------------------
 
@@ -1736,8 +1795,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	m_raytrace.buffers.bvh.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.bvh.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer.buffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
+	stagingBuffer.Destroy();
 
 }
 

@@ -1080,11 +1080,30 @@ void SBVH::FlattenRecursive(
 
 	SBVHNodePacked packed;
 	packed.id = node->m_nodeIdx;
-	packed.farChild = node->m_farChild == nullptr ? -1 : node->m_farChild->m_nodeIdx;
-	packed.nearChild = node->m_nearChild == nullptr ? -1 : node->m_nearChild->m_nodeIdx;
 	packed.parent = node->m_parent == nullptr ? -1 : node->m_parent->m_nodeIdx;
-	packed.min = node->m_bbox.m_min;
-	packed.max = node->m_bbox.m_max;
+	
+	// .w := Left child index
+	packed.min = vec4(
+		node->m_bbox.m_min, 
+		node->m_farChild == nullptr ? -1 : node->m_farChild->m_nodeIdx
+	);
+
+	// .w := Right child index
+	packed.max = vec4(
+		node->m_bbox.m_max,
+		node->m_nearChild == nullptr ? -1 : node->m_nearChild->m_nodeIdx
+	);
+
+	if (node->IsLeaf()) {
+		SBVHLeaf* leaf = reinterpret_cast<SBVHLeaf*>(node);
+		for (auto primID : leaf->m_geomIds) {
+			packed.geomId = primID;
+			break;
+		}
+	} else {
+		packed.geomId = -1;
+	}
+
 	m_nodesPacked.push_back(packed);
 
 	FlattenRecursive(node->m_nearChild);

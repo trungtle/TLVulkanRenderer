@@ -12,7 +12,11 @@ typedef enum {
 	INDEX,
 	POSITION,
 	NORMAL,
-	TEXCOORD
+	TEXCOORD,
+	COLOR,
+	TANGENT,
+	BITANGENT,
+	MATERIALID
 } EVertexAttribute;
 
 typedef struct VertexAttributeInfoTyp {

@@ -345,6 +345,7 @@ namespace tinygltf
 	typedef struct
 	{
 		std::string name;
+		std::string uri;
 		int width;
 		int height;
 		int component;
@@ -1547,7 +1548,7 @@ namespace tinygltf
 		{
 			return false;
 		}
-
+		image->uri = uri;
 		ParseStringProperty(&image->name, err, o, "name", false);
 
 		std::vector<unsigned char> img;
@@ -1612,6 +1613,7 @@ namespace tinygltf
 				image->mimeType = mime_type;
 				image->width = image_width;
 				image->height = image_height;
+				image->uri = uri;
 
 				return true;
 			}

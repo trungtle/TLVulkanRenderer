@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <Typedef.h>
 
 class Texture {
 public:
@@ -7,8 +8,8 @@ public:
 	virtual bool hasRawByte() const {
 		return false;
 	}
-	virtual const std::vector<unsigned char>& getRawByte() const {
-		return std::vector<unsigned char>();
+	virtual const Byte* getRawByte() const {
+		return nullptr;
 	};
 
 	virtual uint32_t width() {
@@ -37,8 +38,8 @@ public:
 
 class ImageTexture : public Texture {
 public:
-	ImageTexture(std::string name, std::vector<unsigned char> data, int width, int height) :
-		m_name(name), m_image(data), m_width(width), m_height(height)
+	ImageTexture(std::string name, std::vector<unsigned char> data, Byte* rawBytes, int width, int height) :
+		m_name(name), m_image(data), m_bytes(rawBytes), m_width(width), m_height(height)
 	{};
 
 	glm::vec3 value(glm::vec2 uv, const glm::vec3& p) const override {
@@ -61,8 +62,8 @@ public:
 		return true;
 	}
 
-	const std::vector<unsigned char>& getRawByte() const final {
-		return m_image;
+	const Byte* getRawByte() const final {
+		return m_bytes;
 	}
 
 	uint32_t height() final {
@@ -78,5 +79,6 @@ private:
 	uint32_t m_width;
 	uint32_t m_height;
 	std::vector<unsigned char> m_image;
+	Byte* m_bytes;
 
 };
