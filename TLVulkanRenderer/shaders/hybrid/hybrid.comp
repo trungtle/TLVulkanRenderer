@@ -518,6 +518,191 @@ Intersection computeIntersectionsWithRootLevelBvh(
 	return intersection;
 }
 
+/*
+* Iterative stack-less BVH traversal using state logic and pointers to nodes.
+* \ref https://graphics.cg.uni-saarland.de/fileadmin/cguds/papers/2011/hapala_sccg2011/hapala_sccg2011.pdf
+*/
+// void traverseBVH(
+//	int depth
+//	, int num_paths
+//	, PathSegment * pathSegments
+//	, int num_bvhNodes
+//	, BVHNodeDev* bvhNodes
+//	, int rootIdx
+//	, int geoms_size
+//	, Geom * geoms
+//	, ShadeableIntersection * intersections
+//	)
+//{
+//	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+//	if (path_index < num_paths)
+//	{
+//		PathSegment pathSegment = pathSegments[path_index];
+//		float t;
+//		glm::vec3 intersect_point;
+//		glm::vec3 normal;
+//		float t_min = FLT_MAX;
+
+//		glm::vec3 tmp_intersect;
+//		glm::vec3 tmp_normal;
+//		Geom* hit_geom = nullptr;
+
+//		BVHNodeDev current = bvhNodes[rootIdx];
+//		EBVHTransition transition = EBVHTransition::FromParent;
+
+//		bool isIterating = true;
+//		while (isIterating) {
+//			// States (reproduced here from Stack-less BVH Traversal paper [Hapala1 el at. 2011])
+//			// Link: https://graphics.cg.uni-saarland.de/fileadmin/cguds/papers/2011/hapala_sccg2011/hapala_sccg2011.pdf
+//			switch (transition) {
+
+//				// 1. From child
+//				// In the fromChild case the current node was already tested when going
+//				// down, and does not have to bce re - tested.The next node to traverse
+//				// is either current’s sibling f arChild(if current is nearChild),
+//				// or its parent(if current was farChild).
+//				//
+//			case EBVHTransition::FromChild:
+//				if (current.idx == rootIdx) {
+//					// Current has reached root
+//					isIterating = false;
+//				}
+//				else if (current.idx == bvhNodes[current.parentIdx].nearChildIdx) {
+//					// Current is near child, so transition to far child
+//					current = bvhNodes[bvhNodes[current.parentIdx].farChildIdx];
+//					transition = EBVHTransition::FromSibling;
+//				}
+//				else {
+//					// Current is far child, go back to parent
+//					current = bvhNodes[current.parentIdx];
+//					transition = EBVHTransition::FromChild;
+//				}
+//				break;
+
+//				// 2. From sibling
+//				// In the fromSibling case, we know that we are entering farChild (it
+//				// cannot be reached in any other way), and that we are traversing this
+//				// node for the first time(i.e.a box test has to be done).If the node
+//				// is missed, we back - track to its parent; otherwise, the current node
+//				// has to be processed : if it is a leaf node, we intersect its primitives
+//				// against the ray, and proceed to parent. Otherwise(i.e. if the node
+//				// was hit but is not a leaf), we enter current’s subtree by performing
+//				// a fromParent step to current’s first child.
+
+//			case EBVHTransition::FromSibling:
+
+//				if (current.geomIdx != -1) {
+//					// Leaf node
+//					t = computeIntersection(pathSegment, geoms[current.geomIdx], tmp_intersect, tmp_normal);
+//					// Compute the minimum t from the intersection tests to determine what
+//					// scene geometry object was hit first.
+//					if (t > 0.0f && t_min > t)
+//					{
+//						t_min = t;
+//						intersect_point = tmp_intersect;
+//						normal = tmp_normal;
+//						hit_geom = &(geoms[current.geomIdx]);
+//					}
+
+//					current = bvhNodes[current.parentIdx];
+//					transition = EBVHTransition::FromChild;
+//				}
+//				else {
+//					// When this isn't a leaf node, check bbox intersection
+//					bool hit = bboxIntersectionTest(current.bboxGeom, pathSegments[path_index].ray);
+//					if (!hit) {
+//						// Missed, go back up to parent
+
+//						if (current.idx == rootIdx) {
+//							// Current has reached root
+//							isIterating = false;
+//						} else {
+//							current = bvhNodes[current.parentIdx];
+//							transition = EBVHTransition::FromChild;
+//						}
+//					}
+//					else {
+//						// Hit, enter its subtree (near child)
+//						current = bvhNodes[current.nearChildIdx];
+//						transition = EBVHTransition::FromParent;
+//					}
+//				}
+//				break;
+
+//				// 3. From parent
+//				// Finally, in the fromParent case, we know that we are entering
+//				// nearChild and we do exactly the same as in the previous case,
+//				// except that every time we would have gone to parent we go to
+//				// farChild child.
+
+//			case EBVHTransition::FromParent:
+//				if (current.geomIdx != -1) {
+//					// Leaf node
+//					t = computeIntersection(pathSegment, geoms[current.geomIdx], tmp_intersect, tmp_normal);
+//					// Compute the minimum t from the intersection tests to determine what
+//					// scene geometry object was hit first.
+//					if (t > 0.0f && t_min > t)
+//					{
+//						t_min = t;
+//						intersect_point = tmp_intersect;
+//						normal = tmp_normal;
+//						hit_geom = &(geoms[current.geomIdx]);
+//					}
+
+//					if (current.idx == rootIdx) {
+//						// Current has reached root
+//						isIterating = false;
+//					} else {
+//						// Go to far sibling
+//						current = bvhNodes[bvhNodes[current.parentIdx].farChildIdx];
+//						transition = EBVHTransition::FromSibling;
+//					}
+//				}
+//				else {
+//					// When this isn't a leaf node, check bbox intersection
+//					bool hit = bboxIntersectionTest(current.bboxGeom, pathSegments[path_index].ray);
+//					if (!hit) {
+//						// Missed, go to far sibling
+//						if (current.idx == rootIdx) {
+//							// Current has reached root
+//							isIterating = false;
+//						} else {
+//							current = bvhNodes[bvhNodes[current.parentIdx].farChildIdx];
+//							transition = EBVHTransition::FromSibling;
+//						}
+//					}
+//					else {
+//						// Hit, enter its subtree
+//						current = bvhNodes[current.nearChildIdx];
+//						transition = EBVHTransition::FromParent;
+//					}
+//				}
+//				break;
+			
+//			default:
+//				// *N.B*: Should never reach here
+//				assert(false);
+//				break;
+//			}
+//		}
+		
+//		if (hit_geom == nullptr)
+//		{
+//			intersections[path_index].t = -1.0f;
+//		}
+//		else
+//		{
+//			//The ray hits something
+//			intersections[path_index].t = t_min;
+//			intersections[path_index].materialId = hit_geom->materialid;
+//			intersections[path_index].surfaceNormal = normal;
+//			intersections[path_index].intersect_point = intersect_point;
+//		}
+//	}
+//}
+
+
 Intersection computeIntersections(
 	inout PathSegment path
 	)
@@ -653,7 +838,6 @@ void shadeMaterial(
 
 	Material material = materials[intersect.materialId];
 
-
 	
 	// === Refraction === //
 
@@ -731,18 +915,16 @@ void shadeMaterial(
 			feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
 			feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
-			// @note: only compute shadows for the ground
+
 			float shadow = 1;
-			if (ubo.isShadows && intersect.materialId == GROUND_MESH_IDX) { // ground material
-				shadow = calcShadow(feeler, intersect.materialId, dist); 
-			}
+			shadow = calcShadow(feeler, intersect.materialId, dist); 
 	
 			// Attenuation
 			float atten = ubo.lights[i].radius - dist;//ubo.lights[i].radius / (pow(dist, 2.0) + 1.0);
 		
 			// Diffuse
 			float diffuse = lightDiffuse(intersect.hitNormal, lightVec);
-			vec3 diffuseColor = diffuse * vec3(material.diffuse);
+			vec3 diffuseColor = diffuse * vec3(0, 1, 0);//vec3(material.diffuse);
 		
 			// Specular
 			float specular = lightSpecular(vec3(ubo.cameraPosition), intersect.hitNormal, lightVec, 5);
@@ -801,7 +983,7 @@ void main()
 	path.remainingBounces = TRACEDEPTH;
 	path.ray.direction = normalize(vec3(ubo.cameraPosition) - position);
 	path.ray.origin = position + 0.01 * path.ray.direction;
-	path.color = vec3(0,0,0);
+	path.color = vec3(1,0.5,0);
 	path.objectId = materialId; // Use material ID as object ID
 	path.bounces = 0;
 	
@@ -815,11 +997,11 @@ void main()
 	shadeMaterial(intersection, path);
 
 	// Trace ray
-	while(path.remainingBounces > 0) {
+	//while(path.remainingBounces > 0) {
 		
-		intersection = computeIntersections(path);
-		shadeMaterial(intersection, path);
-	}
+	//	intersection = computeIntersections(path);
+	//	shadeMaterial(intersection, path);
+	//}
 
 	// Color by the number of bounces
 	if (ubo.isColorByRayBounces) {
@@ -827,7 +1009,5 @@ void main()
 		imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(val, val, val, 1.0));
 	} else {
 		imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(path.color, 1.0));
-	}
-	
-
+	}	
 }

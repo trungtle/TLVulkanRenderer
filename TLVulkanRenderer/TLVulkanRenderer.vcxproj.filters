@@ -50,6 +50,7 @@
     <ClCompile Include="src\renderer\vulkan\VulkanHybridRenderer.cpp" />
     <ClCompile Include="src\geometry\materials\EmissiveMaterial.cpp" />
     <ClCompile Include="src\geometry\materials\TranslucentMaterial.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">

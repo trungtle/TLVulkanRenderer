@@ -696,15 +696,15 @@ void
 VulkanDevice::CopyBuffer(
 	VkQueue queue,
 	VkCommandPool commandPool,
-	VkBuffer dstBuffer,
-	VkBuffer srcBuffer,
+	VulkanBuffer::StorageBuffer dstBuffer,
+	VulkanBuffer::StorageBuffer srcBuffer,
 	VkDeviceSize size
 ) const {
 	VkCommandBuffer copyCommandBuffer = BeginSingleTimeCommands(commandPool);
 
 	VkBufferCopy copyRegion = {};
 	copyRegion.size = size;
-	vkCmdCopyBuffer(copyCommandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+	vkCmdCopyBuffer(copyCommandBuffer, srcBuffer.buffer, dstBuffer.buffer, 1, &copyRegion);
 
 	EndSingleTimeCommands(queue, commandPool, copyCommandBuffer);
 }

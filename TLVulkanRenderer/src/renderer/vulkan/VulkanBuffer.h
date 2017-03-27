@@ -1,8 +1,10 @@
 #pragma once
 
-#include "VulkanSDK/1.0.33.0/Include/vulkan.h"
+#include <vulkan.h>
 #include "scene/SceneUtil.h"
 #include <map>
+
+class VulkanDevice;
 
 namespace VulkanBuffer {
 	// ===================
@@ -20,49 +22,21 @@ namespace VulkanBuffer {
 			const VkDeviceSize size,
 			const VkBufferUsageFlags usage,
 			const VkMemoryPropertyFlags memoryProperties
-		) {
-			m_device = device;
-			device->CreateBufferAndMemory(
-				size,
-				usage,
-				memoryProperties,
-				buffer,
-				memory
-			);
-
-			descriptor.buffer = buffer;
-			descriptor.offset = 0;
-			descriptor.range = size;
-		};
+		);;
 
 		void Destroy(
-		) {
-			vkDestroyBuffer(m_device->device, buffer, nullptr);
-			vkFreeMemory(m_device->device, memory, nullptr);
-		}
+		) const;
 	};
 
 	// ===================
 	// GEOMETRIES
 	// ===================
-	struct GeometryBufferOffset {
-		std::map<EVertexAttribute, VkDeviceSize> vertexBufferOffsets;
-	};
-
-	struct GeometryBuffer {
+	struct VertexBuffer {
 		/**
 		* \brief Byte offsets for vertex attributes and resource buffers into our unified buffer
 		*/
-		GeometryBufferOffset bufferLayout;
+		std::map<EVertexAttribute, VkDeviceSize> offsets;
 
-		/**
-		* \brief Handle to the vertex buffers
-		*/
-		VkBuffer vertexBuffer;
-
-		/**
-		* \brief Handle to the device memory
-		*/
-		VkDeviceMemory vertexBufferMemory;
+		StorageBuffer storageBuffer;
 	};
 }

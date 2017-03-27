@@ -31,8 +31,8 @@ VulkanGPURaytracer::Update() {
 	m_vulkanDevice->CopyBuffer(
 		m_raytrace.queue,
 		m_raytrace.commandPool,
-		m_raytrace.buffers.uniform.buffer,
-		m_raytrace.buffers.stagingUniform.buffer,
+		m_raytrace.buffers.uniform,
+		m_raytrace.buffers.stagingUniform,
 		sizeof(m_raytrace.ubo));
 }
 
@@ -160,7 +160,7 @@ VulkanGPURaytracer::PrepareVertexBuffers() {
 	m_quad.positions = positions;
 	m_quad.uvs = uvs;
 
-	VulkanBuffer::GeometryBuffer geomBuffer;
+	VulkanBuffer::VertexBuffer vertexBuffer;
 
 	// ----------- Vertex attributes --------------
 
@@ -172,74 +172,53 @@ VulkanGPURaytracer::PrepareVertexBuffers() {
 	VkDeviceSize uvBufferOffset = positionBufferOffset + positionBufferSize;
 
 	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + uvBufferSize;
-	geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(INDEX, indexBufferOffset));
-	geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(POSITION, positionBufferOffset));
-	geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
+	vertexBuffer.offsets.insert(std::make_pair(INDEX, indexBufferOffset));
+	vertexBuffer.offsets.insert(std::make_pair(POSITION, positionBufferOffset));
+	vertexBuffer.offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
 
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
 	// then transfer it to the device local memory for faster performance
 	// This is the recommended way to allocate buffer memory,
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
+	VulkanBuffer::StorageBuffer staging;
 
-	m_vulkanDevice->CreateBuffer(
+	staging.Create(
+		m_vulkanDevice,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		stagingBuffer
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
-
-	// Allocate memory for the buffer
-	m_vulkanDevice->CreateMemory(
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingBufferMemory
-	);
-
-	// Bind buffer with memory
-	VkDeviceSize memoryOffset = 0;
-	vkBindBufferMemory(m_vulkanDevice->device, stagingBuffer, stagingBufferMemory, memoryOffset);
 
 	// Filling the stage buffer with data
 	void* data;
-	vkMapMemory(m_vulkanDevice->device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	vkMapMemory(m_vulkanDevice->device, staging.memory, 0, bufferSize, 0, &data);
 	memcpy((Byte*)data, (Byte*)indices.data(), static_cast<size_t>(indexBufferSize));
 	memcpy((Byte*)data + positionBufferOffset, (Byte*)positions.data(), static_cast<size_t>(positionBufferSize));
 	memcpy((Byte*)data + uvBufferOffset, (Byte*)uvs.data(), static_cast<size_t>(uvBufferSize));
-	vkUnmapMemory(m_vulkanDevice->device, stagingBufferMemory);
+	vkUnmapMemory(m_vulkanDevice->device, staging.memory);
 
 	// -----------------------------------------
 
-	m_vulkanDevice->CreateBuffer(
+	vertexBuffer.storageBuffer.Create(
+		m_vulkanDevice,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		geomBuffer.vertexBuffer
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
-
-	// Allocate memory for the buffer
-	m_vulkanDevice->CreateMemory(
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		geomBuffer.vertexBuffer,
-		geomBuffer.vertexBufferMemory
-	);
-
-	// Bind buffer with memory
-	vkBindBufferMemory(m_vulkanDevice->device, geomBuffer.vertexBuffer, geomBuffer.vertexBufferMemory, memoryOffset);
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
 		m_graphics.queue,
 		m_graphics.commandPool,
-		geomBuffer.vertexBuffer,
-		stagingBuffer,
+		vertexBuffer.storageBuffer,
+		staging,
 		bufferSize
 	);
 
 	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, stagingBufferMemory, nullptr);
+	staging.Destroy();
 
-	m_graphics.geometryBuffers.push_back(geomBuffer);
+	m_graphics.geometryBuffers.push_back(vertexBuffer);
 
 	return VK_SUCCESS;
 }
@@ -564,15 +543,22 @@ VulkanGPURaytracer::BuildCommandBuffers() {
 		vkCmdSetScissor(m_graphics.commandBuffers[i], 0, 1, &scissor);
 
 		for (int b = 0; b < m_graphics.geometryBuffers.size(); ++b) {
-			VulkanBuffer::GeometryBuffer& geomBuffer = m_graphics.geometryBuffers[b];
+			VulkanBuffer::VertexBuffer& vertexBuffer = m_graphics.geometryBuffers[b];
 
 			// Bind vertex buffer
-			VkBuffer vertexBuffers[] = {geomBuffer.vertexBuffer, geomBuffer.vertexBuffer};
-			VkDeviceSize offsets[] = {geomBuffer.bufferLayout.vertexBufferOffsets.at(POSITION), geomBuffer.bufferLayout.vertexBufferOffsets.at(TEXCOORD)};
+			VkBuffer vertexBuffers[] = {
+				vertexBuffer.storageBuffer.buffer, 
+				vertexBuffer.storageBuffer.buffer
+			};
+			VkDeviceSize offsets[] = {
+				vertexBuffer.offsets.at(POSITION),
+				vertexBuffer.offsets.at(TEXCOORD)
+			}
+			;
 			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 2, vertexBuffers, offsets);
 
 			// Bind index buffer
-			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], geomBuffer.vertexBuffer, geomBuffer.bufferLayout.vertexBufferOffsets.at(INDEX), VK_INDEX_TYPE_UINT16);
+			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], vertexBuffer.storageBuffer.buffer, vertexBuffer.offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
 
 			// Bind uniform buffer
 			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSet, 0, nullptr);
@@ -811,8 +797,8 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 	m_vulkanDevice->CopyBuffer(
 		m_raytrace.queue,
 		m_raytrace.commandPool,
-		m_raytrace.buffers.indices.buffer,
-		stagingBuffer.buffer,
+		m_raytrace.buffers.indices,
+		stagingBuffer,
 		bufferSize
 	);
 
@@ -855,8 +841,8 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 	m_vulkanDevice->CopyBuffer(
 		m_raytrace.queue,
 		m_raytrace.commandPool,
-		m_raytrace.buffers.verticePositions.buffer,
-		stagingBuffer.buffer,
+		m_raytrace.buffers.verticePositions,
+		stagingBuffer,
 		bufferSize
 	);
 
@@ -899,8 +885,8 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 	m_vulkanDevice->CopyBuffer(
 		m_raytrace.queue,
 		m_raytrace.commandPool,
-		m_raytrace.buffers.verticeNormals.buffer,
-		stagingBuffer.buffer,
+		m_raytrace.buffers.verticeNormals,
+		stagingBuffer,
 		bufferSize
 	);
 
@@ -956,8 +942,8 @@ void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 	m_vulkanDevice->CopyBuffer(
 		m_raytrace.queue,
 		m_raytrace.commandPool,
-		m_raytrace.buffers.uniform.buffer,
-		m_raytrace.buffers.stagingUniform.buffer,
+		m_raytrace.buffers.uniform,
+		m_raytrace.buffers.stagingUniform,
 		bufferSize
 	);
 
@@ -965,22 +951,19 @@ void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 
 	// ====== MATERIALS
 	bufferSize = sizeof(MaterialPacked) * m_scene->materials.size();
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingMemory;
+	VulkanBuffer::StorageBuffer staging;
 
-
-	// Stage
-	m_vulkanDevice->CreateBufferAndMemory(
+	staging.Create(
+		m_vulkanDevice,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer,
-		stagingMemory
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
+
 
 	m_vulkanDevice->MapMemory(
 		m_scene->materials.data(),
-		stagingMemory,
+		staging.memory,
 		bufferSize,
 		0
 	);
@@ -998,17 +981,15 @@ void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 	m_vulkanDevice->CopyBuffer(
 		m_raytrace.queue,
 		m_raytrace.commandPool,
-		m_raytrace.buffers.materials.buffer,
-		stagingBuffer,
+		m_raytrace.buffers.materials,
+		staging,
 		bufferSize
 	);
 
 	m_raytrace.buffers.materials.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.materials.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
-	vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, stagingMemory, nullptr);
-
+	staging.Destroy();
 }
 
 VkResult

@@ -37,5 +37,5 @@ void main()
 	//	discard;
 	//}
 
-	outAlbedo = vec4(inUV, 0, 1);//texture(samplerColor, inUV);
+	outAlbedo = vec4(1, 1, 0, 1);//texture(samplerColor, inUV);
 }

@@ -78,6 +78,16 @@ public:
 	Dim m_dim;
 };
 
+struct SBVHNodePacked {
+	int32_t id;
+	int32_t parent;
+	int32_t nearChild;
+	int32_t farChild;
+	glm::vec3 min;
+	glm::vec3 max;
+	int32_t geomId;
+};
+
 class SBVHLeaf : public SBVHNode {
 public:
 	SBVHLeaf(
@@ -137,6 +147,7 @@ public:
 	void Destroy() override;
 
 	std::vector<SBVHNode*> m_nodes;
+	std::vector<SBVHNodePacked> m_nodesPacked;
 
 protected:
 	SBVHNode*

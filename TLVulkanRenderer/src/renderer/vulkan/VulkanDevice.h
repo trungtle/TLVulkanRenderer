@@ -4,9 +4,9 @@
 #include <vector>
 #include <glfw3.h>
 #include "VulkanSwapchain.h"
-#include "VulkanUtil.h"
 #include <spdlog/logger.h>
 #include "VulkanImage.h"
+#include "VulkanBuffer.h"
 
 class VulkanDevice {
 
@@ -157,8 +157,8 @@ public:
 	CopyBuffer(
 		VkQueue queue,
 		VkCommandPool commandPool,
-		VkBuffer dstBuffer,
-		VkBuffer srcBuffer,
+		VulkanBuffer::StorageBuffer dstBuffer,
+		VulkanBuffer::StorageBuffer srcBuffer,
 		VkDeviceSize size
 	) const;
 

@@ -82,17 +82,15 @@ VulkanRenderer::~VulkanRenderer() {
 
 	vkDestroyDescriptorPool(m_vulkanDevice->device, m_graphics.descriptorPool, nullptr);
 
-	for (VulkanBuffer::GeometryBuffer& geomBuffer : m_graphics.geometryBuffers) {
-		vkFreeMemory(m_vulkanDevice->device, geomBuffer.vertexBufferMemory, nullptr);
-		vkDestroyBuffer(m_vulkanDevice->device, geomBuffer.vertexBuffer, nullptr);
+	for (VulkanBuffer::VertexBuffer& vertexBuffer : m_graphics.geometryBuffers) {
+		vertexBuffer.storageBuffer.Destroy();
 	}
 
-	vkFreeMemory(m_vulkanDevice->device, m_graphics.m_uniformStagingBufferMemory, nullptr);
-	vkDestroyBuffer(m_vulkanDevice->device, m_graphics.m_uniformStagingBuffer, nullptr);
-	vkFreeMemory(m_vulkanDevice->device, m_graphics.m_uniformBufferMemory, nullptr);
-	vkDestroyBuffer(m_vulkanDevice->device, m_graphics.m_uniformBuffer, nullptr);
+	m_graphics.uniformStaging.Destroy();
+	m_graphics.uniformStorage.Destroy();
 
 	vkDestroyCommandPool(m_vulkanDevice->device, m_graphics.commandPool, nullptr);
+	vkDestroyCommandPool(m_vulkanDevice->device, m_compute.commandPool, nullptr);
 	for (auto& frameBuffer : m_vulkanDevice->m_swapchain.framebuffers) {
 		vkDestroyFramebuffer(m_vulkanDevice->device, frameBuffer, nullptr);
 	}
@@ -594,6 +592,10 @@ VkResult VulkanRenderer::PrepareComputeCommandPool()
 		return result;
 	}
 
+	// Get device queue for compute
+	vkGetDeviceQueue(m_vulkanDevice->device, m_vulkanDevice->queueFamilyIndices.computeFamily, 0, &m_compute.queue);
+
+
 	return result;
 }
 
@@ -602,7 +604,7 @@ VulkanRenderer::PrepareVertexBuffers() {
 	m_graphics.geometryBuffers.clear();
 
 	for (MeshData* geomData : m_scene->meshesData) {
-		VulkanBuffer::GeometryBuffer geomBuffer;
+		VulkanBuffer::VertexBuffer geomBuffer;
 
 		// ----------- Vertex attributes --------------
 
@@ -617,72 +619,51 @@ VulkanRenderer::PrepareVertexBuffers() {
 		VkDeviceSize normalBufferOffset = positionBufferOffset + positionBufferSize;
 
 		VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize;
-		geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(INDEX, indexBufferOffset));
-		geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(POSITION, positionBufferOffset));
-		geomBuffer.bufferLayout.vertexBufferOffsets.insert(std::make_pair(NORMAL, normalBufferOffset));
+		geomBuffer.offsets.insert(std::make_pair(INDEX, indexBufferOffset));
+		geomBuffer.offsets.insert(std::make_pair(POSITION, positionBufferOffset));
+		geomBuffer.offsets.insert(std::make_pair(NORMAL, normalBufferOffset));
 
 		// Stage buffer memory on host
 		// We want staging so that we can map the vertex data on the host but
 		// then transfer it to the device local memory for faster performance
 		// This is the recommended way to allocate buffer memory,
-		VkBuffer stagingBuffer;
-		VkDeviceMemory stagingBufferMemory;
+		VulkanBuffer::StorageBuffer staging;
 
-		m_vulkanDevice->CreateBuffer(
+		staging.Create(
+			m_vulkanDevice,
 			bufferSize,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			stagingBuffer
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		);
-
-		// Allocate memory for the buffer
-		m_vulkanDevice->CreateMemory(
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			stagingBuffer,
-			stagingBufferMemory
-		);
-
-		// Bind buffer with memory
-		VkDeviceSize memoryOffset = 0;
-		vkBindBufferMemory(m_vulkanDevice->device, stagingBuffer, stagingBufferMemory, memoryOffset);
 
 		// Filling the stage buffer with data
 		void* data;
-		vkMapMemory(m_vulkanDevice->device, stagingBufferMemory, 0, bufferSize, 0, &data);
+		vkMapMemory(m_vulkanDevice->device, staging.memory, 0, bufferSize, 0, &data);
 		memcpy(data, indexData.data(), static_cast<size_t>(indexBufferSize));
 		memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
 		memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
-		vkUnmapMemory(m_vulkanDevice->device, stagingBufferMemory);
+		vkUnmapMemory(m_vulkanDevice->device, staging.memory);
 
 		// -----------------------------------------
 
-		m_vulkanDevice->CreateBuffer(
+		geomBuffer.storageBuffer.Create(
+			m_vulkanDevice,
 			bufferSize,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			geomBuffer.vertexBuffer
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		);
-
-		// Allocate memory for the buffer
-		m_vulkanDevice->CreateMemory(
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			geomBuffer.vertexBuffer,
-			geomBuffer.vertexBufferMemory
-		);
-
-		// Bind buffer with memory
-		vkBindBufferMemory(m_vulkanDevice->device, geomBuffer.vertexBuffer, geomBuffer.vertexBufferMemory, memoryOffset);
 
 		// Copy over to vertex buffer in device local memory
 		m_vulkanDevice->CopyBuffer(
 			m_graphics.queue,
 			m_graphics.commandPool,
-			geomBuffer.vertexBuffer,
-			stagingBuffer,
+			geomBuffer.storageBuffer,
+			staging,
 			bufferSize
 		);
 
 		// Cleanup staging buffer memory
-		vkDestroyBuffer(m_vulkanDevice->device, stagingBuffer, nullptr);
-		vkFreeMemory(m_vulkanDevice->device, stagingBufferMemory, nullptr);
+		staging.Destroy();
 
 		m_graphics.geometryBuffers.push_back(geomBuffer);
 	}
@@ -694,37 +675,20 @@ VkResult
 VulkanRenderer::PrepareUniforms() {
 	VkDeviceSize bufferSize = sizeof(GraphicsUniformBufferObject);
 	VkDeviceSize memoryOffset = 0;
-	m_vulkanDevice->CreateBuffer(
+
+	m_graphics.uniformStaging.Create(
+		m_vulkanDevice,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		m_graphics.m_uniformStagingBuffer
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
 
-	// Allocate memory for the buffer
-	m_vulkanDevice->CreateMemory(
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		m_graphics.m_uniformStagingBuffer,
-		m_graphics.m_uniformStagingBufferMemory
-	);
-
-	// Bind buffer with memory
-	vkBindBufferMemory(m_vulkanDevice->device, m_graphics.m_uniformStagingBuffer, m_graphics.m_uniformStagingBufferMemory, memoryOffset);
-
-	m_vulkanDevice->CreateBuffer(
+	m_graphics.uniformStorage.Create(
+		m_vulkanDevice,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		m_graphics.m_uniformBuffer
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
-
-	// Allocate memory for the buffer
-	m_vulkanDevice->CreateMemory(
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_graphics.m_uniformBuffer,
-		m_graphics.m_uniformBufferMemory
-	);
-
-	// Bind buffer with memory
-	vkBindBufferMemory(m_vulkanDevice->device, m_graphics.m_uniformBuffer, m_graphics.m_uniformBufferMemory, memoryOffset);
 
 	return VK_SUCCESS;
 }
@@ -756,7 +720,7 @@ VulkanRenderer::PrepareDescriptorSets() {
 		"Failed to allocate descriptor set"
 	);
 
-	VkDescriptorBufferInfo bufferInfo = MakeDescriptorBufferInfo(m_graphics.m_uniformBuffer, 0, sizeof(GraphicsUniformBufferObject));
+	VkDescriptorBufferInfo bufferInfo = MakeDescriptorBufferInfo(m_graphics.uniformStorage.buffer, 0, sizeof(GraphicsUniformBufferObject));
 
 	// Update descriptor set info
 	VkWriteDescriptorSet descriptorWrite = MakeWriteDescriptorSet(
@@ -814,15 +778,33 @@ VulkanRenderer::BuildCommandBuffers() {
 		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.m_pipeline);
 
 		for (int b = 0; b < m_graphics.geometryBuffers.size(); ++b) {
-			VulkanBuffer::GeometryBuffer& geomBuffer = m_graphics.geometryBuffers[b];
+			VulkanBuffer::VertexBuffer& vertexBuffer = m_graphics.geometryBuffers[b];
 
 			// Bind vertex buffer
-			VkBuffer vertexBuffers[] = {geomBuffer.vertexBuffer, geomBuffer.vertexBuffer};
-			VkDeviceSize offsets[] = {geomBuffer.bufferLayout.vertexBufferOffsets.at(POSITION), geomBuffer.bufferLayout.vertexBufferOffsets.at(NORMAL)};
-			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 2, vertexBuffers, offsets);
+			VkBuffer vertexBuffers[] = {
+				vertexBuffer.storageBuffer.buffer, 
+				vertexBuffer.storageBuffer.buffer
+			};
+
+			VkDeviceSize offsets[] = {
+				vertexBuffer.offsets.at(POSITION),
+				vertexBuffer.offsets.at(NORMAL)
+			};
+
+			vkCmdBindVertexBuffers(
+				m_graphics.commandBuffers[i], 
+				0, 
+				2, 
+				vertexBuffers, 
+				offsets
+			);
 
 			// Bind index buffer
-			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], geomBuffer.vertexBuffer, geomBuffer.bufferLayout.vertexBufferOffsets.at(INDEX), VK_INDEX_TYPE_UINT16);
+			vkCmdBindIndexBuffer(
+				m_graphics.commandBuffers[i], 
+				vertexBuffer.storageBuffer.buffer, 
+				vertexBuffer.offsets.at(INDEX), VK_INDEX_TYPE_UINT16
+			);
 
 			// Bind uniform buffer
 			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSet, 0, nullptr);
@@ -913,16 +895,17 @@ VulkanRenderer::Update() {
 	// The Vulkan's Y coordinate is flipped from OpenGL (glm design), so we need to invert that
 	ubo.proj[1][1] *= -1;
 
-	void* data;
-	vkMapMemory(m_vulkanDevice->device, m_graphics.m_uniformStagingBufferMemory, 0, sizeof(GraphicsUniformBufferObject), 0, &data);
-	memcpy(data, &ubo, sizeof(GraphicsUniformBufferObject));
-	vkUnmapMemory(m_vulkanDevice->device, m_graphics.m_uniformStagingBufferMemory);
+	m_vulkanDevice->MapMemory(
+		&ubo,
+		m_graphics.uniformStaging.memory,
+		sizeof(GraphicsUniformBufferObject)
+	);
 
 	m_vulkanDevice->CopyBuffer(
 		m_graphics.queue,
 		m_graphics.commandPool,
-		m_graphics.m_uniformBuffer,
-		m_graphics.m_uniformStagingBuffer,
+		m_graphics.uniformStorage,
+		m_graphics.uniformStaging,
 		sizeof(GraphicsUniformBufferObject));
 }
 

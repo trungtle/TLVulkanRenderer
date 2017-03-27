@@ -147,15 +147,13 @@ protected:
 		*/
 		VkRenderPass renderPass;
 
-		std::vector<VulkanBuffer::GeometryBuffer> geometryBuffers;
+		std::vector<VulkanBuffer::VertexBuffer> geometryBuffers;
 
 		/**
 		* \brief Uniform buffers
 		*/
-		VkBuffer m_uniformStagingBuffer;
-		VkBuffer m_uniformBuffer;
-		VkDeviceMemory m_uniformStagingBufferMemory;
-		VkDeviceMemory m_uniformBufferMemory;
+		VulkanBuffer::StorageBuffer uniformStaging;
+		VulkanBuffer::StorageBuffer uniformStorage;
 
 		/**
 		* \brief Graphics pipeline
@@ -184,6 +182,7 @@ protected:
 	struct Compute
 	{
 		VkCommandPool commandPool;
+		VkQueue queue;
 	} m_compute;
 
 	struct Quad

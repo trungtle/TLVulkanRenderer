@@ -259,6 +259,7 @@
     <ClCompile Include="src\geometry\materials\TranslucentMaterial.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
+    <ClCompile Include="src\renderer\vulkan\VulkanBuffer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanCPURayTracer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanDevice.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanHybridRenderer.cpp" />

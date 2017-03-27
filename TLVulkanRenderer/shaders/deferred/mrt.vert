@@ -44,8 +44,6 @@ void main()
 	outWorldPos.y = -outWorldPos.y;
 	gl_Position = ubo.projection * ubo.view * vec4(outWorldPos, 1.0);
 
-	outWorldPos = vec3(ubo.projection * ubo.view * ubo.model * tmpPos);
-
 	// Normal in world space
 	mat3 mNormal = transpose(inverse(mat3(ubo.model)));
 	outNormal = mNormal * normalize(inNormal);	

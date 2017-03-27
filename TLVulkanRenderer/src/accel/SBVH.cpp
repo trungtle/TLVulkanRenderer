@@ -1077,6 +1077,16 @@ void SBVH::FlattenRecursive(
 	}
 
 	m_nodes.push_back(node);
+
+	SBVHNodePacked packed;
+	packed.id = node->m_nodeIdx;
+	packed.farChild = node->m_farChild == nullptr ? -1 : node->m_farChild->m_nodeIdx;
+	packed.nearChild = node->m_nearChild == nullptr ? -1 : node->m_nearChild->m_nodeIdx;
+	packed.parent = node->m_parent == nullptr ? -1 : node->m_parent->m_nodeIdx;
+	packed.min = node->m_bbox.m_min;
+	packed.max = node->m_bbox.m_max;
+	m_nodesPacked.push_back(packed);
+
 	FlattenRecursive(node->m_nearChild);
 	FlattenRecursive(node->m_farChild);
 }

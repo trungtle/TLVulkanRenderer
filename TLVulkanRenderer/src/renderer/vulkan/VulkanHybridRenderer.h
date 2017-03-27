@@ -117,7 +117,7 @@ protected:
 	struct Onscreen
 	{
 		VulkanBuffer::StorageBuffer unifBuffer;
-		VulkanBuffer::GeometryBuffer quadBuffer;
+		VulkanBuffer::VertexBuffer quadBuffer;
 	} m_onscreen;
 
 	// -----------
@@ -153,6 +153,9 @@ protected:
 	void
 		BuildDeferredCommandBuffer();
 
+	void
+		UpdateDeferredLightsUniform();
+
 
 	struct SFrameBuffer
 	{
@@ -187,6 +190,7 @@ protected:
 
 		// -- Uniforms
 		SVertexShaderUniforms mvpUnif;
+		SFragShaderUniforms lightsUnif;
 
 		struct {
 			VulkanBuffer::StorageBuffer mvpUnifStorage;
@@ -210,9 +214,6 @@ protected:
 		PrepareComputeRaytraceDescriptorSet();
 
 	void
-		PrepareComputeRaytraceCommandPool();
-
-	void
 		PrepareComputeRaytraceStorageBuffer();
 
 	void
@@ -227,12 +228,12 @@ protected:
 	VkResult
 		BuildComputeRaytraceCommandBuffer();
 
-
+	void
+		UpdateComputeRaytraceUniform();
 
 	struct Raytrace
 	{
-		// -- Compute compatible queue
-		VkQueue queue;
+		// -- Fence
 		VkFence fence;
 
 		// -- Descriptor
@@ -244,7 +245,6 @@ protected:
 		VkPipeline pipeline;
 
 		// -- Commands
-		VkCommandPool commandPool;
 		VkCommandBuffer commandBuffer;
 
 		struct
