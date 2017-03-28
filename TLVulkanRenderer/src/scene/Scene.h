@@ -26,7 +26,7 @@ public:
 	std::vector<glm::vec4> verticeNormals;
 	std::vector<glm::vec2> verticeUVs;
 
-	std::vector<MeshData*> meshesData;
+	std::vector<VertexData*> vertexData;
 	std::vector<MaterialPacked> materialPackeds;
 	std::vector<LambertMaterial*> materials;
 	std::vector<Mesh> meshes;

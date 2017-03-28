@@ -41,7 +41,7 @@ namespace VulkanBuffer {
 
 		void Create(
 			const VulkanDevice* device,
-			MeshData* meshData
+			VertexData* meshData
 		);
 	};
 }

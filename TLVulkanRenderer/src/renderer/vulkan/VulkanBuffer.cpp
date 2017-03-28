@@ -23,26 +23,38 @@ void VulkanBuffer::StorageBuffer::Destroy() const {
 
 void VulkanBuffer::VertexBuffer::Create(
 	const VulkanDevice* vulkanDevice,
-	MeshData* geomData
+	VertexData* vertexData
 )
 {
-	// ----------- Vertex attributes --------------
+	// At the mimum we always have indices and position
 
-	std::vector<Byte>& indexData = geomData->vertexData.at(INDEX);
+	// -- Indices
+	std::vector<Byte>& indexData = vertexData->vertexData.at(INDEX);
 	VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
 	VkDeviceSize indexBufferOffset = 0;
-	std::vector<Byte>& positionData = geomData->vertexData.at(POSITION);
+
+	// -- Positions
+	std::vector<Byte>& positionData = vertexData->vertexData.at(POSITION);
 	VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
 	VkDeviceSize positionBufferOffset = indexBufferSize;
-	std::vector<Byte>& normalData = geomData->vertexData.at(NORMAL);
-	VkDeviceSize normalBufferSize = sizeof(normalData[0]) * normalData.size();
-	VkDeviceSize normalBufferOffset = positionBufferOffset + positionBufferSize;
+
+	// -- Normals
+	std::vector<Byte> normalData;
+	VkDeviceSize normalBufferSize = 0, normalBufferOffset = 0;
+	if (vertexData->vertexData.find(NORMAL) != vertexData->vertexData.end())
+	{
+		normalData = vertexData->vertexData.at(NORMAL);
+		normalBufferSize = sizeof(normalData[0]) * normalData.size();
+		normalBufferOffset = positionBufferOffset + positionBufferSize;
+	}
+
+	// -- UVs
 	std::vector<Byte> uvData;
 	VkDeviceSize uvBufferSize = 0;
 	VkDeviceSize uvBufferOffset = 0;
-	if (geomData->vertexData.find(TEXCOORD) != geomData->vertexData.end())
+	if (vertexData->vertexData.find(TEXCOORD) != vertexData->vertexData.end())
 	{
-		uvData = geomData->vertexData.at(TEXCOORD);
+		uvData = vertexData->vertexData.at(TEXCOORD);
 		uvBufferSize = sizeof(uvData[0]) * uvData.size();
 		uvBufferOffset = normalBufferOffset + normalBufferSize;
 	}

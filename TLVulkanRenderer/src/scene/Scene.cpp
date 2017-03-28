@@ -31,7 +31,7 @@ Scene::Scene(
 
 
 Scene::~Scene() {
-	for (MeshData* geom : meshesData) {
+	for (VertexData* geom : vertexData) {
 		delete geom;
 		geom = nullptr;
 	}

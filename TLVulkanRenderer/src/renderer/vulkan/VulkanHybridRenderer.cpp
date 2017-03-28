@@ -170,82 +170,13 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 
 	// ----------- Vertex attributes --------------
 
-	for (MeshData* geomData : m_scene->meshesData)
+	for (VertexData* vertexData : m_scene->vertexData)
 	{
 		VulkanBuffer::VertexBuffer vertexBuffer;
-
-		// ----------- Vertex attributes --------------
-
-		std::vector<Byte>& indexData = geomData->vertexData.at(INDEX);
-		VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
-		VkDeviceSize indexBufferOffset = 0;
-		std::vector<Byte>& positionData = geomData->vertexData.at(POSITION);
-		VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
-		VkDeviceSize positionBufferOffset = indexBufferSize;
-		std::vector<Byte>& normalData = geomData->vertexData.at(NORMAL);
-		VkDeviceSize normalBufferSize = sizeof(normalData[0]) * normalData.size();
-		VkDeviceSize normalBufferOffset = positionBufferOffset + positionBufferSize;
-		std::vector<Byte> uvData;
-		VkDeviceSize uvBufferSize = 0;
-		VkDeviceSize uvBufferOffset = 0;
-		if (geomData->vertexData.find(TEXCOORD) != geomData->vertexData.end())
-		{
-			uvData = geomData->vertexData.at(TEXCOORD);
-			uvBufferSize = sizeof(uvData[0]) * uvData.size();
-			uvBufferOffset = normalBufferOffset + normalBufferSize;
-		}
-		//std::vector<Byte>& materialIDData = geomData->vertexData.at(MATERIALID);
-		//VkDeviceSize materialIDBufferSize = sizeof(materialIDData[0]) * materialIDData.size();
-		//VkDeviceSize materialIDBufferOffset = uvBufferOffset + uvBufferSize;
-
-		VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize + uvBufferSize;// +materialIDBufferSize;
-		vertexBuffer.offsets.insert(std::make_pair(INDEX, indexBufferOffset));
-		vertexBuffer.offsets.insert(std::make_pair(POSITION, positionBufferOffset));
-		vertexBuffer.offsets.insert(std::make_pair(NORMAL, normalBufferOffset));
-		vertexBuffer.offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
-		//vertexBuffer.offsets.insert(std::make_pair(MATERIALID, materialIDBufferOffset));
-
-		// Stage buffer memory on host
-		// We want staging so that we can map the vertex data on the host but
-		// then transfer it to the device local memory for faster performance
-		// This is the recommended way to allocate buffer memory,
-		VulkanBuffer::StorageBuffer staging;
-
-		staging.Create(
+		vertexBuffer.Create(
 			m_vulkanDevice,
-			bufferSize,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+			vertexData
 		);
-
-		// Filling the stage buffer with data
-		void* data;
-		vkMapMemory(m_vulkanDevice->device, staging.memory, 0, bufferSize, 0, &data);
-		memcpy(data, indexData.data(), static_cast<size_t>(indexBufferSize));
-		memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
-		memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
-		memcpy((Byte*)data + uvBufferOffset, uvData.data(), static_cast<size_t>(uvBufferSize));
-		//memcpy((Byte*)data + materialIDBufferOffset, materialIDData.data(), static_cast<size_t>(materialIDBufferSize));
-		vkUnmapMemory(m_vulkanDevice->device, staging.memory);
-
-		// -----------------------------------------
-
-		vertexBuffer.storageBuffer.Create(
-			m_vulkanDevice,
-			bufferSize,
-			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		);
-
-		// Copy over to vertex buffer in device local memory
-		m_vulkanDevice->CopyBuffer(
-			vertexBuffer.storageBuffer,
-			staging,
-			bufferSize
-		);
-
-		// Cleanup staging buffer memory
-		staging.Destroy();
 
 		m_graphics.geometryBuffers.push_back(vertexBuffer);
 	}
@@ -1352,7 +1283,7 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 		// Bind index buffer
 		VkIndexType indexType = VK_INDEX_TYPE_UINT16;
-		if (m_scene->meshesData[b]->attribInfo.at(INDEX).componentTypeByteSize == 4) {
+		if (m_scene->vertexData[b]->attribInfo.at(INDEX).componentTypeByteSize == 4) {
 			indexType = VK_INDEX_TYPE_UINT32;
 		}
 
@@ -1362,7 +1293,7 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_deferred.descriptorSet, 0, nullptr);
 
 		// Record draw command for the triangle!
-		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->meshesData[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
+		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->vertexData[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
 	}
 
 	vkCmdEndRenderPass(m_deferred.commandBuffer);

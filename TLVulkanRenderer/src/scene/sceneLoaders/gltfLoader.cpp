@@ -855,7 +855,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					return true;
 				}
 
-				MeshData* geom = new MeshData();
+				VertexData* geom = new VertexData();
 
 				// -------- Indices ----------
 				{
@@ -1043,7 +1043,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					} // --End of materials
 				} // -- End of attributes
 
-				scene->meshesData.push_back(geom);
+				scene->vertexData.push_back(geom);
 
 				Mesh newMesh;
 				for (unsigned int j = idxOffset; j < scene->indices.size(); j++)
