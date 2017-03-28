@@ -16,7 +16,8 @@ typedef enum {
 	COLOR,
 	TANGENT,
 	BITANGENT,
-	MATERIALID
+	MATERIALID,
+	WIREFRAME
 } EVertexAttribute;
 
 typedef struct VertexAttributeInfoTyp {

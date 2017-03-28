@@ -3,6 +3,7 @@
 #include <vulkan.h>
 #include "scene/SceneUtil.h"
 #include <map>
+#include "geometry/Geometry.h"
 
 class VulkanDevice;
 
@@ -38,16 +39,17 @@ namespace VulkanBuffer {
 		std::map<EVertexAttribute, VkDeviceSize> offsets;
 
 		StorageBuffer storageBuffer;
+		uint32_t indexCount;
 
 		void Create(
 			const VulkanDevice* device,
 			VertexData* meshData
 		);
 
-		void Create(
+		void CreateWireframe(
 			const VulkanDevice* device,
 			const std::vector<uint16_t>& indices,
-			const std::vector<glm::vec3>& positions
+			const std::vector<SWireframeVertexLayout>& vertices
 		);
 	};
 }

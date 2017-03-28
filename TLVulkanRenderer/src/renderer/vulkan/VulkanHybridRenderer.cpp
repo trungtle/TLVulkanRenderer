@@ -30,11 +30,17 @@ VulkanHybridRenderer::Update() {
 
 	// -- Update wireframe
 	glm::mat4 vp = m_scene->camera.GetViewProj();
+	Transform lightTransform(m_deferred.lightsUnif.m_lights[0].position, glm::vec3(), glm::vec3(1));
+	vp = vp * lightTransform.T();
 	m_vulkanDevice->MapMemory(
 		&vp,
 		m_wireframe.uniform.memory,
 		sizeof(vp)
 	);
+
+	UpdateDeferredLightsUniform();
+	UpdateComputeRaytraceUniform();
+
 }
 
 void
@@ -105,7 +111,6 @@ VulkanHybridRenderer::Render() {
 	);
 
 	vkQueuePresentKHR(m_graphics.queue, &presentInfo);
-	UpdateDeferredLightsUniform();
 
 	// ===== Raytracing
 
@@ -126,7 +131,6 @@ VulkanHybridRenderer::Render() {
 	computeSubmitInfo.pCommandBuffers = &m_raytrace.commandBuffer;
 
 	CheckVulkanResult(vkQueueSubmit(m_compute.queue, 1, &computeSubmitInfo, m_raytrace.fence), "failed to submit queue");
-	UpdateComputeRaytraceUniform();
 }
 
 VulkanHybridRenderer::~VulkanHybridRenderer() {
@@ -276,6 +280,21 @@ void VulkanHybridRenderer::PrepareWireframeVertexBuffers()
 	GenerateWireframeBVHNodes();
 
 	// Generate wireframe for lights
+	std::vector<uint16_t> indices;
+	std::vector<SWireframeVertexLayout> vertices;
+	int offset = 0;
+	for (auto l = 0; l < 6; ++l) {
+		Cube c = Cube(m_deferred.lightsUnif.m_lights[l].position, glm::vec3(1, 1, 1));
+		c.GenerateWireframeVertices(offset, indices, vertices, m_deferred.lightsUnif.m_lights[l].color);
+		offset = indices.size();
+	}
+
+	m_deferred.buffers.lightsVertexBuffer.CreateWireframe(
+		m_vulkanDevice,
+		indices,
+		vertices
+	);
+
 }
 
 void VulkanHybridRenderer::PrepareWireframeDescriptorLayout() 
@@ -829,6 +848,17 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframe.BVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
 			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframe.indexCount, 1, 0, 0, 1);
 		}
+		
+		// -- Draw light wireframes
+
+		VkDeviceSize zeroOffset[] = { m_deferred.buffers.lightsVertexBuffer.offsets.at(WIREFRAME) };
+		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipeline);
+		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipelineLayout, 0, 1, &m_wireframe.descriptorSet, 0, NULL);
+		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_deferred.buffers.lightsVertexBuffer.storageBuffer.buffer, zeroOffset);
+		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer.storageBuffer.buffer, m_deferred.buffers.lightsVertexBuffer.offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
+
+		// Record draw command for the triangle!
+		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer.indexCount, 1, 0, 0, 0);
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
@@ -1521,9 +1551,10 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	float SPEED = 32.0f;
 
 	// White
-	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -10.0f, 0.0f, 1.0f);
+	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -2.0f, 0.0f, 1.0f);
 	m_deferred.lightsUnif.m_lights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
 	m_deferred.lightsUnif.m_lights[0].radius = 15.0f;
+
 	// Red
 	m_deferred.lightsUnif.m_lights[1].position = glm::vec4(-2.0f, -6.0f, 0.0f, 0.0f);
 	m_deferred.lightsUnif.m_lights[1].color = glm::vec3(0.6f, 0.2f, 0.2f);

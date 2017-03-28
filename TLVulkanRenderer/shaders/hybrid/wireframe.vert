@@ -16,6 +16,6 @@ void main()
 {
     vec4 position = ubo.mvp * vec4(a_position, 1);
 	v_color = a_color;
-	position.y = -position.y;
+	position.y = position.y;
 	gl_Position = position;
 }

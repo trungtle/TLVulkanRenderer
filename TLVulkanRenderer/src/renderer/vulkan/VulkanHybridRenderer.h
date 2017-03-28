@@ -1,15 +1,9 @@
 #pragma once
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
+#include "geometry/Cube.h"
 
 #define VERTEX_BUFFER_BIND_ID 0
-
-// Texture properties
-#define TEX_DIM 2048
-#define TEX_FILTER VK_FILTER_LINEAR
-
-// Offscreen frame buffer properties
-#define FB_DIM TEX_DIM
 
 class VulkanHybridRenderer : public VulkanRenderer
 {
@@ -205,6 +199,11 @@ protected:
 		struct {
 			VulkanBuffer::StorageBuffer mvpUnifStorage;
 			VulkanBuffer::StorageBuffer lightsUnifStorage;
+
+			// -- Lights wireframe
+			VulkanBuffer::VertexBuffer lightsVertexBuffer;
+
+
 		} buffers;
 	} m_deferred;
 

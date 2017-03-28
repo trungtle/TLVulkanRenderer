@@ -32,6 +32,7 @@ void VulkanBuffer::VertexBuffer::Create(
 	std::vector<Byte>& indexData = vertexData->bytes.at(INDEX);
 	VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
 	VkDeviceSize indexBufferOffset = 0;
+	indexCount = indexData.size();
 
 	// -- Positions
 	std::vector<Byte>& positionData = vertexData->bytes.at(POSITION);
@@ -127,25 +128,24 @@ void VulkanBuffer::VertexBuffer::Create(
 
 	// Cleanup staging buffer memory
 	staging.Destroy();
+
 }
 
 void 
-VulkanBuffer::VertexBuffer::Create(
+VulkanBuffer::VertexBuffer::CreateWireframe(
 	const VulkanDevice* device, 
 	const std::vector<uint16_t>& indices, 
-	const std::vector<glm::vec3>& positions
+	const std::vector<SWireframeVertexLayout>& vertices
 	) 
 {
 	VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
 	VkDeviceSize indexBufferOffset = 0;
-	VkDeviceSize positionBufferSize = sizeof(positions[0]) * positions.size();
-	VkDeviceSize positionBufferOffset = indexBufferSize;
-	VkDeviceSize uvBufferOffset = positionBufferOffset + positionBufferSize;
+	VkDeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
+	VkDeviceSize vertexBufferOffset = indexBufferSize;
 
-	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize;
+	VkDeviceSize bufferSize = indexBufferSize + vertexBufferSize;
 	this->offsets.insert(std::make_pair(INDEX, indexBufferOffset));
-	this->offsets.insert(std::make_pair(POSITION, positionBufferOffset));
-	this->offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
+	this->offsets.insert(std::make_pair(WIREFRAME, vertexBufferOffset));
 
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -163,7 +163,7 @@ VulkanBuffer::VertexBuffer::Create(
 	void* data;
 	vkMapMemory(device->device, staging.memory, 0, bufferSize, 0, &data);
 	memcpy((Byte*)data, (Byte*)indices.data(), static_cast<size_t>(indexBufferSize));
-	memcpy((Byte*)data + positionBufferOffset, (Byte*)positions.data(), static_cast<size_t>(positionBufferSize));
+	memcpy((Byte*)data + vertexBufferOffset, (Byte*)vertices.data(), static_cast<size_t>(vertexBufferSize));
 	vkUnmapMemory(device->device, staging.memory);
 
 	// -----------------------------------------
@@ -184,4 +184,6 @@ VulkanBuffer::VertexBuffer::Create(
 
 	// Cleanup staging buffer memory
 	staging.Destroy();
+
+	indexCount = indices.size();
 }

@@ -43,6 +43,10 @@ public:
 		m_transform = xform;
 	}
 
+	const Transform& GetTransform() const {
+		return m_transform;
+	}
+
 	Material* GetMaterial() const {
 		return m_material;
 	}
