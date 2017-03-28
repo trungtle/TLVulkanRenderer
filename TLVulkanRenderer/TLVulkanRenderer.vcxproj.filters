@@ -51,6 +51,7 @@
     <ClCompile Include="src\geometry\materials\EmissiveMaterial.cpp" />
     <ClCompile Include="src\geometry\materials\TranslucentMaterial.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanBuffer.cpp" />
+    <ClCompile Include="src\geometry\Cube.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -152,6 +153,7 @@
     <ClInclude Include="src\geometry\materials\EmissiveMaterial.h" />
     <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
     <ClInclude Include="src\geometry\materials\TranslucentMaterial.h" />
+    <ClInclude Include="src\geometry\Cube.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

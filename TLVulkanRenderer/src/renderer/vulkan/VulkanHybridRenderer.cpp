@@ -21,10 +21,19 @@ VulkanHybridRenderer::Update() {
 	m_deferred.mvpUnif.m_projection = m_scene->camera.GetProj();
 	m_deferred.mvpUnif.m_view = m_scene->camera.GetView();
 
+	// -- Update deferred
 	m_vulkanDevice->MapMemory(
 		&m_deferred.mvpUnif,
 		m_deferred.buffers.mvpUnifStorage.memory,
 		sizeof(m_deferred.mvpUnif)
+	);
+
+	// -- Update wireframe
+	glm::mat4 vp = m_scene->camera.GetViewProj();
+	m_vulkanDevice->MapMemory(
+		&vp,
+		m_wireframe.uniform.memory,
+		sizeof(vp)
 	);
 }
 
@@ -161,6 +170,7 @@ void VulkanHybridRenderer::Prepare() {
 
 	PrepareDeferred();
 	PrepareComputeRaytrace();
+	PrepareWireframe();
 	PrepareOnscreen();
 }
 
@@ -187,7 +197,7 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 VkResult
 VulkanHybridRenderer::PrepareDescriptorPool() {
 	std::vector<VkDescriptorPoolSize> poolSizes = {
-		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 13),
+		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 14),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 14),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10)
@@ -252,6 +262,194 @@ void VulkanHybridRenderer::PrepareDeferred() {
 	BuildDeferredCommandBuffer();
 }
 
+void VulkanHybridRenderer::PrepareWireframe() 
+{
+	PrepareWireframeVertexBuffers();
+	PrepareWireframeUniformBuffer();
+	PrepareWireframeDescriptorLayout();
+	PrepareWireframeDescriptorSet();
+	PrepareWireframePipeline();
+}
+
+void VulkanHybridRenderer::PrepareWireframeVertexBuffers() 
+{
+	GenerateWireframeBVHNodes();
+
+	// Generate wireframe for lights
+}
+
+void VulkanHybridRenderer::PrepareWireframeDescriptorLayout() 
+{
+	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
+		MakeDescriptorSetLayoutBinding(
+			0,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_SHADER_STAGE_VERTEX_BIT
+		),
+	};
+
+	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo =
+		MakeDescriptorSetLayoutCreateInfo(
+			setLayoutBindings.data(),
+			setLayoutBindings.size()
+		);
+
+	VkResult result = vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorSetLayoutCreateInfo, nullptr, &m_wireframe.descriptorSetLayout);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create descriptor set layout");
+	}
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_wireframe.descriptorSetLayout);
+	CheckVulkanResult(
+		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_wireframe.pipelineLayout),
+		"Failed to create pipeline layout."
+	);
+}
+
+void VulkanHybridRenderer::PrepareWireframeDescriptorSet() 
+{
+	VkDescriptorSetAllocateInfo allocInfo = allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_wireframe.descriptorSetLayout);
+	CheckVulkanResult(
+		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_wireframe.descriptorSet),
+		"Failed to allocate descriptor set"
+	);
+
+	std::vector<VkWriteDescriptorSet> descriptorWrites =
+	{
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			m_wireframe.descriptorSet,
+			0,
+			1,
+			&m_wireframe.uniform.descriptor,
+			nullptr
+		),
+	};
+
+	vkUpdateDescriptorSets(m_vulkanDevice->device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+}
+
+void VulkanHybridRenderer::PrepareWireframeUniformBuffer() 
+{
+	m_wireframe.uniform.Create(
+		m_vulkanDevice,
+		sizeof(glm::mat4),
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	);
+}
+
+void VulkanHybridRenderer::PrepareWireframePipeline() {
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/hybrid/wireframe.vert.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/hybrid/wireframe.frag.spv");
+
+	std::vector<VkVertexInputBindingDescription> bindingDesc = {
+		MakeVertexInputBindingDescription(
+			0, // binding
+			sizeof(SWireframeVertexLayout), // stride
+			VK_VERTEX_INPUT_RATE_VERTEX
+		)
+	};
+
+	// Attribute description (position, normal, texcoord etc.)
+	std::vector<VkVertexInputAttributeDescription> attribDesc = {
+		MakeVertexInputAttributeDescription(
+			0, // binding
+			0, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			0 // offset
+		),
+		MakeVertexInputAttributeDescription(
+			0, // binding
+			1, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			offsetof(SWireframeVertexLayout, color) // offset
+		)
+	};
+
+	VkPipelineVertexInputStateCreateInfo vertexInputStageCreateInfo = MakePipelineVertexInputStateCreateInfo(
+		bindingDesc,
+		attribDesc
+	);
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo =
+		MakePipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+
+	std::vector<VkViewport> viewports = {
+		MakeFullscreenViewport(m_vulkanDevice->m_swapchain.extent)
+	};
+
+	VkRect2D scissor = {};
+	scissor.offset = { 0, 0 };
+	scissor.extent = m_vulkanDevice->m_swapchain.extent;
+
+	std::vector<VkRect2D> scissors = {
+		scissor
+	};
+
+	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = MakePipelineViewportStateCreateInfo(viewports, scissors);
+
+	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = MakePipelineRasterizationStateCreateInfo(
+		VK_POLYGON_MODE_LINE,
+		VK_CULL_MODE_NONE,
+		VK_FRONT_FACE_COUNTER_CLOCKWISE);
+
+	VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo =
+		MakePipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT);
+
+	VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = MakePipelineDepthStencilStateCreateInfo(VK_FALSE, VK_FALSE, VK_COMPARE_OP_NEVER);
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
+	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachmentState.blendEnable = VK_FALSE;
+
+	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
+		colorBlendAttachmentState
+	};
+
+	VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = MakePipelineColorBlendStateCreateInfo(colorBlendAttachments);
+
+	std::vector<VkPipelineShaderStageCreateInfo> shaderCreateInfos = {
+		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShader),
+		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShader)
+	};
+
+	VkGraphicsPipelineCreateInfo pipelineCreateInfo =
+		MakeGraphicsPipelineCreateInfo(
+			shaderCreateInfos,
+			&vertexInputStageCreateInfo,
+			&inputAssemblyStateCreateInfo,
+			nullptr,
+			&viewportStateCreateInfo,
+			&rasterizationStateCreateInfo,
+			&colorBlendStateCreateInfo,
+			&multisampleStateCreateInfo,
+			&depthStencilStateCreateInfo,
+			nullptr,
+			m_wireframe.pipelineLayout,
+			m_graphics.renderPass,
+			0, // Subpass
+			VK_NULL_HANDLE,
+			-1
+		);
+
+	CheckVulkanResult(
+		vkCreateGraphicsPipelines(
+			m_vulkanDevice->device,
+			VK_NULL_HANDLE, // Pipeline caches here
+			1, // Pipeline count
+			&pipelineCreateInfo,
+			nullptr,
+			&m_wireframe.pipeline // Pipelines
+		),
+		"Failed to create graphics pipeline"
+	);
+
+	vkDestroyShaderModule(m_vulkanDevice->device, vertShader, nullptr);
+	vkDestroyShaderModule(m_vulkanDevice->device, fragShader, nullptr);
+}
+
 void VulkanHybridRenderer::PrepareOnscreen() 
 {
 	PrepareOnScreenQuadVertexBuffer();
@@ -288,46 +486,59 @@ void VulkanHybridRenderer::PrepareOnScreenQuadVertexBuffer() {
 	m_quad.positions = positions;
 	m_quad.uvs = uvs;
 
-	VertexData vertexData;
-	VertexAttributeInfo attribInfo;
+	// ----------- Vertex attributes --------------
 
-	// Convert indices
-	attribInfo.byteStride = 0;
-	attribInfo.count = indices.size();
-	attribInfo.componentLength = 1;
-	attribInfo.componentTypeByteSize = 2;
-	const Byte* bytes = reinterpret_cast<const Byte*>(indices.data());
-	vector<Byte> indicesByteVec(bytes, bytes + sizeof(uint16_t) * indices.size());
+	VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
+	VkDeviceSize indexBufferOffset = 0;
+	VkDeviceSize positionBufferSize = sizeof(positions[0]) * positions.size();
+	VkDeviceSize positionBufferOffset = indexBufferSize;
+	VkDeviceSize uvBufferSize = sizeof(uvs[0]) * uvs.size();
+	VkDeviceSize uvBufferOffset = positionBufferOffset + positionBufferSize;
 
-	vertexData.attribInfo.insert(std::make_pair(INDEX, attribInfo));
-	vertexData.bytes.insert(std::make_pair(INDEX, indicesByteVec));
+	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + uvBufferSize;
+	m_onscreen.quadBuffer.offsets.insert(std::make_pair(INDEX, indexBufferOffset));
+	m_onscreen.quadBuffer.offsets.insert(std::make_pair(POSITION, positionBufferOffset));
+	m_onscreen.quadBuffer.offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
 
-	// Convert positions
-	attribInfo.byteStride = 0;
-	attribInfo.count = positions.size();
-	attribInfo.componentLength = 2;
-	attribInfo.componentTypeByteSize = 4;
-	bytes = reinterpret_cast<const Byte*>(&positions[0]);
-	vector<Byte> positionByteVec(bytes, bytes + sizeof(glm::vec2) * positions.size());
-
-	vertexData.attribInfo.insert(std::make_pair(POSITION, attribInfo));
-	vertexData.bytes.insert(std::make_pair(POSITION, positionByteVec));
-
-	// Convert uvs
-	attribInfo.byteStride = 0;
-	attribInfo.count = uvs.size();
-	attribInfo.componentLength = 2;
-	attribInfo.componentTypeByteSize = 4;
-	bytes = reinterpret_cast<const Byte*>(&uvs[0]);
-	vector<Byte> uvByteVec(bytes, bytes + sizeof(glm::vec2) * uvs.size());
-
-	vertexData.attribInfo.insert(std::make_pair(TEXCOORD, attribInfo));
-	vertexData.bytes.insert(std::make_pair(TEXCOORD, uvByteVec));
-
-	m_onscreen.quadBuffer.Create(
+	// Stage buffer memory on host
+	// We want staging so that we can map the vertex data on the host but
+	// then transfer it to the device local memory for faster performance
+	// This is the recommended way to allocate buffer memory,
+	VulkanBuffer::StorageBuffer staging;
+	staging.Create(
 		m_vulkanDevice,
-		&vertexData
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
+
+	// Filling the stage buffer with data
+	void* data;
+	vkMapMemory(m_vulkanDevice->device, staging.memory, 0, bufferSize, 0, &data);
+	memcpy((Byte*)data, (Byte*)indices.data(), static_cast<size_t>(indexBufferSize));
+	memcpy((Byte*)data + positionBufferOffset, (Byte*)positions.data(), static_cast<size_t>(positionBufferSize));
+	memcpy((Byte*)data + uvBufferOffset, (Byte*)uvs.data(), static_cast<size_t>(uvBufferSize));
+	vkUnmapMemory(m_vulkanDevice->device, staging.memory);
+
+	// -----------------------------------------
+
+	m_onscreen.quadBuffer.storageBuffer.Create(
+		m_vulkanDevice,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+	);
+
+	// Copy over to vertex buffer in device local memory
+	m_vulkanDevice->CopyBuffer(
+		m_onscreen.quadBuffer.storageBuffer,
+		staging,
+		bufferSize
+	);
+
+	// Cleanup staging buffer memory
+	staging.Destroy();
+
 	
 }
 
@@ -604,6 +815,20 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 
 		// Record draw command for the triangle!
 		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_quad.indices.size(), 1, 0, 0, 0);
+
+		// -- Draw BVH tree
+
+		auto it = m_config->find("VISUALIZE_SBVH");
+		if (it != m_config->end() && it->second.compare("true") == 0)
+		{
+
+			VkDeviceSize offsets[1] = { 0 };
+			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipeline);
+			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipelineLayout, 0, 1, &m_wireframe.descriptorSet, 0, NULL);
+			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframe.BVHVertices.buffer, offsets);
+			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframe.BVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
+			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframe.indexCount, 1, 0, 0, 1);
+		}
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);

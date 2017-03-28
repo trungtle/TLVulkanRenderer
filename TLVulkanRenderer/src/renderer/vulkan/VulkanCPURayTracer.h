@@ -71,20 +71,10 @@ protected:
 	VulkanImage::Image m_stagingImage;
 	VulkanImage::Image m_displayImage;
 	VulkanBuffer::StorageBuffer m_quadUniform;
-	VulkanBuffer::StorageBuffer m_wireframeBVHVertices;
-	VulkanBuffer::StorageBuffer m_wireframeBVHIndices;
-	VulkanBuffer::StorageBuffer m_wireframeUniform;
-	VkDescriptorSet m_wireframeDescriptorSet;
-	VkDescriptorSetLayout m_wireframeDescriptorLayout;
-	VkPipeline m_wireframePipeline;
-	VkPipelineLayout m_wireframePipelineLayout;
-	uint32_t m_wireframeIndexCount;
 
 	Film m_film;
 
 	std::array<std::thread, 16> m_threads;
 	queue<Ray> m_raysQueue;
 
-	void
-	GenerateWireframeBVHNodes();
 };

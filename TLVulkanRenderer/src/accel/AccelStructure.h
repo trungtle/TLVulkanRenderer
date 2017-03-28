@@ -2,12 +2,6 @@
 #include "geometry/Geometry.h"
 #include <memory>
 
-struct SWireframe
-{
-	glm::vec3 position;
-	glm::vec3 color;
-};
-
 class AccelStructure
 {
 public:
@@ -15,6 +9,6 @@ public:
 	virtual Intersection GetIntersection(Ray& r) = 0;
 	virtual bool DoesIntersect(Ray& r) = 0;
 	virtual bool ShadowRay(Ray& r, ColorRGB& color) = 0;
-	virtual void GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices) = 0;
+	virtual void GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframeVertexLayout>& vertices) = 0;
 	virtual void Destroy() = 0;
 };

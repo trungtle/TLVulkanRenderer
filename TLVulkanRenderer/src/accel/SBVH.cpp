@@ -1115,7 +1115,7 @@ void SBVH::Flatten() {
 	FlattenRecursive(m_root);
 }
 
-void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices)
+void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframeVertexLayout>& vertices)
 {
 	size_t verticeCount = 0;
 	vec3 color;

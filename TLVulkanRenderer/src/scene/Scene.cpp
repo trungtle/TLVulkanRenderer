@@ -6,6 +6,7 @@
 #include "geometry/materials/MetalMaterial.h"
 #include "geometry/materials/GlassMaterial.h"
 #include "geometry/materials/TranslucentMaterial.h"
+#include "geometry/Cube.h"
 
 Scene::Scene(
 	std::string fileName,

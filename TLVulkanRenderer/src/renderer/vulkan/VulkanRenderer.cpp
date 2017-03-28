@@ -945,3 +945,50 @@ VulkanRenderer::Render() {
 
 	vkQueuePresentKHR(m_graphics.queue, &presentInfo);
 }
+
+void VulkanRenderer::GenerateWireframeBVHNodes() {
+
+	std::vector<SWireframeVertexLayout> vertices;
+	std::vector<uint16_t> indices;
+
+	m_scene->m_accel->GenerateVertices(indices, vertices);
+
+	if (indices.size() == 0 || vertices.size() == 0)
+	{
+		return;
+	}
+
+	VkDeviceSize bufferSize = vertices.size() * sizeof(SWireframeVertexLayout);
+	m_vulkanDevice->CreateBufferAndMemory(
+		bufferSize,
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+		m_wireframe.BVHVertices.buffer,
+		m_wireframe.BVHVertices.memory
+	);
+
+	m_vulkanDevice->MapMemory(
+		vertices.data(),
+		m_wireframe.BVHVertices.memory,
+		bufferSize,
+		0
+	);
+
+	bufferSize = indices.size() * sizeof(uint16_t);
+	m_vulkanDevice->CreateBufferAndMemory(
+		bufferSize,
+		VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+		m_wireframe.BVHIndices.buffer,
+		m_wireframe.BVHIndices.memory
+	);
+
+	m_vulkanDevice->MapMemory(
+		indices.data(),
+		m_wireframe.BVHIndices.memory,
+		bufferSize,
+		0
+	);
+
+	m_wireframe.indexCount = indices.size();
+}

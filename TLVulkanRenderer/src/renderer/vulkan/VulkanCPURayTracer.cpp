@@ -160,14 +160,14 @@ VulkanCPURaytracer::~VulkanCPURaytracer()
 	DestroyVulkanImage(m_vulkanDevice, m_stagingImage);
 	DestroyVulkanImage(m_vulkanDevice, m_displayImage);
 	
-	m_wireframeBVHVertices.Destroy();
-	m_wireframeBVHIndices.Destroy();
-	m_wireframeUniform.Destroy();
+	m_wireframe.BVHVertices.Destroy();
+	m_wireframe.BVHIndices.Destroy();
+	m_wireframe.uniform.Destroy();
 	m_quadUniform.Destroy();
 
-	vkDestroyDescriptorSetLayout(m_vulkanDevice->device, m_wireframeDescriptorLayout, nullptr);
-	vkDestroyPipeline(m_vulkanDevice->device, m_wireframePipeline, nullptr);
-	vkDestroyPipelineLayout(m_vulkanDevice->device, m_wireframePipelineLayout, nullptr);
+	vkDestroyDescriptorSetLayout(m_vulkanDevice->device, m_wireframe.descriptorSetLayout, nullptr);
+	vkDestroyPipeline(m_vulkanDevice->device, m_wireframe.pipeline, nullptr);
+	vkDestroyPipelineLayout(m_vulkanDevice->device, m_wireframe.pipelineLayout, nullptr);
 
 	vkDestroyImage(m_vulkanDevice->device, m_stagingImage.image, nullptr);
 	vkFreeMemory(m_vulkanDevice->device, m_stagingImage.imageMemory, nullptr);
@@ -185,9 +185,9 @@ VulkanCPURaytracer::Update() {
 	glm::mat4 vp = m_scene->camera.GetViewProj();
 
 	uint8_t *pData;
-	vkMapMemory(m_vulkanDevice->device, m_wireframeUniform.memory, 0, sizeof(vp), 0, (void **)&pData);
+	vkMapMemory(m_vulkanDevice->device, m_wireframe.uniform.memory, 0, sizeof(vp), 0, (void **)&pData);
 	memcpy(pData, &vp, sizeof(vp));
-	vkUnmapMemory(m_vulkanDevice->device, m_wireframeUniform.memory);
+	vkUnmapMemory(m_vulkanDevice->device, m_wireframe.uniform.memory);
 
 }
 
@@ -495,14 +495,14 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 			0, // binding
 			1, // location
 			VK_FORMAT_R32G32B32_SFLOAT,
-			offsetof(SWireframe, color) // offset
+			offsetof(SWireframeVertexLayout, color) // offset
 		)
 	};
 
 	bindingDesc = {
 		MakeVertexInputBindingDescription(
 			0, // binding
-			sizeof(SWireframe), // stride
+			sizeof(SWireframeVertexLayout), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		)
 	};
@@ -529,12 +529,9 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 		&multisampleStateCreateInfo,
 		&depthStencilStateCreateInfo,
 		nullptr,
-		m_wireframePipelineLayout,
+		m_wireframe.pipelineLayout,
 		m_graphics.renderPass,
 		0, // Subpass
-
-		   // Since pipelins are expensive to create, potentially we could reuse a common parent pipeline using the base pipeline handle.									
-		   // We just have one here so we don't need to specify these values.
 		VK_NULL_HANDLE,
 		-1
 	);
@@ -546,7 +543,7 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 			1, // Pipeline count
 			&wireframePipelineCreateInfo,
 			nullptr,
-			&m_wireframePipeline // Pipelines
+			&m_wireframe.pipeline // Pipelines
 		),
 		"Failed to create graphics pipeline"
 	);
@@ -657,7 +654,7 @@ VkResult VulkanCPURaytracer::PrepareUniforms()
 	);
 
 	// === Wireframe === //
-	m_wireframeUniform.Create(
+	m_wireframe.uniform.Create(
 		m_vulkanDevice,
 		sizeof(glm::mat4),
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -734,17 +731,16 @@ VkResult VulkanCPURaytracer::PrepareDescriptorLayouts()
 			setLayoutBindings.size()
 		);
 
-	result = vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorSetLayoutCreateInfo, nullptr, &m_wireframeDescriptorLayout);
+	result = vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorSetLayoutCreateInfo, nullptr, &m_wireframe.descriptorSetLayout);
 	if (result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create descriptor set layout");
 		return result;
 	}
 
-	pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_wireframeDescriptorLayout);
-	pipelineLayoutCreateInfo.pSetLayouts = &m_wireframeDescriptorLayout;
+	pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_wireframe.descriptorSetLayout);
 	CheckVulkanResult(
-		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_wireframePipelineLayout),
+		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_wireframe.pipelineLayout),
 		"Failed to create pipeline layout."
 	);
 
@@ -798,9 +794,9 @@ VkResult VulkanCPURaytracer::PrepareDescriptorSets() {
 	vkUpdateDescriptorSets(m_vulkanDevice->device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 
 	// === Wireframe
-	allocInfo = allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_wireframeDescriptorLayout);
+	allocInfo = allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_wireframe.descriptorSetLayout);
 	CheckVulkanResult(
-		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_wireframeDescriptorSet),
+		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_wireframe.descriptorSet),
 		"Failed to allocate descriptor set"
 	);
 
@@ -808,10 +804,10 @@ VkResult VulkanCPURaytracer::PrepareDescriptorSets() {
 	{
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			m_wireframeDescriptorSet,
+			m_wireframe.descriptorSet,
 			0,
 			1,
-			&m_wireframeUniform.descriptor,
+			&m_wireframe.uniform.descriptor,
 			nullptr
 		),
 	};
@@ -895,11 +891,11 @@ VkResult VulkanCPURaytracer::BuildCommandBuffers() {
 		if (it != m_config->end() && it->second.compare("true") == 0) {
 
 			VkDeviceSize offsets[1] = { 0 };
-			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipeline);
-			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframePipelineLayout, 0, 1, &m_wireframeDescriptorSet, 0, NULL);
-			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframeBVHVertices.buffer, offsets);
-			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframeBVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
-			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframeIndexCount, 1, 0, 0, 1);
+			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipeline);
+			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipelineLayout, 0, 1, &m_wireframe.descriptorSet, 0, NULL);
+			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframe.BVHVertices.buffer, offsets);
+			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframe.BVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
+			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframe.indexCount, 1, 0, 0, 1);
 		}
 
 		// Record end renderpass
@@ -1026,49 +1022,3 @@ void VulkanCPURaytracer::PrepareTextures() {
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void VulkanCPURaytracer::GenerateWireframeBVHNodes() {
-
-	std::vector<SWireframe> vertices;
-	std::vector<uint16_t> indices;
-
-	m_scene->m_accel->GenerateVertices(indices, vertices);
-
-	if (indices.size() == 0 || vertices.size() == 0)
-	{
-		return;
-	}
-
-	VkDeviceSize bufferSize = vertices.size() * sizeof(SWireframe);
-	m_vulkanDevice->CreateBufferAndMemory(
-		bufferSize,
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-		m_wireframeBVHVertices.buffer,
-		m_wireframeBVHVertices.memory
-	);
-
-	m_vulkanDevice->MapMemory(
-		vertices.data(),
-		m_wireframeBVHVertices.memory,
-		bufferSize,
-		0
-	);
-
-	bufferSize = indices.size() * sizeof(uint16_t);
-	m_vulkanDevice->CreateBufferAndMemory(
-		bufferSize,
-		VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-		m_wireframeBVHIndices.buffer,
-		m_wireframeBVHIndices.memory
-	);
-
-	m_vulkanDevice->MapMemory(
-		indices.data(),
-		m_wireframeBVHIndices.memory,
-		bufferSize,
-		0
-	);
-
-	m_wireframeIndexCount = indices.size();
-}

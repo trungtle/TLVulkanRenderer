@@ -47,9 +47,9 @@ void main()
 
 	vec4 color = texture(samplerColor, inUV);
 
-	for (int l = 0; i < 6; ++i) {
-		if (lightsUBO[i].position == vec4(inWorldPos, 1)) {
-			color = vec3(1, 1, 1);
+	for (int i = 0; i < 6; ++i) {
+		if (lightsUBO.lights[i].position == vec4(inWorldPos, 1)) {
+			color = vec4(1, 1, 1, 1);
 		}
 	}
 

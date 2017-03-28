@@ -84,6 +84,9 @@ protected:
 	VkResult
 	PrepareRenderPass();
 
+	void
+	GenerateWireframeBVHNodes();
+
 	// ----------------
 	// GRAPHICS PIPELINE
 	// ----------------
@@ -178,6 +181,25 @@ protected:
 
 
 	} m_graphics;
+
+	struct Wireframe
+	{
+		// -- Pipeline
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+
+		// -- Descriptor
+		VkDescriptorSetLayout descriptorSetLayout;
+		VkDescriptorSet descriptorSet;
+
+		// count
+		uint32_t indexCount;
+
+		VulkanBuffer::StorageBuffer BVHVertices;
+		VulkanBuffer::StorageBuffer BVHIndices;
+		VulkanBuffer::StorageBuffer uniform;
+
+	} m_wireframe;
 
 	struct Compute
 	{

@@ -128,3 +128,60 @@ void VulkanBuffer::VertexBuffer::Create(
 	// Cleanup staging buffer memory
 	staging.Destroy();
 }
+
+void 
+VulkanBuffer::VertexBuffer::Create(
+	const VulkanDevice* device, 
+	const std::vector<uint16_t>& indices, 
+	const std::vector<glm::vec3>& positions
+	) 
+{
+	VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
+	VkDeviceSize indexBufferOffset = 0;
+	VkDeviceSize positionBufferSize = sizeof(positions[0]) * positions.size();
+	VkDeviceSize positionBufferOffset = indexBufferSize;
+	VkDeviceSize uvBufferOffset = positionBufferOffset + positionBufferSize;
+
+	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize;
+	this->offsets.insert(std::make_pair(INDEX, indexBufferOffset));
+	this->offsets.insert(std::make_pair(POSITION, positionBufferOffset));
+	this->offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
+
+	// Stage buffer memory on host
+	// We want staging so that we can map the vertex data on the host but
+	// then transfer it to the device local memory for faster performance
+	// This is the recommended way to allocate buffer memory,
+	VulkanBuffer::StorageBuffer staging;
+	staging.Create(
+		device,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	);
+
+	// Filling the stage buffer with data
+	void* data;
+	vkMapMemory(device->device, staging.memory, 0, bufferSize, 0, &data);
+	memcpy((Byte*)data, (Byte*)indices.data(), static_cast<size_t>(indexBufferSize));
+	memcpy((Byte*)data + positionBufferOffset, (Byte*)positions.data(), static_cast<size_t>(positionBufferSize));
+	vkUnmapMemory(device->device, staging.memory);
+
+	// -----------------------------------------
+
+	this->storageBuffer.Create(
+		device,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+	);
+
+	// Copy over to vertex buffer in device local memory
+	device->CopyBuffer(
+		this->storageBuffer,
+		staging,
+		bufferSize
+	);
+
+	// Cleanup staging buffer memory
+	staging.Destroy();
+}

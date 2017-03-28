@@ -163,6 +163,7 @@
     <ClInclude Include="src\Application.h" />
     <ClInclude Include="src\Color.h" />
     <ClInclude Include="src\geometry\BBox.h" />
+    <ClInclude Include="src\geometry\Cube.h" />
     <ClInclude Include="src\geometry\Geometry.h" />
     <ClInclude Include="src\geometry\materials\EmissiveMaterial.h" />
     <ClInclude Include="src\geometry\materials\GlassMaterial.h" />
@@ -250,6 +251,7 @@
   <ItemGroup>
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\geometry\BBox.cpp" />
+    <ClCompile Include="src\geometry\Cube.cpp" />
     <ClCompile Include="src\geometry\Geometry.cpp" />
     <ClCompile Include="src\geometry\materials\EmissiveMaterial.cpp" />
     <ClCompile Include="src\geometry\materials\GlassMaterial.cpp" />

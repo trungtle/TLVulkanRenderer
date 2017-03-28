@@ -136,7 +136,7 @@ public:
 		std::vector<std::shared_ptr<Geometry>>& geoms
 	) override;
 
-	void GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframe>& vertices) override;
+	void GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframeVertexLayout>& vertices) override;
 	Intersection GetIntersection(Ray& r) override;
 	bool DoesIntersect(Ray& r) override;
 	bool ShadowRay(

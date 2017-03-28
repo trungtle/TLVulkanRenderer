@@ -81,14 +81,24 @@ protected:
 	// -----------
 	// WIREFRAME
 	// -----------
+	void
+		PrepareWireframe();
 
-	struct Wireframe
-	{
-		VkPipelineLayout pipelineLayout;
-		VkPipeline pipeline;
-		VkDescriptorSetLayout descriptorSetLayout;
-		VkDescriptorSet descriptorSet;
-	} m_wireframe;
+	void
+		PrepareWireframeVertexBuffers();
+
+	void
+		PrepareWireframeDescriptorLayout();
+
+	void
+		PrepareWireframeDescriptorSet();
+
+	void
+		PrepareWireframeUniformBuffer();
+
+	void
+		PrepareWireframePipeline();
+
 
 	// -----------
 	// ON SCREEN

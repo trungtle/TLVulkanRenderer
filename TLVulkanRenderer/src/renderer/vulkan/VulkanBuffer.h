@@ -43,5 +43,11 @@ namespace VulkanBuffer {
 			const VulkanDevice* device,
 			VertexData* meshData
 		);
+
+		void Create(
+			const VulkanDevice* device,
+			const std::vector<uint16_t>& indices,
+			const std::vector<glm::vec3>& positions
+		);
 	};
 }
