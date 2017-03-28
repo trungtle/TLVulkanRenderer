@@ -31,7 +31,7 @@ typedef struct VertexAttributeInfoTyp {
 // ----------
 
 struct VertexData {
-	std::map<EVertexAttribute, std::vector<Byte>> vertexData;
+	std::map<EVertexAttribute, std::vector<Byte>> bytes;
 	std::map<EVertexAttribute, VertexAttributeInfo> attribInfo;
 };
 

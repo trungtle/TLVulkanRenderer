@@ -29,21 +29,21 @@ void VulkanBuffer::VertexBuffer::Create(
 	// At the mimum we always have indices and position
 
 	// -- Indices
-	std::vector<Byte>& indexData = vertexData->vertexData.at(INDEX);
+	std::vector<Byte>& indexData = vertexData->bytes.at(INDEX);
 	VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
 	VkDeviceSize indexBufferOffset = 0;
 
 	// -- Positions
-	std::vector<Byte>& positionData = vertexData->vertexData.at(POSITION);
+	std::vector<Byte>& positionData = vertexData->bytes.at(POSITION);
 	VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
 	VkDeviceSize positionBufferOffset = indexBufferSize;
 
 	// -- Normals
 	std::vector<Byte> normalData;
 	VkDeviceSize normalBufferSize = 0, normalBufferOffset = 0;
-	if (vertexData->vertexData.find(NORMAL) != vertexData->vertexData.end())
+	if (vertexData->bytes.find(NORMAL) != vertexData->bytes.end())
 	{
-		normalData = vertexData->vertexData.at(NORMAL);
+		normalData = vertexData->bytes.at(NORMAL);
 		normalBufferSize = sizeof(normalData[0]) * normalData.size();
 		normalBufferOffset = positionBufferOffset + positionBufferSize;
 	}
@@ -52,9 +52,9 @@ void VulkanBuffer::VertexBuffer::Create(
 	std::vector<Byte> uvData;
 	VkDeviceSize uvBufferSize = 0;
 	VkDeviceSize uvBufferOffset = 0;
-	if (vertexData->vertexData.find(TEXCOORD) != vertexData->vertexData.end())
+	if (vertexData->bytes.find(TEXCOORD) != vertexData->bytes.end())
 	{
-		uvData = vertexData->vertexData.at(TEXCOORD);
+		uvData = vertexData->bytes.at(TEXCOORD);
 		uvBufferSize = sizeof(uvData[0]) * uvData.size();
 		uvBufferOffset = normalBufferOffset + normalBufferSize;
 	}
@@ -62,7 +62,18 @@ void VulkanBuffer::VertexBuffer::Create(
 	//VkDeviceSize materialIDBufferSize = sizeof(materialIDData[0]) * materialIDData.size();
 	//VkDeviceSize materialIDBufferOffset = uvBufferOffset + uvBufferSize;
 
-	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize + uvBufferSize;// +materialIDBufferSize;
+	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize;
+	
+	if (vertexData->bytes.find(NORMAL) != vertexData->bytes.end())
+	{
+		bufferSize += normalBufferSize;
+	}
+	if (vertexData->bytes.find(TEXCOORD) != vertexData->bytes.end())
+	{
+		bufferSize += uvBufferSize;
+	}
+	// +materialIDBufferSize;
+
 	this->offsets.insert(std::make_pair(INDEX, indexBufferOffset));
 	this->offsets.insert(std::make_pair(POSITION, positionBufferOffset));
 	this->offsets.insert(std::make_pair(NORMAL, normalBufferOffset));
@@ -87,8 +98,14 @@ void VulkanBuffer::VertexBuffer::Create(
 	vkMapMemory(vulkanDevice->device, staging.memory, 0, bufferSize, 0, &data);
 	memcpy(data, indexData.data(), static_cast<size_t>(indexBufferSize));
 	memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
-	memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
-	memcpy((Byte*)data + uvBufferOffset, uvData.data(), static_cast<size_t>(uvBufferSize));
+	if (vertexData->bytes.find(NORMAL) != vertexData->bytes.end())
+	{
+		memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
+	}
+	if (vertexData->bytes.find(TEXCOORD) != vertexData->bytes.end())
+	{
+		memcpy((Byte*)data + uvBufferOffset, uvData.data(), static_cast<size_t>(uvBufferSize));
+	}
 	//memcpy((Byte*)data + materialIDBufferOffset, materialIDData.data(), static_cast<size_t>(materialIDBufferSize));
 	vkUnmapMemory(vulkanDevice->device, staging.memory);
 

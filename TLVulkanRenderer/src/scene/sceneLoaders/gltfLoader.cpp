@@ -881,7 +881,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 						componentTypeByteSize
 					};
 					geom->attribInfo.insert(std::make_pair(EVertexAttribute::INDEX, attributeInfo));
-					geom->vertexData.insert(std::make_pair(EVertexAttribute::INDEX, data));
+					geom->bytes.insert(std::make_pair(EVertexAttribute::INDEX, data));
 
 					int indicesCount = indexAccessor.count;
 					switch (componentTypeByteSize) {
@@ -912,7 +912,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					}
 
 					geom->attribInfo.insert(std::make_pair(EVertexAttribute::MATERIALID, attributeInfo));
-					geom->vertexData.insert(std::make_pair(EVertexAttribute::MATERIALID, materialIdData));
+					geom->bytes.insert(std::make_pair(EVertexAttribute::MATERIALID, materialIdData));
 				}
 
 				// -------- Attributes -----------
@@ -978,7 +978,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 						componentTypeByteSize
 					};
 					geom->attribInfo.insert(std::make_pair(attributeType, attributeInfo));
-					geom->vertexData.insert(std::make_pair(attributeType, data));
+					geom->bytes.insert(std::make_pair(attributeType, data));
 
 					// ----------Materials-------------
 

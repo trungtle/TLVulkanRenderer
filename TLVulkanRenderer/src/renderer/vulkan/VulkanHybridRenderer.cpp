@@ -288,58 +288,47 @@ void VulkanHybridRenderer::PrepareOnScreenQuadVertexBuffer() {
 	m_quad.positions = positions;
 	m_quad.uvs = uvs;
 
-	// ----------- Vertex attributes --------------
+	VertexData vertexData;
+	VertexAttributeInfo attribInfo;
 
-	VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
-	VkDeviceSize indexBufferOffset = 0;
-	VkDeviceSize positionBufferSize = sizeof(positions[0]) * positions.size();
-	VkDeviceSize positionBufferOffset = indexBufferSize;
-	VkDeviceSize uvBufferSize = sizeof(uvs[0]) * uvs.size();
-	VkDeviceSize uvBufferOffset = positionBufferOffset + positionBufferSize;
+	// Convert indices
+	attribInfo.byteStride = 0;
+	attribInfo.count = indices.size();
+	attribInfo.componentLength = 1;
+	attribInfo.componentTypeByteSize = 2;
+	const Byte* bytes = reinterpret_cast<const Byte*>(indices.data());
+	vector<Byte> indicesByteVec(bytes, bytes + sizeof(uint16_t) * indices.size());
 
-	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + uvBufferSize;
-	m_onscreen.quadBuffer.offsets.insert(std::make_pair(INDEX, indexBufferOffset));
-	m_onscreen.quadBuffer.offsets.insert(std::make_pair(POSITION, positionBufferOffset));
-	m_onscreen.quadBuffer.offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
+	vertexData.attribInfo.insert(std::make_pair(INDEX, attribInfo));
+	vertexData.bytes.insert(std::make_pair(INDEX, indicesByteVec));
 
-	// Stage buffer memory on host
-	// We want staging so that we can map the vertex data on the host but
-	// then transfer it to the device local memory for faster performance
-	// This is the recommended way to allocate buffer memory,
-	VulkanBuffer::StorageBuffer staging;
-	staging.Create(
+	// Convert positions
+	attribInfo.byteStride = 0;
+	attribInfo.count = positions.size();
+	attribInfo.componentLength = 2;
+	attribInfo.componentTypeByteSize = 4;
+	bytes = reinterpret_cast<const Byte*>(&positions[0]);
+	vector<Byte> positionByteVec(bytes, bytes + sizeof(glm::vec2) * positions.size());
+
+	vertexData.attribInfo.insert(std::make_pair(POSITION, attribInfo));
+	vertexData.bytes.insert(std::make_pair(POSITION, positionByteVec));
+
+	// Convert uvs
+	attribInfo.byteStride = 0;
+	attribInfo.count = uvs.size();
+	attribInfo.componentLength = 2;
+	attribInfo.componentTypeByteSize = 4;
+	bytes = reinterpret_cast<const Byte*>(&uvs[0]);
+	vector<Byte> uvByteVec(bytes, bytes + sizeof(glm::vec2) * uvs.size());
+
+	vertexData.attribInfo.insert(std::make_pair(TEXCOORD, attribInfo));
+	vertexData.bytes.insert(std::make_pair(TEXCOORD, uvByteVec));
+
+	m_onscreen.quadBuffer.Create(
 		m_vulkanDevice,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		&vertexData
 	);
-
-	// Filling the stage buffer with data
-	void* data;
-	vkMapMemory(m_vulkanDevice->device, staging.memory, 0, bufferSize, 0, &data);
-	memcpy((Byte*)data, (Byte*)indices.data(), static_cast<size_t>(indexBufferSize));
-	memcpy((Byte*)data + positionBufferOffset, (Byte*)positions.data(), static_cast<size_t>(positionBufferSize));
-	memcpy((Byte*)data + uvBufferOffset, (Byte*)uvs.data(), static_cast<size_t>(uvBufferSize));
-	vkUnmapMemory(m_vulkanDevice->device, staging.memory);
-
-	// -----------------------------------------
-
-	m_onscreen.quadBuffer.storageBuffer.Create(
-		m_vulkanDevice,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		);
-
-	// Copy over to vertex buffer in device local memory
-	m_vulkanDevice->CopyBuffer(
-		m_onscreen.quadBuffer.storageBuffer,
-		staging,
-		bufferSize
-	);
-
-	// Cleanup staging buffer memory
-	staging.Destroy();
+	
 }
 
 void VulkanHybridRenderer::PrepareOnscreenDescriptorLayout() 

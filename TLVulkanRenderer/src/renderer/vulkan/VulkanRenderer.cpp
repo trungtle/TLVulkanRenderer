@@ -608,13 +608,13 @@ VulkanRenderer::PrepareVertexBuffers() {
 
 		// ----------- Vertex attributes --------------
 
-		std::vector<Byte>& indexData = geomData->vertexData.at(INDEX);
+		std::vector<Byte>& indexData = geomData->bytes.at(INDEX);
 		VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
 		VkDeviceSize indexBufferOffset = 0;
-		std::vector<Byte>& positionData = geomData->vertexData.at(POSITION);
+		std::vector<Byte>& positionData = geomData->bytes.at(POSITION);
 		VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
 		VkDeviceSize positionBufferOffset = indexBufferSize;
-		std::vector<Byte>& normalData = geomData->vertexData.at(NORMAL);
+		std::vector<Byte>& normalData = geomData->bytes.at(NORMAL);
 		VkDeviceSize normalBufferSize = sizeof(normalData[0]) * normalData.size();
 		VkDeviceSize normalBufferOffset = positionBufferOffset + positionBufferSize;
 
