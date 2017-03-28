@@ -631,8 +631,6 @@ VkResult VulkanCPURaytracer::PrepareVertexBuffers() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		vertexBuffer.storageBuffer,
 		staging,
 		bufferSize

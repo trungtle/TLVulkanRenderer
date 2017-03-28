@@ -415,6 +415,30 @@ void VulkanDevice::Initialize(GLFWwindow* window) {
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created swapchain");
 
+	// Command pool for misc. usage (etc CopyBuffer)
+	VkCommandPoolCreateInfo cmdPoolCreateInfo = VulkanUtil::Make::MakeCommandPoolCreateInfo(this->queueFamilyIndices.graphicsFamily);
+
+	result = vkCreateCommandPool(this->device, &cmdPoolCreateInfo, nullptr, &m_graphicsDeviceQueue.cmdPool);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create command pool.");
+	}
+
+	// Get device queue for compute
+	vkGetDeviceQueue(this->device, this->queueFamilyIndices.graphicsFamily, 0, &m_graphicsDeviceQueue.queue);
+
+	// Command pool for misc. usage (etc CopyBuffer)
+	cmdPoolCreateInfo = VulkanUtil::Make::MakeCommandPoolCreateInfo(this->queueFamilyIndices.computeFamily);
+
+	result = vkCreateCommandPool(this->device, &cmdPoolCreateInfo, nullptr, &m_computeDeviceQueue.cmdPool);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create command pool.");
+	}
+
+	// Get device queue for compute
+	vkGetDeviceQueue(this->device, this->queueFamilyIndices.computeFamily, 0, &m_computeDeviceQueue.queue);
+
 }
 
 void
@@ -694,19 +718,21 @@ VulkanDevice::CreateBufferAndMemory(
 
 void
 VulkanDevice::CopyBuffer(
-	VkQueue queue,
-	VkCommandPool commandPool,
 	VulkanBuffer::StorageBuffer dstBuffer,
 	VulkanBuffer::StorageBuffer srcBuffer,
-	VkDeviceSize size
+	VkDeviceSize size,
+	bool isCompute
 ) const {
-	VkCommandBuffer copyCommandBuffer = BeginSingleTimeCommands(commandPool);
+	VkCommandPool cmdPool = isCompute ? m_computeDeviceQueue.cmdPool : m_graphicsDeviceQueue.cmdPool;
+	VkQueue queue = isCompute ? m_computeDeviceQueue.queue : m_graphicsDeviceQueue.queue;
+
+	VkCommandBuffer copyCommandBuffer = BeginSingleTimeCommands(cmdPool);
 
 	VkBufferCopy copyRegion = {};
 	copyRegion.size = size;
 	vkCmdCopyBuffer(copyCommandBuffer, srcBuffer.buffer, dstBuffer.buffer, 1, &copyRegion);
 
-	EndSingleTimeCommands(queue, commandPool, copyCommandBuffer);
+	EndSingleTimeCommands(queue, cmdPool, copyCommandBuffer);
 }
 
 void

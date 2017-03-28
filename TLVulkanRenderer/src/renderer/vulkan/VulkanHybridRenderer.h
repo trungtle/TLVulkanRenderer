@@ -65,7 +65,7 @@ protected:
 		float radius;
 	};
 
-	struct SFragShaderUniforms
+	struct LightUniform
 	{
 		SSceneLight m_lights[6];
 		glm::vec4	m_viewPos;
@@ -190,7 +190,7 @@ protected:
 
 		// -- Uniforms
 		SVertexShaderUniforms mvpUnif;
-		SFragShaderUniforms lightsUnif;
+		LightUniform lightsUnif;
 
 		struct {
 			VulkanBuffer::StorageBuffer mvpUnifStorage;

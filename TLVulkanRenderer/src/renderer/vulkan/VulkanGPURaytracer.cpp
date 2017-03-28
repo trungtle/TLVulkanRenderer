@@ -29,11 +29,11 @@ VulkanGPURaytracer::Update() {
 	);
 
 	m_vulkanDevice->CopyBuffer(
-		m_raytrace.queue,
-		m_raytrace.commandPool,
 		m_raytrace.buffers.uniform,
 		m_raytrace.buffers.stagingUniform,
-		sizeof(m_raytrace.ubo));
+		sizeof(m_raytrace.ubo),
+		true
+	);
 }
 
 void
@@ -208,11 +208,10 @@ VulkanGPURaytracer::PrepareVertexBuffers() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		vertexBuffer.storageBuffer,
 		staging,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	// Cleanup staging buffer memory
@@ -795,11 +794,10 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_raytrace.queue,
-		m_raytrace.commandPool,
 		m_raytrace.buffers.indices,
 		stagingBuffer,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	m_raytrace.buffers.indices.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.indices.buffer, 0, bufferSize);
@@ -839,11 +837,10 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_raytrace.queue,
-		m_raytrace.commandPool,
 		m_raytrace.buffers.verticePositions,
 		stagingBuffer,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	m_raytrace.buffers.verticePositions.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.verticePositions.buffer, 0, bufferSize);
@@ -883,11 +880,10 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_raytrace.queue,
-		m_raytrace.commandPool,
 		m_raytrace.buffers.verticeNormals,
 		stagingBuffer,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	m_raytrace.buffers.verticeNormals.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.verticeNormals.buffer, 0, bufferSize);
@@ -940,11 +936,10 @@ void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 	);
 
 	m_vulkanDevice->CopyBuffer(
-		m_raytrace.queue,
-		m_raytrace.commandPool,
 		m_raytrace.buffers.uniform,
 		m_raytrace.buffers.stagingUniform,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	m_raytrace.buffers.uniform.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.uniform.buffer, 0, bufferSize);
@@ -979,8 +974,6 @@ void VulkanGPURaytracer::PrepareComputeRaytraceUniformBuffer() {
 	);
 
 	m_vulkanDevice->CopyBuffer(
-		m_raytrace.queue,
-		m_raytrace.commandPool,
 		m_raytrace.buffers.materials,
 		staging,
 		bufferSize

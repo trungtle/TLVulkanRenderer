@@ -655,8 +655,6 @@ VulkanRenderer::PrepareVertexBuffers() {
 
 		// Copy over to vertex buffer in device local memory
 		m_vulkanDevice->CopyBuffer(
-			m_graphics.queue,
-			m_graphics.commandPool,
 			geomBuffer.storageBuffer,
 			staging,
 			bufferSize
@@ -902,8 +900,6 @@ VulkanRenderer::Update() {
 	);
 
 	m_vulkanDevice->CopyBuffer(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_graphics.uniformStorage,
 		m_graphics.uniformStaging,
 		sizeof(GraphicsUniformBufferObject));

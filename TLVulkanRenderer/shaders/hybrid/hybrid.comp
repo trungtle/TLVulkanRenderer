@@ -167,9 +167,9 @@ vec3 getPointOnRay(Ray r, float t) {
 void buildTriangle(int i, inout Triangle tri) {
 	
 	tri.materialId = indicesAndMaterialID[i].w;
-	tri.vert0 = vec3(positions[indicesAndMaterialID[i].x]);
-	tri.vert1 = vec3(positions[indicesAndMaterialID[i].y]);
-	tri.vert2 = vec3(positions[indicesAndMaterialID[i].z]);
+	tri.vert0 = vec3(10, 5, 0);//vec3(positions[indicesAndMaterialID[i].x]);
+	tri.vert1 = vec3(0, 5, 0);//vec3(positions[indicesAndMaterialID[i].y]);
+	tri.vert2 = vec3(0, 5, 5);//vec3(positions[indicesAndMaterialID[i].z]);
 	tri.norm0 = vec3(normals[indicesAndMaterialID[i].x]);
 	tri.norm1 = vec3(normals[indicesAndMaterialID[i].y]);
 	tri.norm2 = vec3(normals[indicesAndMaterialID[i].z]);
@@ -598,11 +598,10 @@ void shadeMaterial(
 		feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
 		feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
-
 		float shadow = calcShadow(feeler, intersect.materialId, dist); 
 	
 		// Attenuation
-		//float atten = ubo.lights[i].radius - dist;//ubo.lights[i].radius / (pow(dist, 2.0) + 1.0);
+		float atten = ubo.lights[i].radius / (pow(dist, 2.0) + 1.0);
 		
 		// Diffuse
 		float diffuse = lightDiffuse(intersect.hitNormal, lightVec);
@@ -612,7 +611,7 @@ void shadeMaterial(
 		//float specular = lightSpecular(vec3(ubo.cameraPosition), intersect.hitNormal, lightVec, 5);
 		//vec3 specularColor = specular * vec3(material.specular); 
 		
-		path.color += diffuseColor;// * ubo.lights[i].color * atten;
+		path.color += diffuseColor * ubo.lights[i].color * atten;
 		path.color *= shadow;
 	}
 }

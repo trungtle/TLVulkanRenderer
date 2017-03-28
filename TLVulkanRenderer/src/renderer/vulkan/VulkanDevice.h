@@ -73,6 +73,15 @@ public:
 
 	VulkanImage::Image m_depthTexture;
 
+	struct DeviceQueue
+	{
+		VkCommandPool cmdPool;
+		VkQueue queue;
+	};
+	
+	DeviceQueue m_graphicsDeviceQueue;
+	DeviceQueue m_computeDeviceQueue;
+
 	/**
 	* \brief A struct to store queue family indices
 	*/
@@ -155,11 +164,10 @@ public:
 
 	void
 	CopyBuffer(
-		VkQueue queue,
-		VkCommandPool commandPool,
 		VulkanBuffer::StorageBuffer dstBuffer,
 		VulkanBuffer::StorageBuffer srcBuffer,
-		VkDeviceSize size
+		VkDeviceSize size,
+		bool isCompute = false // Set to true if using compute buffers
 	) const;
 
 	void

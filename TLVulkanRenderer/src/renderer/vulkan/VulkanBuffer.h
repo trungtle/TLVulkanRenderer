@@ -38,5 +38,10 @@ namespace VulkanBuffer {
 		std::map<EVertexAttribute, VkDeviceSize> offsets;
 
 		StorageBuffer storageBuffer;
+
+		void Create(
+			const VulkanDevice* device,
+			MeshData* meshData
+		);
 	};
 }

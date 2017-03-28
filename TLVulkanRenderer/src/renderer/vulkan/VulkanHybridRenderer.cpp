@@ -194,16 +194,16 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 			uvBufferSize = sizeof(uvData[0]) * uvData.size();
 			uvBufferOffset = normalBufferOffset + normalBufferSize;
 		}
-		std::vector<Byte>& materialIDData = geomData->vertexData.at(MATERIALID);
-		VkDeviceSize materialIDBufferSize = sizeof(materialIDData[0]) * materialIDData.size();
-		VkDeviceSize materialIDBufferOffset = uvBufferOffset + uvBufferSize;
+		//std::vector<Byte>& materialIDData = geomData->vertexData.at(MATERIALID);
+		//VkDeviceSize materialIDBufferSize = sizeof(materialIDData[0]) * materialIDData.size();
+		//VkDeviceSize materialIDBufferOffset = uvBufferOffset + uvBufferSize;
 
-		VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize + uvBufferSize + materialIDBufferSize;
+		VkDeviceSize bufferSize = indexBufferSize + positionBufferSize + normalBufferSize + uvBufferSize;// +materialIDBufferSize;
 		vertexBuffer.offsets.insert(std::make_pair(INDEX, indexBufferOffset));
 		vertexBuffer.offsets.insert(std::make_pair(POSITION, positionBufferOffset));
 		vertexBuffer.offsets.insert(std::make_pair(NORMAL, normalBufferOffset));
 		vertexBuffer.offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
-		vertexBuffer.offsets.insert(std::make_pair(MATERIALID, materialIDBufferOffset));
+		//vertexBuffer.offsets.insert(std::make_pair(MATERIALID, materialIDBufferOffset));
 
 		// Stage buffer memory on host
 		// We want staging so that we can map the vertex data on the host but
@@ -225,7 +225,7 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 		memcpy((Byte*)data + positionBufferOffset, positionData.data(), static_cast<size_t>(positionBufferSize));
 		memcpy((Byte*)data + normalBufferOffset, normalData.data(), static_cast<size_t>(normalBufferSize));
 		memcpy((Byte*)data + uvBufferOffset, uvData.data(), static_cast<size_t>(uvBufferSize));
-		memcpy((Byte*)data + materialIDBufferOffset, materialIDData.data(), static_cast<size_t>(materialIDBufferSize));
+		//memcpy((Byte*)data + materialIDBufferOffset, materialIDData.data(), static_cast<size_t>(materialIDBufferSize));
 		vkUnmapMemory(m_vulkanDevice->device, staging.memory);
 
 		// -----------------------------------------
@@ -239,8 +239,6 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 
 		// Copy over to vertex buffer in device local memory
 		m_vulkanDevice->CopyBuffer(
-			m_graphics.queue,
-			m_graphics.commandPool,
 			vertexBuffer.storageBuffer,
 			staging,
 			bufferSize
@@ -404,8 +402,6 @@ void VulkanHybridRenderer::PrepareOnScreenQuadVertexBuffer() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_onscreen.quadBuffer.storageBuffer,
 		staging,
 		bufferSize
@@ -1016,6 +1012,12 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorLayout() {
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
 			),
+		// Binding 2 : Normals texture target
+		MakeDescriptorSetLayoutBinding(
+			2,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_SHADER_STAGE_FRAGMENT_BIT
+			)
 		//// Binding 2 : Normals texture target
 		//MakeDescriptorSetLayoutBinding(
 		//	2,
@@ -1072,6 +1074,15 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 			1, // descriptor count
 			nullptr, // buffer info
 			&m_deferred.textures.m_colorMap.descriptor // image info
+		),
+		//Binding 2: Light uniform
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			m_deferred.descriptorSet,
+			2, // binding
+			1, // descriptor count
+			&m_deferred.buffers.lightsUnifStorage.descriptor,
+			nullptr
 		),
 		//// Binding 2: Normal map
 		//MakeWriteDescriptorSet(
@@ -1142,11 +1153,11 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			sizeof(glm::vec2), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		),
-		MakeVertexInputBindingDescription(
-			3, // binding
-			sizeof(Byte), // stride
-			VK_VERTEX_INPUT_RATE_VERTEX
-		)
+		//MakeVertexInputBindingDescription(
+		//	3, // binding
+		//	sizeof(Byte), // stride
+		//	VK_VERTEX_INPUT_RATE_VERTEX
+		//)
 
 	};
 
@@ -1169,12 +1180,12 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			VK_FORMAT_R32G32_SFLOAT,
 			0 // offset
 		),
-		MakeVertexInputAttributeDescription(
-			3, // binding
-			3, // location
-			VK_FORMAT_R8_SINT,
-			0 // offset
-		)
+		//MakeVertexInputAttributeDescription(
+		//	3, // binding
+		//	3, // location
+		//	VK_FORMAT_R8_SINT,
+		//	0 // offset
+		//)
 	};
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStageCreateInfo = MakePipelineVertexInputStateCreateInfo(
@@ -1328,14 +1339,14 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 		std::vector<VkBuffer> vertexBuffers = { 
 			vertexBuffer.storageBuffer.buffer, 
 			vertexBuffer.storageBuffer.buffer,
-			vertexBuffer.storageBuffer.buffer,
-			vertexBuffer.storageBuffer.buffer
+			vertexBuffer.storageBuffer.buffer/*,
+			vertexBuffer.storageBuffer.buffer*/
 		};
 		std::vector<VkDeviceSize> offsets = { 
 			vertexBuffer.offsets.at(POSITION),
 			vertexBuffer.offsets.at(NORMAL),
-			vertexBuffer.offsets.at(TEXCOORD),
-			vertexBuffer.offsets.at(MATERIALID)
+			vertexBuffer.offsets.at(TEXCOORD)/*,
+			vertexBuffer.offsets.at(MATERIALID)*/
 		};
 		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
 
@@ -1362,10 +1373,10 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	static float timer = 0.0f;
 	timer += 0.005f;
-	float SPEED = 0;// 32.0f;
+	float SPEED = 32.0f;
 
 	// White
-	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -2.0f, 0.0f, 1.0f);
+	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -10.0f, 0.0f, 1.0f);
 	m_deferred.lightsUnif.m_lights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
 	m_deferred.lightsUnif.m_lights[0].radius = 15.0f;
 	// Red
@@ -1659,11 +1670,10 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
 		m_raytrace.buffers.indices,
 		stagingBuffer,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	// Cleanup staging buffer memory
@@ -1700,11 +1710,10 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
 		m_raytrace.buffers.positions,
 		stagingBuffer,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	m_raytrace.buffers.positions.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.positions.buffer, 0, bufferSize);
@@ -1742,11 +1751,10 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
 		m_raytrace.buffers.normals,
 		stagingBuffer,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	m_raytrace.buffers.normals.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.normals.buffer, 0, bufferSize);
@@ -1785,11 +1793,10 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 
 	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
-		m_compute.queue,
-		m_compute.commandPool,
 		m_raytrace.buffers.bvh,
 		stagingBuffer,
-		bufferSize
+		bufferSize,
+		true
 	);
 
 	m_raytrace.buffers.bvh.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.bvh.buffer, 0, bufferSize);
