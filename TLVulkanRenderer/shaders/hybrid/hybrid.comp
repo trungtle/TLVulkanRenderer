@@ -598,7 +598,7 @@ void shadeMaterial(
 		feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
 		feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
-		float shadow = calcShadow(feeler, intersect.materialId, dist); 
+		float shadow = 1;//calcShadow(feeler, intersect.materialId, dist); 
 	
 		// Attenuation
 		float atten = ubo.lights[i].radius / (pow(dist, 2.0) + 1.0);
@@ -637,7 +637,7 @@ void main()
 	path.ray.origin = position + 0.01 * path.ray.direction;
 	path.objectId = materialId; // Use material ID as object ID
 	path.bounces = 0;
-	path.color = texture(albedo, uv).rgb;
+	path.color = texture(albedo, uv).rgb * materials[materialId].diffuse.rgb;
 
 	if (normal == vec3(0, 0, 0)) {
 		// Nothing to compute here

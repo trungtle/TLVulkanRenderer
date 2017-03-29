@@ -46,12 +46,8 @@ void main()
 	outNormal = vec4(inNormal, 0.0);
 
 	vec4 color = texture(samplerColor, inUV);
-
-	for (int i = 0; i < 6; ++i) {
-		if (lightsUBO.lights[i].position == vec4(inWorldPos, 1)) {
-			color = vec4(1, 1, 1, 1);
-		}
+	if (color == vec4(0, 0, 0, 0)) {
+		color = vec4(0.5, 0.5, 0.5, 1.0);
 	}
-
 	outAlbedo = color;
 }

@@ -843,6 +843,33 @@ VulkanRenderer::PrepareSemaphores() {
 	return result;
 }
 
+void VulkanRenderer::CreateCommandBuffers() {
+	m_graphics.commandBuffers.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
+	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
+	VkCommandBufferAllocateInfo allocInfo = MakeCommandBufferAllocateInfo(m_graphics.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_vulkanDevice->m_swapchain.framebuffers.size());
+
+	VkResult result = vkAllocateCommandBuffers(m_vulkanDevice->device, &allocInfo, m_graphics.commandBuffers.data());
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create command buffers.");
+	}
+}
+
+void VulkanRenderer::DestroyCommandBuffer() {
+	vkFreeCommandBuffers(m_vulkanDevice->device, m_graphics.commandPool, static_cast<uint32_t>(m_vulkanDevice->m_swapchain.framebuffers.size()), m_graphics.commandBuffers.data());
+}
+
+bool VulkanRenderer::CheckCommandBuffers() {
+	for (auto& cmdBuffer : m_graphics.commandBuffers)
+	{
+		if (cmdBuffer == VK_NULL_HANDLE)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 void
 VulkanRenderer::Prepare() {
 	VkResult result;
