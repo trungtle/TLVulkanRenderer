@@ -14,8 +14,10 @@ layout(location = 0) out vec3 v_color;
 
 void main()
 {
-    vec4 position = ubo.mvp * vec4(a_position, 1);
+	vec4 position = vec4(a_position, 1);
+	position.y = -position.y;
+    position = ubo.mvp * position;
+	
 	v_color = a_color;
-	position.y = position.y;
 	gl_Position = position;
 }
