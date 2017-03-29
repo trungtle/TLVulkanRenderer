@@ -21,7 +21,7 @@ layout (binding = 2) uniform LIGHT
 layout (location = 0) in vec3 inWorldPos;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inUV;
-//layout (location = 3) in flat int inMaterialID;
+layout (location = 3) in float inMaterialID;
 //layout (location = 3) in vec3 inColor;
 //layout (location = 4) in vec3 inTangent;
 
@@ -31,7 +31,7 @@ layout (location = 2) out vec4 outAlbedo;
 
 void main() 
 {
-	outPosition = vec4(inWorldPos, 0);
+	outPosition = vec4(inWorldPos, inMaterialID);
 
 	// Calculate normal in tangent space
 

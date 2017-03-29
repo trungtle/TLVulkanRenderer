@@ -7,6 +7,7 @@
 #include "geometry/materials/GlassMaterial.h"
 #include "geometry/materials/TranslucentMaterial.h"
 #include "geometry/Cube.h"
+#include <algorithm>
 
 Scene::Scene(
 	std::string fileName,
@@ -23,7 +24,7 @@ Scene::Scene(
 	// Construct SBVH
 	m_accel.reset(new SBVH(
 		100,
-		SBVH::SAH
+		SBVH::Spatial
 		));
 
 	ParseSceneFile(fileName);
@@ -183,7 +184,8 @@ void Scene::PrepareTestScene()
 	for (int m = 0; m < meshes.size(); m++)
 	{
 		//meshes[m].SetTransform(Transform(glm::vec3(0, 0, 0), glm::vec3(0), glm::vec3(1, 1, 1)));
-		for (int t = 0; t < meshes[m].triangles.size(); t++)
+		size_t len = 232271 < meshes[m].triangles.size() ? 232271 : meshes[m].triangles.size();
+		for (int t = 0; t < len; t++)
 		{
 			std::string name = "triangle" + t;
 			meshes[m].triangles[t].SetName(name);

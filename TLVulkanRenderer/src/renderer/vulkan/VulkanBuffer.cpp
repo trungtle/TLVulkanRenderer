@@ -27,17 +27,22 @@ void VulkanBuffer::VertexBuffer::Create(
 )
 {
 	// At the mimum we always have indices and position
+	VkDeviceSize offset = 0;
 
 	// -- Indices
 	std::vector<Byte>& indexData = vertexData->bytes.at(INDEX);
 	VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
-	VkDeviceSize indexBufferOffset = 0;
+	VkDeviceSize indexBufferOffset = offset;
 	indexCount = indexData.size();
+	offset += indexBufferSize;
 
 	// -- Positions
 	std::vector<Byte>& positionData = vertexData->bytes.at(POSITION);
 	VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
-	VkDeviceSize positionBufferOffset = indexBufferSize;
+	VkDeviceSize positionBufferOffset = offset;
+	offset += positionBufferSize;
+
+	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize;
 
 	// -- Normals
 	std::vector<Byte> normalData;
@@ -46,7 +51,9 @@ void VulkanBuffer::VertexBuffer::Create(
 	{
 		normalData = vertexData->bytes.at(NORMAL);
 		normalBufferSize = sizeof(normalData[0]) * normalData.size();
-		normalBufferOffset = positionBufferOffset + positionBufferSize;
+		normalBufferOffset = offset;
+		offset += normalBufferSize;
+		bufferSize += normalBufferSize;
 	}
 
 	// -- UVs
@@ -57,29 +64,26 @@ void VulkanBuffer::VertexBuffer::Create(
 	{
 		uvData = vertexData->bytes.at(TEXCOORD);
 		uvBufferSize = sizeof(uvData[0]) * uvData.size();
-		uvBufferOffset = normalBufferOffset + normalBufferSize;
-	}
-	//std::vector<Byte>& materialIDData = geomData->vertexData.at(MATERIALID);
-	//VkDeviceSize materialIDBufferSize = sizeof(materialIDData[0]) * materialIDData.size();
-	//VkDeviceSize materialIDBufferOffset = uvBufferOffset + uvBufferSize;
-
-	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize;
-	
-	if (vertexData->bytes.find(NORMAL) != vertexData->bytes.end())
-	{
-		bufferSize += normalBufferSize;
-	}
-	if (vertexData->bytes.find(TEXCOORD) != vertexData->bytes.end())
-	{
+		uvBufferOffset = offset;
+		offset += uvBufferSize;
 		bufferSize += uvBufferSize;
 	}
-	// +materialIDBufferSize;
+	std::vector<Byte> materialIDData;
+	VkDeviceSize materialIDBufferSize = 0, materialIDBufferOffset = 0;
+	if (vertexData->bytes.find(MATERIALID) != vertexData->bytes.end())
+	{
+		materialIDData = vertexData->bytes.at(MATERIALID);
+		materialIDBufferSize = sizeof(materialIDData[0]) * materialIDData.size();
+		materialIDBufferOffset = offset;
+		offset += materialIDBufferSize;
+		bufferSize += materialIDBufferSize;
+	}
 
 	this->offsets.insert(std::make_pair(INDEX, indexBufferOffset));
 	this->offsets.insert(std::make_pair(POSITION, positionBufferOffset));
 	this->offsets.insert(std::make_pair(NORMAL, normalBufferOffset));
 	this->offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
-	//vertexBuffer.offsets.insert(std::make_pair(MATERIALID, materialIDBufferOffset));
+	this->offsets.insert(std::make_pair(MATERIALID, materialIDBufferOffset));
 
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but
@@ -107,7 +111,10 @@ void VulkanBuffer::VertexBuffer::Create(
 	{
 		memcpy((Byte*)data + uvBufferOffset, uvData.data(), static_cast<size_t>(uvBufferSize));
 	}
-	//memcpy((Byte*)data + materialIDBufferOffset, materialIDData.data(), static_cast<size_t>(materialIDBufferSize));
+	if (vertexData->bytes.find(MATERIALID) != vertexData->bytes.end())
+	{
+		memcpy((Byte*)data + materialIDBufferOffset, materialIDData.data(), static_cast<size_t>(materialIDBufferSize));
+	}
 	vkUnmapMemory(vulkanDevice->device, staging.memory);
 
 	// -----------------------------------------

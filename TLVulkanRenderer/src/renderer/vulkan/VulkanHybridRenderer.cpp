@@ -30,8 +30,6 @@ VulkanHybridRenderer::Update() {
 
 	// -- Update wireframe
 	glm::mat4 vp = m_scene->camera.GetViewProj();
-	Transform lightTransform(m_deferred.lightsUnif.m_lights[0].position, glm::vec3(), glm::vec3(1));
-	vp = vp * lightTransform.T();
 	m_vulkanDevice->MapMemory(
 		&vp,
 		m_wireframe.uniform.memory,
@@ -40,6 +38,22 @@ VulkanHybridRenderer::Update() {
 
 	UpdateDeferredLightsUniform();
 	UpdateComputeRaytraceUniform();
+
+
+	// Update lights wireframes
+	glm::mat4 mvp = m_scene->camera.GetViewProj();
+
+	for (auto l = 0; l < NUM_LIGHTS; ++l)
+	{
+		Transform lightTransform(m_deferred.lightsUnif.m_lights[0].position, glm::vec3(), glm::vec3(1));
+		mvp = mvp * lightTransform.T();
+		m_vulkanDevice->MapMemory(
+			&mvp,
+			m_deferred.buffers.lightsWireframeUnifStorage[l].memory,
+			sizeof(mvp)
+		);
+
+	}
 
 }
 
@@ -201,7 +215,7 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 VkResult
 VulkanHybridRenderer::PrepareDescriptorPool() {
 	std::vector<VkDescriptorPoolSize> poolSizes = {
-		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 14),
+		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 30),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 14),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10)
@@ -210,7 +224,7 @@ VulkanHybridRenderer::PrepareDescriptorPool() {
 	VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = MakeDescriptorPoolCreateInfo(
 		poolSizes.size(),
 		poolSizes.data(),
-		5
+		20
 	);
 
 	CheckVulkanResult(
@@ -280,21 +294,20 @@ void VulkanHybridRenderer::PrepareWireframeVertexBuffers()
 	GenerateWireframeBVHNodes();
 
 	// Generate wireframe for lights
-	std::vector<uint16_t> indices;
-	std::vector<SWireframeVertexLayout> vertices;
-	int offset = 0;
-	for (auto l = 0; l < 6; ++l) {
+	
+	UpdateDeferredLightsUniform();
+	for (auto l = 0; l < NUM_LIGHTS; ++l) {
+		std::vector<uint16_t> indices;
+		std::vector<SWireframeVertexLayout> vertices;
 		Cube c = Cube(m_deferred.lightsUnif.m_lights[l].position, glm::vec3(1, 1, 1));
-		c.GenerateWireframeVertices(offset, indices, vertices, m_deferred.lightsUnif.m_lights[l].color);
-		offset = indices.size();
+		c.GenerateWireframeVertices(0, indices, vertices, m_deferred.lightsUnif.m_lights[l].color);
+	
+		m_deferred.buffers.lightsVertexBuffer[l].CreateWireframe(
+			m_vulkanDevice,
+			indices,
+			vertices
+		);
 	}
-
-	m_deferred.buffers.lightsVertexBuffer.CreateWireframe(
-		m_vulkanDevice,
-		indices,
-		vertices
-	);
-
 }
 
 void VulkanHybridRenderer::PrepareWireframeDescriptorLayout() 
@@ -326,14 +339,15 @@ void VulkanHybridRenderer::PrepareWireframeDescriptorLayout()
 	);
 }
 
-void VulkanHybridRenderer::PrepareWireframeDescriptorSet() 
+void VulkanHybridRenderer::PrepareWireframeDescriptorSet()
 {
-	VkDescriptorSetAllocateInfo allocInfo = allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_wireframe.descriptorSetLayout);
+	VkDescriptorSetAllocateInfo allocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_wireframe.descriptorSetLayout);
 	CheckVulkanResult(
 		vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_wireframe.descriptorSet),
 		"Failed to allocate descriptor set"
 	);
 
+	// For BVH
 	std::vector<VkWriteDescriptorSet> descriptorWrites =
 	{
 		MakeWriteDescriptorSet(
@@ -347,6 +361,30 @@ void VulkanHybridRenderer::PrepareWireframeDescriptorSet()
 	};
 
 	vkUpdateDescriptorSets(m_vulkanDevice->device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+
+
+	// For lights
+	for (auto l = 0; l < NUM_LIGHTS; ++l) {
+		CheckVulkanResult(
+			vkAllocateDescriptorSets(m_vulkanDevice->device, &allocInfo, &m_deferred.lightsDescriptorSet[l]),
+			"Failed to allocate descriptor set"
+		);
+
+		descriptorWrites = {
+			MakeWriteDescriptorSet(
+				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				m_deferred.lightsDescriptorSet[l],
+				0,
+				1,
+				&m_deferred.buffers.lightsWireframeUnifStorage[l].descriptor,
+				nullptr
+			) 
+		};
+
+		vkUpdateDescriptorSets(m_vulkanDevice->device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+	}
+
+
 }
 
 void VulkanHybridRenderer::PrepareWireframeUniformBuffer() 
@@ -357,6 +395,17 @@ void VulkanHybridRenderer::PrepareWireframeUniformBuffer()
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
+
+	// Ligt wireframe uniform
+	for (auto l = 0; l < NUM_LIGHTS; ++l)
+	{
+		m_deferred.buffers.lightsWireframeUnifStorage[l].Create(
+			m_vulkanDevice,
+			sizeof(m_deferred.buffers.lightsUnifStorage),
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+	}
 }
 
 void VulkanHybridRenderer::PrepareWireframePipeline() {
@@ -765,15 +814,7 @@ void VulkanHybridRenderer::PrepareOnscreenPipeline()
 
 void VulkanHybridRenderer::BuildOnscreenCommandBuffer() 
 {
-	m_graphics.commandBuffers.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
-	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
-	VkCommandBufferAllocateInfo allocInfo = MakeCommandBufferAllocateInfo(m_graphics.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_vulkanDevice->m_swapchain.framebuffers.size());
-
-	VkResult result = vkAllocateCommandBuffers(m_vulkanDevice->device, &allocInfo, m_graphics.commandBuffers.data());
-	if (result != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create command buffers.");
-	}
+	VulkanRenderer::CreateCommandBuffers();
 
 	for (int i = 0; i < m_graphics.commandBuffers.size(); ++i)
 	{
@@ -851,20 +892,22 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 		
 		// -- Draw light wireframes
 
-		VkDeviceSize zeroOffset[] = { m_deferred.buffers.lightsVertexBuffer.offsets.at(WIREFRAME) };
-		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipeline);
-		vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipelineLayout, 0, 1, &m_wireframe.descriptorSet, 0, NULL);
-		vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_deferred.buffers.lightsVertexBuffer.storageBuffer.buffer, zeroOffset);
-		vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer.storageBuffer.buffer, m_deferred.buffers.lightsVertexBuffer.offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
+		for (auto l = 0; l < NUM_LIGHTS; ++l) {
+			VkDeviceSize zeroOffset[] = { m_deferred.buffers.lightsVertexBuffer[l].offsets.at(WIREFRAME) };
+			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipeline);
+			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipelineLayout, 0, 1, &m_deferred.lightsDescriptorSet[l], 0, NULL);
+			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_deferred.buffers.lightsVertexBuffer[l].storageBuffer.buffer, zeroOffset);
+			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer[l].storageBuffer.buffer, m_deferred.buffers.lightsVertexBuffer[l].offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
 
-		// Record draw command for the triangle!
-		vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer.indexCount, 1, 0, 0, 0);
+			// Record draw command for the triangle!
+			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer[l].indexCount, 1, 0, 0, 0);
+		}
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
 
 		// End command recording
-		result = vkEndCommandBuffer(m_graphics.commandBuffers[i]);
+		VkResult result = vkEndCommandBuffer(m_graphics.commandBuffers[i]);
 		if (result != VK_SUCCESS)
 		{
 			throw std::runtime_error("Failed to record command buffers");
@@ -1054,8 +1097,6 @@ void VulkanHybridRenderer::PrepareTextures()
 			break;
 		}
 	}
-
-
 
 	// Stage image
 	m_stagingImage = VulkanImage::CreateVulkanImage(
@@ -1328,11 +1369,11 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			sizeof(glm::vec2), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		),
-		//MakeVertexInputBindingDescription(
-		//	3, // binding
-		//	sizeof(Byte), // stride
-		//	VK_VERTEX_INPUT_RATE_VERTEX
-		//)
+		MakeVertexInputBindingDescription(
+			3, // binding
+			sizeof(float), // stride
+			VK_VERTEX_INPUT_RATE_VERTEX
+		)
 
 	};
 
@@ -1355,12 +1396,12 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			VK_FORMAT_R32G32_SFLOAT,
 			0 // offset
 		),
-		//MakeVertexInputAttributeDescription(
-		//	3, // binding
-		//	3, // location
-		//	VK_FORMAT_R8_SINT,
-		//	0 // offset
-		//)
+		MakeVertexInputAttributeDescription(
+			3, // binding
+			3, // location
+			VK_FORMAT_R32_SFLOAT,
+			0 // offset
+		)
 	};
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStageCreateInfo = MakePipelineVertexInputStateCreateInfo(
@@ -1514,14 +1555,14 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 		std::vector<VkBuffer> vertexBuffers = { 
 			vertexBuffer.storageBuffer.buffer, 
 			vertexBuffer.storageBuffer.buffer,
-			vertexBuffer.storageBuffer.buffer/*,
-			vertexBuffer.storageBuffer.buffer*/
+			vertexBuffer.storageBuffer.buffer,
+			vertexBuffer.storageBuffer.buffer
 		};
 		std::vector<VkDeviceSize> offsets = { 
 			vertexBuffer.offsets.at(POSITION),
 			vertexBuffer.offsets.at(NORMAL),
-			vertexBuffer.offsets.at(TEXCOORD)/*,
-			vertexBuffer.offsets.at(MATERIALID)*/
+			vertexBuffer.offsets.at(TEXCOORD),
+			vertexBuffer.offsets.at(MATERIALID)
 		};
 		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
 
@@ -1579,8 +1620,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	m_deferred.lightsUnif.m_lights[0].position.x = sin(glm::radians(SPEED * timer)) * 5.0f;
 	m_deferred.lightsUnif.m_lights[0].position.z = cos(glm::radians(SPEED * timer)) * 5.0f;
 
-	m_deferred.lightsUnif.m_lights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 2.0f;
-	m_deferred.lightsUnif.m_lights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 2.0f;
+	m_deferred.lightsUnif.m_lights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
+	m_deferred.lightsUnif.m_lights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
 
 	m_deferred.lightsUnif.m_lights[2].position.x = 4.0f + sin(glm::radians(SPEED * timer)) * 2.0f;
 	m_deferred.lightsUnif.m_lights[2].position.z = 0.0f + cos(glm::radians(SPEED * timer)) * 2.0f;
@@ -1599,6 +1640,7 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 		m_deferred.buffers.lightsUnifStorage.memory,
 		sizeof(m_deferred.lightsUnif)
 	);
+
 }
 
 void
@@ -2126,13 +2168,12 @@ void VulkanHybridRenderer::UpdateComputeRaytraceUniform()
 {
 	m_raytrace.ubo.m_cameraPosition = glm::vec4(m_scene->camera.eye, 1);
 
-	for (int i = 0; i < 6; ++i)
+	for (int i = 0; i < NUM_LIGHTS; ++i)
 	{
 		m_raytrace.ubo.m_lights[i] = m_deferred.lightsUnif.m_lights[i];
 	}
 	m_raytrace.ubo.m_lightCount = 1;
 	m_raytrace.ubo.m_materialCount = m_scene->materials.size();
-
 	m_vulkanDevice->MapMemory(
 		&m_raytrace.ubo.m_cameraPosition,
 		m_raytrace.buffers.uniform.memory,

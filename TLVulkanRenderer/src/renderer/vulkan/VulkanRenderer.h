@@ -108,6 +108,17 @@ protected:
 	VkResult
 	PrepareSemaphores();
 
+	// ----------------
+	// COMMAND BUFFER
+	// ----------------
+	void
+		CreateCommandBuffers();
+
+	void
+		DestroyCommandBuffer();
+
+	bool CheckCommandBuffers();
+
 	/**
 	* \brief Helper to determine the memory type to allocate from our graphics card
 	* \param typeFilter

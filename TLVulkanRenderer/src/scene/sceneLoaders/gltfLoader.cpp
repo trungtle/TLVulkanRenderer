@@ -905,15 +905,22 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					}
 
 					// Add material ID buffer
-					std::vector<Byte> materialIdData;
-					for (int mid = 0; mid < indicesCount; ++mid)
+					std::vector<float> materialIdData;
+					for (int mid = 0; mid < indicesCount; mid++)
 					{
 						materialIdData.push_back(materialId);
 					}
 
+					attributeInfo.componentTypeByteSize = 4;
 					geom->attribInfo.insert(std::make_pair(EVertexAttribute::MATERIALID, attributeInfo));
-					geom->bytes.insert(std::make_pair(EVertexAttribute::MATERIALID, materialIdData));
+
+
+					Byte* startMaterialIdByte = reinterpret_cast<Byte*>(materialIdData.data());
+					Byte* endMaterialIdByte = reinterpret_cast<Byte*>(&materialIdData[materialIdData.size()]);
+					std::vector<Byte> materialIdBytes(startMaterialIdByte, endMaterialIdByte);
+					geom->bytes.insert(std::make_pair(EVertexAttribute::MATERIALID, materialIdBytes));
 				}
+
 
 				// -------- Attributes -----------
 
@@ -984,7 +991,6 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 					//TextureData* dev_diffuseTex = NULL;
 					MaterialPacked materialPacked;
-					std::vector<Byte> materialIdData = std::vector<Byte>(first, last);
 					Texture* texture = nullptr;
 					if (!primitive.material.empty()) {
 						const tinygltf::Material& mat = tinygltfScene.materials.at(primitive.material);
@@ -1089,6 +1095,17 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 			} // -- End of mesh primitives
 		} // -- End of meshes
+
+		 // Normalize material IDs
+		for (auto vertexData : scene->vertexData)
+		{
+			for (auto b = 0; b < vertexData->bytes.at(MATERIALID).size(); b+=sizeof(int32_t))
+			{
+				float* byteMaterialId = reinterpret_cast<float*>(&vertexData->bytes.at(MATERIALID)[b]);
+				*byteMaterialId /= materialId;
+			}
+		}
 	}
+
 	return ret;
 }

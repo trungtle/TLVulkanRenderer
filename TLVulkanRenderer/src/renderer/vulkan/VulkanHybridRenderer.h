@@ -4,6 +4,7 @@
 #include "geometry/Cube.h"
 
 #define VERTEX_BUFFER_BIND_ID 0
+#define NUM_LIGHTS 6
 
 class VulkanHybridRenderer : public VulkanRenderer
 {
@@ -192,6 +193,9 @@ protected:
 		VkDescriptorSetLayout descriptorSetLayout;
 		VkDescriptorSet descriptorSet;
 
+		VkDescriptorSet lightsDescriptorSet[6];
+
+
 		// -- Uniforms
 		SVertexShaderUniforms mvpUnif;
 		LightUniform lightsUnif;
@@ -201,8 +205,8 @@ protected:
 			VulkanBuffer::StorageBuffer lightsUnifStorage;
 
 			// -- Lights wireframe
-			VulkanBuffer::VertexBuffer lightsVertexBuffer;
-
+			VulkanBuffer::VertexBuffer lightsVertexBuffer[6];
+			VulkanBuffer::StorageBuffer lightsWireframeUnifStorage[6];
 
 		} buffers;
 	} m_deferred;
