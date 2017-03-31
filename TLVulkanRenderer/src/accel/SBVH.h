@@ -84,7 +84,6 @@ struct SBVHNodePacked {
 	int32_t geomId;
 	glm::vec4 min; // .w := left aabb child index.
 	glm::vec4 max;// .w := right aabb child index.
-	int32_t _pad;
 };
 
 class SBVHLeaf : public SBVHNode {

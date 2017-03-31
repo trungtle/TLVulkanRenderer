@@ -1594,7 +1594,7 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	// White
 	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -2.0f, 0.0f, 1.0f);
 	m_deferred.lightsUnif.m_lights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
-	m_deferred.lightsUnif.m_lights[0].radius = 15.0f;
+	m_deferred.lightsUnif.m_lights[0].radius = 55.0f;
 
 	// Red
 	m_deferred.lightsUnif.m_lights[1].position = glm::vec4(-2.0f, -6.0f, 0.0f, 0.0f);
