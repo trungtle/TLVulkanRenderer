@@ -108,13 +108,17 @@ VulkanHybridRenderer::Render() {
 
 	// ==== Submit rendering out for final pass
 
+	// Wait for fences
+	vkWaitForFences(m_vulkanDevice->device, 1, &m_graphics.fences[imageIndex], true, UINT64_MAX);
+	vkResetFences(m_vulkanDevice->device, 1, &m_graphics.fences[imageIndex]);
+
 	// Wait for offscreen semaphore
 	submitInfo.pWaitSemaphores = &m_deferred.semaphore;
 	// Signal ready with render complete semaphpre
 	submitInfo.pSignalSemaphores = &m_renderFinishedSemaphore;
 
 	submitInfo.pCommandBuffers = &m_graphics.commandBuffers[imageIndex];
-	CheckVulkanResult(vkQueueSubmit(m_graphics.queue, 1, &submitInfo, VK_NULL_HANDLE), "Failed to submit queue");
+	CheckVulkanResult(vkQueueSubmit(m_graphics.queue, 1, &submitInfo, m_graphics.fences[imageIndex]), "Failed to submit queue");
 
 	// Present swapchain image! Use the signal semaphore for present swapchain to wait for the next one
 	std::vector<VkSwapchainKHR> swapchains = { m_vulkanDevice->m_swapchain.swapchain };
@@ -233,6 +237,11 @@ VulkanHybridRenderer::PrepareDescriptorPool() {
 	);
 
 	return VK_SUCCESS;
+}
+
+void VulkanHybridRenderer::ToggleBVHVisualization() 
+{
+	BuildOnscreenCommandBuffer();
 }
 
 void 
@@ -814,7 +823,18 @@ void VulkanHybridRenderer::PrepareOnscreenPipeline()
 
 void VulkanHybridRenderer::BuildOnscreenCommandBuffer() 
 {
-	VulkanRenderer::CreateCommandBuffers();
+	if (!VulkanRenderer::CheckCommandBuffers()) {
+		// Must Wait for fences before rebuilding command buffers
+		for (auto i = 0; i < m_graphics.commandBuffers.size(); ++i)
+		{
+			vkWaitForFences(m_vulkanDevice->device, 1, &m_graphics.fences[i], true, UINT64_MAX);
+			vkResetFences(m_vulkanDevice->device, 1, &m_graphics.fences[i]);
+		}
+		VulkanRenderer::DestroyCommandBuffer();
+		VulkanRenderer::CreateCommandBuffers();
+	} else {
+		VulkanRenderer::CreateCommandBuffers();
+	}
 
 	for (int i = 0; i < m_graphics.commandBuffers.size(); ++i)
 	{
@@ -837,6 +857,24 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 			m_vulkanDevice->m_swapchain.extent,
 			clearValues
 		);
+
+		// Image memory barrier to make sure that compute shader writes are finished before sampling from the texture
+		VkImageMemoryBarrier imageMemoryBarrier = {};
+		imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+		imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+		imageMemoryBarrier.image = m_raytrace.storageRaytraceImage.image;
+		imageMemoryBarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+		imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+		imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		vkCmdPipelineBarrier(
+			m_graphics.commandBuffers[i],
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &imageMemoryBarrier);
 
 		// Record begin renderpass
 		vkCmdBeginRenderPass(m_graphics.commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);

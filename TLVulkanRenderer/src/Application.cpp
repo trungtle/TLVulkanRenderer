@@ -25,6 +25,9 @@ static glm::vec3 cammove;
 float zoom = 0, theta = 0, phi = 0, translateX = 0, translateY = 0;
 int width = 800;
 int height = 600;
+Point3		g_initialEye;
+Direction	g_initialLookAt;
+
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
@@ -32,6 +35,11 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 		case GLFW_KEY_ESCAPE:
 			glfwSetWindowShouldClose(window, GL_TRUE);
 			break;
+		case GLFW_KEY_R:
+			Application::GetInstanced()->ResetCamera();
+			break;
+		case GLFW_KEY_B:
+			Application::GetInstanced()->ToggleBVHVisualization();
 		case GLFW_KEY_S:
 			//saveImage();
 			break;
@@ -131,14 +139,16 @@ Application::Application(
 	glfwSetCursorPosCallback(m_window, mousePositionCallback);
 	glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
-	std::map<std::string, std::string> config = {
+	m_config = {
 		{ "USE_SBVH", "true" },
-		{ "VISUALIZE_SBVH", "false"},
+		{ "VISUALIZE_SBVH", "true"},
 		{ "VISUALIZE_RAY_COST", "true"}
 	};
-	m_scene = new Scene(sceneFile, config);
+	m_scene = new Scene(sceneFile, m_config);
+	g_initialEye = m_scene->camera.eye;
+	g_initialLookAt = m_scene->camera.lookAt;
 
-	std::shared_ptr<map<string, string>> configPtr(&config);
+	std::shared_ptr<map<string, string>> configPtr(&m_config);
 
 	switch (useAPI) {
 	case EGraphicsAPI::Vulkan:
@@ -174,6 +184,22 @@ Application::~Application() {
 	delete m_renderer;
 	glfwDestroyWindow(m_window);
 	glfwTerminate();
+}
+
+void Application::ResetCamera() {
+	m_scene->camera.eye = g_initialEye;
+	m_scene->camera.lookAt = g_initialLookAt;
+	m_scene->camera.RecomputeAttributes();
+}
+
+void Application::ToggleBVHVisualization() {
+	auto it = m_config.find("VISUALIZE_SBVH");
+	if(it != m_config.end() && it->second.compare("true") == 0) {
+		m_config.at("VISUALIZE_SBVH") = "false";
+	} else {
+		m_config.at("VISUALIZE_SBVH") = "true";
+	}
+	m_renderer->ToggleBVHVisualization();
 }
 
 void Application::Run() {

@@ -505,32 +505,24 @@ int getNearSibling(
 }
 
 
-
-
 Intersection calShawdowBVH(
 	in Ray ray,
 	int node
 )
 {
-	//struct BVHNodePacked
-	//{
-	//	int id;
-	//	int parent;
-	//	int geomId;
-	//	vec4 bounds[2];
-	//};
-	int current = node; // near child
-	int nearChild;// = int(node.bounds[0].w); // near child
-	int farChild;// = int(node.bounds[1].w); // far child
-	int parent;
+	int current = node;
+	int nearChild;
+	int farChild;
 	int state = FROM_PARENT;
 	int root = node;
 	float t = 0;
 	vec3 tmp_normal;
 	vec3 tmp_hitPoint;
 	float tMin = MAXLEN;
+
 	Intersection isx;
 	isx.t = MAXLEN;
+
 
 	bool isIterating = true;
 	while(isIterating) {
@@ -547,7 +539,6 @@ Intersection calShawdowBVH(
 			//
 			case FROM_CHILD:
 				{
-
 					if (current == root) {
 						isIterating = false;
 					} else if (current == getNearSibling(current)) {
@@ -571,7 +562,7 @@ Intersection calShawdowBVH(
 			// a fromParent step to current’s first child.
 			case FROM_SIBLING:
 			{
-				if (bvhNodes[current].geomId != -1) {
+				if (bvhNodes[current].geomId > -1) {
 					// Leaf node
 					
 					// Reconstruct triangle
@@ -593,7 +584,11 @@ Intersection calShawdowBVH(
 				} else {
 					// When this isn't a leaf node, check bbox intersection
 					t = aabbIntersect(ray, current);
-					if (t == MAXLEN) {
+					if ( (t < MAXLEN) && (t > EPSILON) ) {
+						// Hit, enter its subtree (near child)
+						current = getNearChild(current);
+						state = FROM_PARENT;
+					} else {
 						// Miss, go backup to parent
 						if (current == root) {
 							// Current has reached root
@@ -602,10 +597,6 @@ Intersection calShawdowBVH(
 							current = getParent(current);
 							state = FROM_CHILD;
 						}
-					} else {
-						// Hit, enter its subtree (near child)
-						current = getNearChild(current);
-						state = FROM_PARENT;
 					}
 				}
 				break;
@@ -616,21 +607,21 @@ Intersection calShawdowBVH(
 			// except that every time we would have gone to parent we go to
 			// farChild child.
 			case FROM_PARENT: {
-				if (bvhNodes[current].geomId != -1) {
+				if (bvhNodes[current].geomId > -1) {
 					// Leaf node
 					
 					// Reconstruct triangle
 					Triangle tri;
 					buildTriangle(bvhNodes[current].geomId, tri);
 					t = triangleIntersect(tri, ray, tmp_normal, tmp_hitPoint);
-					//if ((t > EPSILON) && (t < tMin))
-					//{
-					//	tMin = t;
-					//	isx.t = t;
-					//	isx.hitPoint = tmp_hitPoint;
-					//	isx.hitNormal = tmp_normal;
-					//	isx.objectID = tri.materialId;
-					//}
+					if ((t > EPSILON) && (t < tMin))
+					{
+						tMin = t;
+						isx.t = t;
+						isx.hitPoint = tmp_hitPoint;
+						isx.hitNormal = tmp_normal;
+						isx.objectID = tri.materialId;
+					}
 
 					if (current == root) {
 						// Current has reached root
@@ -643,7 +634,11 @@ Intersection calShawdowBVH(
 				} else {
 					// Not a leaf node, check internal node intersection
 					t = aabbIntersect(ray, current);
-					if (t == MAXLEN) {
+					if ( (t < MAXLEN) && (t > EPSILON) ) {
+						// Hit, enter its substree
+						current = getNearChild(current);
+						state = FROM_PARENT;
+					} else {
 						// Miss, go to far sibling
 						if (current == root) {
 							isIterating = false;
@@ -651,12 +646,6 @@ Intersection calShawdowBVH(
 							current = getFarSibling(current);
 							state = FROM_SIBLING;
 						}
-					} else {
-						// Hit, enter its substree
-						current = getNearChild(current);
-						state = FROM_PARENT;
-						isIterating = false;
-
 					}
 				}
 				break;
@@ -794,13 +783,14 @@ void shadeMaterial(
 		lightVec.y = -lightVec.y;
 		feeler.origin = intersect.hitPoint + 0.001 * lightVec;
 		feeler.direction = lightVec;
+		feeler.direction.y = -feeler.direction.y;
 		feeler.inv_direction = vec3(1/feeler.direction.x, 1/feeler.direction.y, 1/feeler.direction.z);
 		feeler.sign[0] = (feeler.inv_direction.x < 0) ? 1 : 0;
 		feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
 		feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
 		float shadow = 1;//calcShadow(feeler, intersect.materialId, dist); 
-		Intersection shadowIsx = calShawdowBVH(feeler, 0);
+		Intersection shadowIsx = calShawdowBVH(feeler, int(bvhNodes[0].id));
 		if (shadowIsx.t != MAXLEN) {
 			shadow = 0.5;
 		}
@@ -814,7 +804,6 @@ void shadeMaterial(
 			float diffuse = lightDiffuse(intersect.hitNormal, lightVec);
 			diffuseColor = diffuse * diffuseColor;
 		}
-	
 		
 		//// Specular
 		//float specular = lightSpecular(vec3(ubo.cameraPosition), intersect.hitNormal, lightVec, 5);

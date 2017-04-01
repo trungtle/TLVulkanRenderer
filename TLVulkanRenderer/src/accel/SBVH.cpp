@@ -732,18 +732,25 @@ SBVH::BuildRecursive(
 			break;
 	}
 
+	// Build parent node
+	SBVHNode* node = new SBVHNode(nullptr, nullptr, nullptr, nodeCount, dim);
+	nodeCount++;
+
 	// Build near child
 	SBVHNode* nearChild = BuildRecursive(first, mid, nodeCount, primInfos, orderedGeoms, depth + 1, true);
 
 	// Build far child
 	SBVHNode* farChild = BuildRecursive(mid, last, nodeCount, primInfos, orderedGeoms, depth + 1, false);
 
-	SBVHNode* node = new SBVHNode(nullptr, nearChild, farChild, nodeCount, dim);
-	if (nearChild)
-		nearChild->m_parent = node;
-	if (farChild)
+	if (nearChild) {
+		nearChild->m_parent = node;	
+		node->m_nearChild = nearChild;
+	}
+	if (farChild) {
 		farChild->m_parent = node;
-	nodeCount++;
+		node->m_farChild = farChild;
+	}
+
 	return node;
 }
 
@@ -1085,13 +1092,13 @@ void SBVH::FlattenRecursive(
 	// .w := Left child index
 	packed.min = vec4(
 		node->m_bbox.m_min, 
-		node->m_farChild == nullptr ? -1 : node->m_farChild->m_nodeIdx
+		node->m_nearChild == nullptr ? -1 : node->m_nearChild->m_nodeIdx
 	);
 
 	// .w := Right child index
 	packed.max = vec4(
 		node->m_bbox.m_max,
-		node->m_nearChild == nullptr ? -1 : node->m_nearChild->m_nodeIdx
+		node->m_farChild == nullptr ? -1 : node->m_farChild->m_nodeIdx
 	);
 
 	if (node->IsLeaf()) {
@@ -1113,6 +1120,11 @@ void SBVH::FlattenRecursive(
 void SBVH::Flatten() {
 
 	FlattenRecursive(m_root);
+
+	//@debug
+	for (auto node : m_nodesPacked) {
+		std::cout << node.ToString();
+	}
 }
 
 void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframeVertexLayout>& vertices)

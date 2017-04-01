@@ -843,6 +843,21 @@ VulkanRenderer::PrepareSemaphores() {
 	return result;
 }
 
+void VulkanRenderer::PrepareFences() 
+{
+	m_graphics.fences.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
+	VkFenceCreateInfo fenceCreateInfo = MakeFenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+
+	// Create a fence for each swap chain buffer
+	for (auto i = 0; i < m_vulkanDevice->m_swapchain.framebuffers.size(); ++i) {
+		CheckVulkanResult(
+			vkCreateFence(m_vulkanDevice->device, &fenceCreateInfo, nullptr, &m_graphics.fences[i]),
+			"Failed to create fence"
+		);
+	}
+
+}
+
 void VulkanRenderer::CreateCommandBuffers() {
 	m_graphics.commandBuffers.resize(m_vulkanDevice->m_swapchain.framebuffers.size());
 	// Primary means that can be submitted to a queue, but cannot be called from other command buffers
@@ -901,6 +916,10 @@ VulkanRenderer::Prepare() {
 	result = BuildCommandBuffers();
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Created command buffers");
+
+	PrepareFences();
+	assert(result == VK_SUCCESS);
+	m_logger->info<std::string>("Prepare fences");
 
 }
 

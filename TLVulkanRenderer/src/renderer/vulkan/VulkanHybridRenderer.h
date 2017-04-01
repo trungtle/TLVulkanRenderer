@@ -38,6 +38,11 @@ public:
 	VkResult
 	PrepareDescriptorPool() final;
 
+	// === UI
+	void
+	ToggleBVHVisualization() final;
+
+
 protected:
 
 	struct SInputTextures

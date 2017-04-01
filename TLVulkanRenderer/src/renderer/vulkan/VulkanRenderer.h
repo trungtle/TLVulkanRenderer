@@ -108,6 +108,9 @@ protected:
 	VkResult
 	PrepareSemaphores();
 
+	void
+		PrepareFences();
+
 	// ----------------
 	// COMMAND BUFFER
 	// ----------------
@@ -183,6 +186,8 @@ protected:
 		* \brief Command buffers to record our commands
 		*/
 		std::vector<VkCommandBuffer> commandBuffers;
+
+		std::vector<VkFence> fences;
 
 		/**
 		* \brief Handles to the Vulkan graphics queue. This may or may not be the same as the present queue

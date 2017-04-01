@@ -40,6 +40,11 @@ public:
 	virtual void Update() = 0;
 	virtual void Render() = 0;
 
+	// === UI
+	virtual void
+	ToggleBVHVisualization() {};
+
+
 protected:
 	/**
 	* \brief The window handle from glfw

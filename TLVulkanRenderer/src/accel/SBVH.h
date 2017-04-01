@@ -4,6 +4,7 @@
 #include <geometry/BBox.h>
 #include <memory>
 #include <unordered_set>
+#include <string>
 
 typedef size_t PrimID;
 typedef size_t SBVHNodeId;
@@ -70,6 +71,28 @@ public:
 		return false;
 	}
 
+	virtual std::string ToString() {
+		std::string str = "ID: ";
+		str += std::to_string(m_nodeIdx);
+
+		if (m_nearChild) {
+			str += ", Near ID: ";
+			str += std::to_string(m_nearChild->m_nodeIdx);
+		}
+
+		if (m_farChild) {
+			str += ", Far ID: ";
+			str += std::to_string(m_farChild->m_nodeIdx);
+		}
+
+		str += ", Is Leaf? ";
+		str += IsLeaf() ? "True" : "False";
+
+		str += "\n";
+
+		return str;
+	}
+
 	SBVHNode* m_parent;
 	SBVHNode* m_nearChild;
 	SBVHNode* m_farChild;
@@ -84,6 +107,27 @@ struct SBVHNodePacked {
 	int32_t geomId;
 	glm::vec4 min; // .w := left aabb child index.
 	glm::vec4 max;// .w := right aabb child index.
+
+	inline std::string ToString() const {
+		std::string str = "ID: ";
+		str += std::to_string(id);
+
+		str += ", Parent ID: ";
+		str += std::to_string(parent);
+
+		str += ", Near ID: ";
+		str += std::to_string(min.w);
+
+		str += ", Far ID: ";
+		str += std::to_string(max.w);
+
+		str += ", Prim ID: ";
+		str += std::to_string(geomId);
+
+		str += "\n";
+
+		return str;
+	}
 };
 
 class SBVHLeaf : public SBVHNode {

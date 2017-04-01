@@ -27,10 +27,13 @@ public:
 	 */
 
 	void Run();
+	void ResetCamera();
+	void ToggleBVHVisualization();
 
 	static void Destroy() {
 		delete Application::pApp;
 	};
+
 
 private:
 
@@ -48,5 +51,6 @@ private:
 	GLFWwindow* m_window;
 	Scene* m_scene;
 	Renderer* m_renderer;
+	std::map<std::string, std::string> m_config;
 
 };
