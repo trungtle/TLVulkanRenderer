@@ -306,10 +306,7 @@ void VulkanHybridRenderer::PreparePostProcessSSAO()
 	);
 
 	// Prepare our texture for staging
-	m_vulkanDevice->TransitionImageLayout(
-		m_postProcess.stagingImage.image,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_ASPECT_COLOR_BIT,
+	m_postProcess.stagingImage.TransitionImageLayout(
 		VK_IMAGE_LAYOUT_PREINITIALIZED,
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
 	);
@@ -326,25 +323,16 @@ void VulkanHybridRenderer::PreparePostProcessSSAO()
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
 
-	m_vulkanDevice->TransitionImageLayout(
-		m_postProcess.noiseTexture.image,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_ASPECT_COLOR_BIT,
+	m_postProcess.noiseTexture.TransitionImageLayout(
 		VK_IMAGE_LAYOUT_PREINITIALIZED,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	);
 
-	m_vulkanDevice->CopyImage(
-		m_postProcess.noiseTexture.image, 
-		m_postProcess.stagingImage.image, 
-		m_width, 
-		m_height
+	m_postProcess.noiseTexture.CopyImage(
+		m_postProcess.stagingImage
 	);
 
-	m_vulkanDevice->TransitionImageLayout(
-		m_postProcess.noiseTexture.image,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_ASPECT_COLOR_BIT,
+	m_postProcess.noiseTexture.TransitionImageLayout(
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }

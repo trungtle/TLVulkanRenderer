@@ -19,6 +19,7 @@ namespace VulkanImage {
 		this->width = width;
 		this->height = height;
 		this->format = format;
+		this->aspectMask = aspectMask;
 		this->m_device = device;
 
 		device->CreateImage(
@@ -71,6 +72,30 @@ namespace VulkanImage {
 		{
 			vkFreeMemory(m_device->device, this->imageMemory, nullptr);
 		}
+	}
+
+	void Image::CopyImage(const Image& other) const 
+	{
+		m_device->CopyImage(
+			this->image,
+			other.image,
+			this->width,
+			this->height
+		);
+	}
+
+	void 
+	Image::TransitionImageLayout(
+		VkImageLayout oldLayout, 
+		VkImageLayout newLayout
+		) const {
+		m_device->TransitionImageLayout(
+			this->image,
+			this->format,
+			this->aspectMask,
+			oldLayout,
+			newLayout
+		);
 	}
 
 	Image::~Image() 

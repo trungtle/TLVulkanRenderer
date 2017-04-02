@@ -12,13 +12,14 @@ namespace VulkanImage {
 			int width;
 			int height;
 			VkFormat format;
+			VkImageAspectFlags aspectMask;
 			VkImage image;
 			VkImageView imageView;
 			VkDeviceMemory imageMemory;
 			VkSampler sampler;
 			VkDescriptorImageInfo descriptor;
 
-			Image() : width(0), height(0), format(), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr) {
+			Image() : width(0), height(0), format(), aspectMask(0), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr) {
 		};
 		
 		~Image();
@@ -37,6 +38,15 @@ namespace VulkanImage {
 
 		void
 		Destroy() const;
+
+		void
+		CopyImage(const Image& other) const;
+
+		void
+		TransitionImageLayout(
+			VkImageLayout oldLayout,
+			VkImageLayout newLayout
+		) const;
 
 	private:
 		VulkanDevice* m_device;
