@@ -1,6 +1,3 @@
-#include <assert.h>
-#include <iostream>
-#include <set>
 #include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -28,6 +25,9 @@ VulkanRenderer::VulkanRenderer(
 	sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_st>("VulkanRenderer", "log", 1024 * 1024 * 5, 3));
 	m_logger = std::make_shared<spdlog::logger>("Logger", begin(sinks), end(sinks));
 	m_logger->set_pattern("<%H:%M:%S>[%I] %v");
+
+	// -- Initialize random number
+	pcg32_srandom_r(&m_rng, time(NULL), (intptr_t)&m_rng);
 
 	// -- Initialize Vulkan
 

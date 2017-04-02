@@ -200,6 +200,7 @@
     <ClInclude Include="src\scene\SceneUtil.h" />
     <ClInclude Include="src\Typedef.h" />
     <ClInclude Include="src\Utilities.h" />
+    <ClInclude Include="thirdparty\pcg\pcg_basic.h" />
     <ClInclude Include="thirdparty\tinygltfloader\picojson.h" />
     <ClInclude Include="thirdparty\tinygltfloader\stb_image.h" />
     <ClInclude Include="thirdparty\tinygltfloader\tiny_gltf_loader.h" />
@@ -274,6 +275,7 @@
     <ClCompile Include="src\scene\Scene.cpp" />
     <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
+    <ClCompile Include="thirdparty\pcg\pcg_basic.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

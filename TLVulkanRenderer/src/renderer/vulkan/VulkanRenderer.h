@@ -9,6 +9,7 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include "spdlog/spdlog.h"
+#include "pcg/pcg_basic.h"
 #include "renderer/Renderer.h"
 #include "VulkanDevice.h"
 #include "VulkanUtil.h"
@@ -241,4 +242,9 @@ protected:
 	 * \brief Logger
 	 */
 	std::shared_ptr<spdlog::logger> m_logger;
+
+	/**
+	 * \brief PCG random number generator
+	 */
+	pcg32_random_t m_rng;
 };

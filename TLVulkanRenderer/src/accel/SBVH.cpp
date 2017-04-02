@@ -1122,9 +1122,9 @@ void SBVH::Flatten() {
 	FlattenRecursive(m_root);
 
 	//@debug
-	for (auto node : m_nodesPacked) {
-		std::cout << node.ToString();
-	}
+	//for (auto node : m_nodesPacked) {
+	//	std::cout << node.ToString();
+	//}
 }
 
 void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframeVertexLayout>& vertices)

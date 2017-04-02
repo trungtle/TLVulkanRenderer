@@ -634,11 +634,18 @@ Intersection calShawdowBVH(
 				} else {
 					// Not a leaf node, check internal node intersection
 					t = aabbIntersect(ray, current);
-					if ( (t < MAXLEN) && (t > EPSILON) ) {
+					if ( (t < MAXLEN) && t > EPSILON) {
 						// Hit, enter its substree
 						current = getNearChild(current);
 						state = FROM_PARENT;
 					} else {
+
+						//@debug
+						//if (current == 0) {
+						//	isx.t = 1;
+						//	return isx;
+						//}
+
 						// Miss, go to far sibling
 						if (current == root) {
 							isIterating = false;
@@ -783,7 +790,8 @@ void shadeMaterial(
 		lightVec.y = -lightVec.y;
 		feeler.origin = intersect.hitPoint + 0.001 * lightVec;
 		feeler.direction = lightVec;
-		feeler.direction.y = -feeler.direction.y;
+		//feeler.direction.y = -feeler.direction.y;
+		feeler.direction = vec3(0, 1, 0);
 		feeler.inv_direction = vec3(1/feeler.direction.x, 1/feeler.direction.y, 1/feeler.direction.z);
 		feeler.sign[0] = (feeler.inv_direction.x < 0) ? 1 : 0;
 		feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;

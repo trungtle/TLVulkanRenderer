@@ -156,10 +156,7 @@ VulkanCPURaytracer::VulkanCPURaytracer(
 }
 
 VulkanCPURaytracer::~VulkanCPURaytracer()
-{
-	DestroyVulkanImage(m_vulkanDevice, m_stagingImage);
-	DestroyVulkanImage(m_vulkanDevice, m_displayImage);
-	
+{	
 	m_wireframe.BVHVertices.Destroy();
 	m_wireframe.BVHIndices.Destroy();
 	m_wireframe.uniform.Destroy();
@@ -941,13 +938,14 @@ void VulkanCPURaytracer::PrepareTextures() {
 
 
 	// Stage image
-	m_stagingImage = VulkanImage::CreateVulkanImage(
+	m_stagingImage.Create(
 		m_vulkanDevice,
 		m_width,
 		m_height,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_LINEAR,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT, 
+		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 	VkImageSubresource subresource = {}; 
@@ -979,13 +977,14 @@ void VulkanCPURaytracer::PrepareTextures() {
 	);
 
 	// Create our display imageMakeDescriptorImageInfo
-	m_displayImage = VulkanImage::CreateVulkanImage(
+	m_displayImage.Create(
 		m_vulkanDevice,
 		m_width, 
 		m_height,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
 	
@@ -1000,18 +999,6 @@ void VulkanCPURaytracer::PrepareTextures() {
 	);
 
 	m_vulkanDevice->CopyImage(m_graphics.queue, m_graphics.commandPool, m_displayImage.image, m_stagingImage.image, m_width, m_height);
-
-	// Create image view
-	m_vulkanDevice->CreateImageView(
-		m_displayImage.image,
-		VK_IMAGE_VIEW_TYPE_2D,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		m_displayImage.imageView
-	);
-
-	// Create image sampler
-	CreateDefaultImageSampler(m_vulkanDevice->device, &m_displayImage.sampler);
 
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,

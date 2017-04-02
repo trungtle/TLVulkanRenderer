@@ -42,7 +42,7 @@ public:
 
 	// === UI
 	virtual void
-	ToggleBVHVisualization() {};
+	RebuildCommandBuffers() {};
 
 
 protected:

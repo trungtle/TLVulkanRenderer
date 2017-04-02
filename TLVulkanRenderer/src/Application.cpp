@@ -39,7 +39,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 			Application::GetInstanced()->ResetCamera();
 			break;
 		case GLFW_KEY_B:
-			Application::GetInstanced()->ToggleBVHVisualization();
+			Application::GetInstanced()->ToggleBVHDebug();
 		case GLFW_KEY_S:
 			//saveImage();
 			break;
@@ -192,14 +192,14 @@ void Application::ResetCamera() {
 	m_scene->camera.RecomputeAttributes();
 }
 
-void Application::ToggleBVHVisualization() {
+void Application::ToggleBVHDebug() {
 	auto it = m_config.find("VISUALIZE_SBVH");
 	if(it != m_config.end() && it->second.compare("true") == 0) {
 		m_config.at("VISUALIZE_SBVH") = "false";
 	} else {
 		m_config.at("VISUALIZE_SBVH") = "true";
 	}
-	m_renderer->ToggleBVHVisualization();
+	m_renderer->RebuildCommandBuffers();
 }
 
 void Application::Run() {

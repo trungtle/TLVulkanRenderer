@@ -24,7 +24,7 @@ Scene::Scene(
 	// Construct SBVH
 	m_accel.reset(new SBVH(
 		1,
-		SBVH::SAH
+		SBVH::Spatial
 		));
 
 	ParseSceneFile(fileName);

@@ -402,6 +402,7 @@ Since my camera isn't initialized from glTF file but manually hard-coded, some s
  - [tinygltfloader](https://github.com/syoyo/tinygltfloader) by [@soyoyo](https://github.com/syoyo)
  - [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF) by [AnalyticalGraphicsInc](https://github.com/AnalyticalGraphicsInc)
  - [spdlog](https://github.com/gabime/spdlog) by [gabime](https://github.com/gabime/) (see LICENSE for details on LICENSE)
+ - [pcg](http://www.pcg-random.org/)
 
 # Vulkan References
 

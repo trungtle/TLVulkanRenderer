@@ -7,15 +7,35 @@ class VulkanDevice;
 
 namespace VulkanImage {
 
-	struct Image {
-		int width;
-		int height;
-		VkImage image;
-		VkImageView imageView;
-		VkDeviceMemory imageMemory;
-		VkSampler sampler;
-		VkDescriptorImageInfo descriptor;
-		VkFormat format;
+	class Image {
+		public:
+			int width;
+			int height;
+			VkFormat format;
+			VkImage image;
+			VkImageView imageView;
+			VkDeviceMemory imageMemory;
+			VkSampler sampler;
+			VkDescriptorImageInfo descriptor;
+
+			Image() : width(0), height(0), format(), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr) {
+		};
+
+		void
+			Create(
+				VulkanDevice* device,
+				uint32_t width,
+				uint32_t height,
+				VkFormat format,
+				VkImageTiling tiling,
+				VkImageUsageFlags usage,
+				VkImageAspectFlags aspectMask,
+				VkMemoryPropertyFlags properties
+			);
+
+			~Image();
+	private:
+		VulkanDevice* m_device;
 	};
 
 	struct Texture
@@ -30,23 +50,6 @@ namespace VulkanImage {
 		uint32_t layerCount;
 		VkDescriptorImageInfo descriptor;
 	};
-
-	Image
-	CreateVulkanImage(
-		VulkanDevice* device,
-		uint32_t width, 
-		uint32_t height,
-		VkFormat format,
-		VkImageTiling tiling,
-		VkImageUsageFlags usage,
-		VkMemoryPropertyFlags properties
-	);
-
-	void
-	DestroyVulkanImage(
-		VulkanDevice* device,
-		Image image
-	);
 
 	/**
 	* \brief Find a supported format from a list of candidates

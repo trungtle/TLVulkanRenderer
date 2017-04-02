@@ -1,24 +1,24 @@
 #include "VulkanImage.h"
 #include "VulkanDevice.h"
+#include "VulkanCPURayTracer.h"
 
 namespace VulkanImage {
 
-	Image 
-	CreateVulkanImage(
+	void
+	Image::Create(
 		VulkanDevice* device, 
 		uint32_t width, 
 		uint32_t height,
 		VkFormat format,
 		VkImageTiling tiling,
 		VkImageUsageFlags usage, 
+		VkImageAspectFlags aspectMask,
 		VkMemoryPropertyFlags properties
-		) 
+		)
 	{
-		Image image; 
-
-		image.width = width;
-		image.height = height;
-		image.format = format;
+		this->width = width;
+		this->height = height;
+		this->format = format;
 
 		device->CreateImage(
 			width,
@@ -29,19 +29,44 @@ namespace VulkanImage {
 			tiling,
 			usage,
 			properties,
-			image.image,
-			image.imageMemory
+			this->image,
+			this->imageMemory
 		);
 
-		return image;
+		if (usage & VK_IMAGE_USAGE_SAMPLED_BIT) {
+			// Create image view, sampler, descriptor if we're going to use this
+			device->CreateImageView(
+				this->image,
+				VK_IMAGE_VIEW_TYPE_2D,
+				format,
+				aspectMask,
+				this->imageView
+			);
+
+			CreateDefaultImageSampler(device->device, &this->sampler);
+
+			VulkanUtil::Make::SetDescriptorImageInfo(
+				VK_IMAGE_LAYOUT_GENERAL,
+				*this
+			);
+		}
+
 	}
 
-	void 
-	DestroyVulkanImage(VulkanDevice* device, Image image) {
-		vkDestroySampler(device->device, image.sampler, nullptr);
-		vkDestroyImageView(device->device, image.imageView, nullptr);
-		vkDestroyImage(device->device, image.image, nullptr);
-		vkFreeMemory(device->device, image.imageMemory, nullptr);
+	Image::~Image() 
+	{
+		if (sampler) {
+			vkDestroySampler(m_device->device, this->sampler, nullptr);
+		}
+		if (imageView) {
+			vkDestroyImageView(m_device->device, this->imageView, nullptr);
+		}
+		if (image) {
+			vkDestroyImage(m_device->device, this->image, nullptr);
+		}
+		if (imageMemory) {
+			vkFreeMemory(m_device->device, this->imageMemory, nullptr);
+		}
 	}
 
 	VkFormat

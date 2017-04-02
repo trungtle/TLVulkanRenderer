@@ -40,7 +40,7 @@ public:
 
 	// === UI
 	void
-	ToggleBVHVisualization() final;
+	RebuildCommandBuffers() final;
 
 
 protected:
@@ -131,6 +131,27 @@ protected:
 	} m_onscreen;
 
 	// -----------
+	// POST PROCESS
+	// -----------
+
+	struct {
+		// SSAO
+		size_t kernelSize;
+		std::vector<glm::vec3> kernel;
+
+		size_t noiseSize;
+		std::vector<glm::vec3> noise;
+
+		// -- Output storage image
+		VulkanImage::Image noiseTexture;
+
+	} m_postProcess;
+
+	void
+		PreparePostProcessSSAO();
+
+
+	// -----------
 	// DEFERRED
 	// -----------
 	void
@@ -139,8 +160,6 @@ protected:
 			VkImageUsageFlagBits usage,
 			VulkanImage::Image& attachment
 		) const;
-
-
 
 	void
 		PrepareDeferred();

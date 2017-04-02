@@ -3,7 +3,7 @@
 #include "scene/Camera.h"
 #include "tinygltfloader/tiny_gltf_loader.h"
 #include "accel/SBVH.h"
-#include "tinygltfloader/stb_image.h"
+#include <gtc/quaternion.hpp>
 
 VulkanHybridRenderer::VulkanHybridRenderer(
 	GLFWwindow* window,
@@ -193,6 +193,7 @@ void VulkanHybridRenderer::Prepare() {
 	PrepareDeferred();
 	PrepareComputeRaytrace();
 	PrepareWireframe();
+	PreparePostProcessSSAO();
 	PrepareOnscreen();
 }
 
@@ -239,9 +240,52 @@ VulkanHybridRenderer::PrepareDescriptorPool() {
 	return VK_SUCCESS;
 }
 
-void VulkanHybridRenderer::ToggleBVHVisualization() 
+void VulkanHybridRenderer::RebuildCommandBuffers() 
 {
 	BuildOnscreenCommandBuffer();
+}
+
+void VulkanHybridRenderer::PreparePostProcessSSAO() 
+{
+	// Follow John Chapman tutorial for SSAO
+	https://john-chapman-graphics.blogspot.com/2013/01/ssao-tutorial.html
+
+	m_postProcess.kernelSize = 16;
+	m_postProcess.kernel.resize(m_postProcess.kernelSize);
+	m_postProcess.noiseSize = 16;
+	m_postProcess.noise.resize(m_postProcess.noiseSize);
+
+	// -- Generate kernel so that all the sample points are in the hemisphere
+	for (int i = 0; i < m_postProcess.kernelSize; ++i) {
+
+		// Random point in range. We will orient the samples along z
+		double x = TLMath::randDouble(m_rng) * 2.0 - 1.0;
+		double y = TLMath::randDouble(m_rng) * 2.0 - 1.0;
+		double z = TLMath::randDouble(m_rng);
+		m_postProcess.kernel[i] = vec3(
+			x, y, z
+		);
+
+		// Normalize to be within hemisphere
+		glm::normalize(m_postProcess.kernel[i]);
+
+		// Skew distribution so that distance from the origin has a falloff as we generate more points
+		float scale = float(i) / float(m_postProcess.kernelSize);
+		scale = TLMath::lerp(0.1f, 1.0f, scale * scale);
+		m_postProcess.kernel[i] *= scale;
+	}
+
+	// -- Generate noise texture
+	for (int i = 0; i < m_postProcess.noiseSize; ++i) {
+		m_postProcess.noise[i] = vec3(
+			TLMath::randDouble(m_rng) * 2.0 - 1.0,
+			TLMath::randDouble(m_rng) * 2.0 - 1.0,
+			0.0f
+		);
+		glm::normalize(m_postProcess.noise[i]);
+	}
+
+
 }
 
 void 
@@ -260,22 +304,15 @@ VulkanHybridRenderer::CreateAttachment(
 		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 	}
 
-	attachment = VulkanImage::CreateVulkanImage(
+	attachment.Create(
 		m_vulkanDevice,
 		m_deferred.framebuffer.width,
 		m_deferred.framebuffer.height,
 		format,
 		VK_IMAGE_TILING_OPTIMAL,
 		usage | VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-	);
-
-	m_vulkanDevice->CreateImageView(
-		attachment.image,
-		VK_IMAGE_VIEW_TYPE_2D,
-		format,
 		aspectMask,
-		attachment.imageView
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
 }
 
@@ -632,6 +669,12 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorLayout()
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
 		),
+		// Depth buffer
+		MakeDescriptorSetLayoutBinding(
+			2,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_FRAGMENT_BIT
+		),
 	};
 
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo =
@@ -679,6 +722,14 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorSet() {
 			1,
 			&m_onscreen.unifBuffer.descriptor,
 			nullptr
+		),
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_graphics.descriptorSet,
+			2,
+			1,
+			nullptr,
+			&m_deferred.framebuffer.depth.descriptor
 		),
 	};
 
@@ -1103,21 +1154,27 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 	m_deferred.framebuffer.position.sampler = m_deferred.framebuffer.sampler;
 	m_deferred.framebuffer.normal.sampler = m_deferred.framebuffer.sampler;
 	m_deferred.framebuffer.albedo.sampler = m_deferred.framebuffer.sampler;
+	m_deferred.framebuffer.depth.sampler = m_deferred.framebuffer.sampler;
 
 	// Create image descriptors
-	VkDescriptorImageInfo texDescriptorPosition = VulkanUtil::Make::SetDescriptorImageInfo(
+	VulkanUtil::Make::SetDescriptorImageInfo(
 		VK_IMAGE_LAYOUT_GENERAL,
 		m_deferred.framebuffer.position
 	);
 
-	VkDescriptorImageInfo texDescriptorNormal = VulkanUtil::Make::SetDescriptorImageInfo(
+	VulkanUtil::Make::SetDescriptorImageInfo(
 		VK_IMAGE_LAYOUT_GENERAL,
 		m_deferred.framebuffer.normal
 	);
 
-	VkDescriptorImageInfo texDescriptorAlbedo = VulkanUtil::Make::SetDescriptorImageInfo(
+	VulkanUtil::Make::SetDescriptorImageInfo(
 		VK_IMAGE_LAYOUT_GENERAL,
 		m_deferred.framebuffer.albedo
+	);
+
+	VulkanUtil::Make::SetDescriptorImageInfo(
+		VK_IMAGE_LAYOUT_GENERAL,
+		m_deferred.framebuffer.depth
 	);
 }
 
@@ -1137,13 +1194,14 @@ void VulkanHybridRenderer::PrepareTextures()
 	}
 
 	// Stage image
-	m_stagingImage = VulkanImage::CreateVulkanImage(
+	m_stagingImage.Create(
 		m_vulkanDevice,
 		texWidth,
 		texHeight,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_LINEAR,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 	VkImageSubresource subresource = {};
@@ -1193,13 +1251,14 @@ void VulkanHybridRenderer::PrepareTextures()
 	);
 
 	// Create our display imageMakeDescriptorImageInfo
-	m_deferred.textures.m_colorMap = VulkanImage::CreateVulkanImage(
+	m_deferred.textures.m_colorMap.Create(
 		m_vulkanDevice,
 		texWidth,
 		texHeight,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
 
@@ -1217,18 +1276,6 @@ void VulkanHybridRenderer::PrepareTextures()
 		m_vulkanDevice->CopyImage(m_graphics.queue, m_graphics.commandPool, m_deferred.textures.m_colorMap.image, m_stagingImage.image, texWidth, texHeight);
 	}
 
-	// Create image view
-	m_vulkanDevice->CreateImageView(
-		m_deferred.textures.m_colorMap.image,
-		VK_IMAGE_VIEW_TYPE_2D,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		m_deferred.textures.m_colorMap.imageView
-	);
-
-	// Create image sampler
-	CreateDefaultImageSampler(m_vulkanDevice->device, &m_deferred.textures.m_colorMap.sampler);
-
 	m_vulkanDevice->TransitionImageLayout(
 		m_graphics.queue,
 		m_graphics.commandPool,
@@ -1237,12 +1284,6 @@ void VulkanHybridRenderer::PrepareTextures()
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-	// Set descriptor
-	VulkanUtil::Make::SetDescriptorImageInfo(
-		VK_IMAGE_LAYOUT_GENERAL,
-		m_deferred.textures.m_colorMap
-	);
 
 	VulkanUtil::Make::SetDescriptorImageInfo(
 		VK_IMAGE_LAYOUT_GENERAL,

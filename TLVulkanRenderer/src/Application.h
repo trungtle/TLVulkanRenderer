@@ -28,7 +28,7 @@ public:
 
 	void Run();
 	void ResetCamera();
-	void ToggleBVHVisualization();
+	void ToggleBVHDebug();
 
 	static void Destroy() {
 		delete Application::pApp;
