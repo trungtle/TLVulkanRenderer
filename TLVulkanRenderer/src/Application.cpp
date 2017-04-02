@@ -141,7 +141,7 @@ Application::Application(
 
 	m_config = {
 		{ "USE_SBVH", "true" },
-		{ "VISUALIZE_SBVH", "true"},
+		{ "VISUALIZE_SBVH", "false"},
 		{ "VISUALIZE_RAY_COST", "true"}
 	};
 	m_scene = new Scene(sceneFile, m_config);

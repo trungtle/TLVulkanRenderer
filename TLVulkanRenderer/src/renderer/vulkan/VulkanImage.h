@@ -33,7 +33,8 @@ namespace VulkanImage {
 			VkImageTiling tiling,
 			VkImageUsageFlags usage,
 			VkImageAspectFlags aspectMask,
-			VkMemoryPropertyFlags properties
+			VkMemoryPropertyFlags properties,
+			bool repeat = false
 		);
 
 		void

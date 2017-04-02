@@ -229,7 +229,8 @@ namespace VulkanUtil {
 		void
 		CreateDefaultImageSampler(
 			const VkDevice& device,
-			VkSampler* sampler
+			VkSampler* sampler,
+			bool repeat = false
 		);
 
 		VkSamplerCreateInfo

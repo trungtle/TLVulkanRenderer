@@ -124,8 +124,27 @@ protected:
 	void
 		BuildOnscreenCommandBuffer();
 
+	void
+		UpdateOnscreenUniform();
+
 	struct Onscreen
 	{
+		struct {
+			ivec2 resolution;
+			float	nearClip;
+			float	farClip;
+
+			vec2	noiseScale;
+			float	radius;
+			int		sampleKernelSize;
+
+			mat4	projectionMat;
+			mat4	viewMat;
+
+			vec3	sampleKernel[16];
+			vec3	viewRay;
+		} unif;
+
 		VulkanBuffer::StorageBuffer unifBuffer;
 		VulkanBuffer::VertexBuffer quadBuffer;
 	} m_onscreen;
@@ -139,8 +158,8 @@ protected:
 		size_t kernelSize;
 		std::vector<glm::vec3> kernel;
 
-		size_t noiseSize;
-		std::vector<glm::vec3> noise;
+		size_t noiseTextureWidth;
+		std::vector<glm::vec4> noise;
 
 		// -- Output storage image
 		VulkanImage::Image stagingImage;

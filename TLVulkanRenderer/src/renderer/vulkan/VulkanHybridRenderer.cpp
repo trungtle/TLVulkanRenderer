@@ -27,6 +27,7 @@ VulkanHybridRenderer::Update() {
 		m_deferred.buffers.mvpUnifStorage.memory,
 		sizeof(m_deferred.mvpUnif)
 	);
+	UpdateDeferredLightsUniform();
 
 	// -- Update wireframe
 	glm::mat4 vp = m_scene->camera.GetViewProj();
@@ -36,11 +37,7 @@ VulkanHybridRenderer::Update() {
 		sizeof(vp)
 	);
 
-	UpdateDeferredLightsUniform();
-	UpdateComputeRaytraceUniform();
-
-
-	// Update lights wireframes
+	// -- Update lights wireframes
 	glm::mat4 mvp = m_scene->camera.GetViewProj();
 
 	for (auto l = 0; l < NUM_LIGHTS; ++l)
@@ -55,6 +52,11 @@ VulkanHybridRenderer::Update() {
 
 	}
 
+	// -- Update compute
+	UpdateComputeRaytraceUniform();
+
+	// -- update onscreen
+	UpdateOnscreenUniform();
 }
 
 void
@@ -247,8 +249,8 @@ void VulkanHybridRenderer::PreparePostProcessSSAO()
 
 	m_postProcess.kernelSize = 16;
 	m_postProcess.kernel.resize(m_postProcess.kernelSize);
-	m_postProcess.noiseSize = 16;
-	m_postProcess.noise.resize(m_postProcess.noiseSize);
+	m_postProcess.noiseTextureWidth = 4;
+	m_postProcess.noise.resize(m_postProcess.noiseTextureWidth * m_postProcess.noiseTextureWidth);
 
 	// -- Generate kernel so that all the sample points are in the hemisphere
 	for (int i = 0; i < m_postProcess.kernelSize; ++i) {
@@ -271,24 +273,28 @@ void VulkanHybridRenderer::PreparePostProcessSSAO()
 	}
 
 	// -- Generate noise texture
-	for (int i = 0; i < m_postProcess.noiseSize; ++i) {
-		m_postProcess.noise[i] = vec3(
+	VkDeviceSize textureSize = m_postProcess.noiseTextureWidth * m_postProcess.noiseTextureWidth;
+	for (int i = 0; i < textureSize; ++i) {
+		m_postProcess.noise[i] = vec4(
 			TLMath::randDouble(m_rng) * 2.0 - 1.0,
 			TLMath::randDouble(m_rng) * 2.0 - 1.0,
-			0.0f
+			0.0f,
+			1
 		);
 		glm::normalize(m_postProcess.noise[i]);
 	}
 
+	textureSize *= 4;
 	m_postProcess.stagingImage.Create(
 		m_vulkanDevice,
-		m_width,
-		m_height,
+		m_postProcess.noiseTextureWidth,
+		m_postProcess.noiseTextureWidth,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_LINEAR,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
 
 	VkImageSubresource subresource = {};
 	subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -296,13 +302,17 @@ void VulkanHybridRenderer::PreparePostProcessSSAO()
 	subresource.arrayLayer = 0;
 
 	VkSubresourceLayout stagingImageLayout;
-	vkGetImageSubresourceLayout(m_vulkanDevice->device, m_postProcess.stagingImage.image, &subresource, &stagingImageLayout);
+	vkGetImageSubresourceLayout(
+		m_vulkanDevice->device, 
+		m_postProcess.stagingImage.image, 
+		&subresource, 
+		&stagingImageLayout
+		);
 
-	VkDeviceSize imageSize = m_width * m_height;
 	m_vulkanDevice->MapMemory(
 		m_postProcess.noise.data(),
 		m_postProcess.stagingImage.imageMemory,
-		imageSize
+		textureSize
 	);
 
 	// Prepare our texture for staging
@@ -314,8 +324,8 @@ void VulkanHybridRenderer::PreparePostProcessSSAO()
 	// Create our display imageMakeDescriptorImageInfo
 	m_postProcess.noiseTexture.Create(
 		m_vulkanDevice,
-		m_width,
-		m_height,
+		m_postProcess.noiseTextureWidth,
+		m_postProcess.noiseTextureWidth,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -701,18 +711,18 @@ void VulkanHybridRenderer::PrepareOnScreenQuadVertexBuffer() {
 
 	// Cleanup staging buffer memory
 	staging.Destroy();
-
-	
 }
 
 void VulkanHybridRenderer::PrepareOnscreenDescriptorLayout() 
 {
 	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
+		// Output from raytracing, read in as image sampler
 		MakeDescriptorSetLayoutBinding(
 			0,
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
 		),
+		// Uniform buffer
 		MakeDescriptorSetLayoutBinding(
 			1,
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -721,6 +731,18 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorLayout()
 		// Depth buffer
 		MakeDescriptorSetLayoutBinding(
 			2,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_FRAGMENT_BIT
+		),
+		// Normal texture
+		MakeDescriptorSetLayoutBinding(
+			3,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_FRAGMENT_BIT
+		),		
+		// Noise texture
+		MakeDescriptorSetLayoutBinding(
+			4,
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
 		),
@@ -780,6 +802,22 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorSet() {
 			nullptr,
 			&m_deferred.framebuffer.depth.descriptor
 		),
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_graphics.descriptorSet,
+			3,
+			1,
+			nullptr,
+			&m_deferred.framebuffer.normal.descriptor
+		),
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_graphics.descriptorSet,
+			4,
+			1,
+			nullptr,
+			&m_postProcess.noiseTexture.descriptor
+		),
 	};
 
 	vkUpdateDescriptorSets(m_vulkanDevice->device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
@@ -790,15 +828,9 @@ void VulkanHybridRenderer::PrepareOnscreenUniformBuffer() {
 	// === Quad === //
 	m_onscreen.unifBuffer.Create(
 		m_vulkanDevice,
-		sizeof(glm::ivec2),
+		sizeof(m_onscreen.unif),
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-	);
-
-	m_vulkanDevice->MapMemory(
-		&m_scene->camera.resolution,
-		m_onscreen.unifBuffer.memory,
-		sizeof(glm::ivec2)
 	);
 }
 
@@ -806,8 +838,8 @@ void VulkanHybridRenderer::PrepareOnscreenPipeline()
 {
 	VkResult result = VK_SUCCESS;
 
-	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/quad.vert.spv");
-	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/raytracing/quad.frag.spv");
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/hybrid/hybrid.vert.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/hybrid/hybrid.frag.spv");
 
 	std::vector<VkVertexInputBindingDescription> bindingDesc = {
 		MakeVertexInputBindingDescription(
@@ -1026,20 +1058,23 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_wireframe.BVHVertices.buffer, offsets);
 			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_wireframe.BVHIndices.buffer, 0, VK_INDEX_TYPE_UINT16);
 			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_wireframe.indexCount, 1, 0, 0, 1);
+
+			// -- Draw light wireframes
+
+			for (auto l = 0; l < NUM_LIGHTS; ++l)
+			{
+				VkDeviceSize zeroOffset[] = { m_deferred.buffers.lightsVertexBuffer[l].offsets.at(WIREFRAME) };
+				vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipeline);
+				vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipelineLayout, 0, 1, &m_deferred.lightsDescriptorSet[l], 0, NULL);
+				vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_deferred.buffers.lightsVertexBuffer[l].storageBuffer.buffer, zeroOffset);
+				vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_deferred.buffers. lightsVertexBuffer[l].storageBuffer.buffer, m_deferred.buffers.lightsVertexBuffer[l].offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
+
+				// Record draw command for the triangle!
+				vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer[l].indexCount, 1, 0, 0, 0);
+			}
+
 		}
 		
-		// -- Draw light wireframes
-
-		for (auto l = 0; l < NUM_LIGHTS; ++l) {
-			VkDeviceSize zeroOffset[] = { m_deferred.buffers.lightsVertexBuffer[l].offsets.at(WIREFRAME) };
-			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipeline);
-			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_wireframe.pipelineLayout, 0, 1, &m_deferred.lightsDescriptorSet[l], 0, NULL);
-			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_deferred.buffers.lightsVertexBuffer[l].storageBuffer.buffer, zeroOffset);
-			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer[l].storageBuffer.buffer, m_deferred.buffers.lightsVertexBuffer[l].offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
-
-			// Record draw command for the triangle!
-			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer[l].indexCount, 1, 0, 0, 0);
-		}
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
@@ -1052,6 +1087,30 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 		}
 	}
 
+}
+
+void VulkanHybridRenderer::UpdateOnscreenUniform() 
+{
+	m_onscreen.unif.resolution = m_scene->camera.resolution;
+	m_onscreen.unif.nearClip = 1.0f;// m_scene->camera.nearClip;
+	m_onscreen.unif.farClip = m_scene->camera.farClip;
+	m_onscreen.unif.noiseScale.x = m_width / float(m_postProcess.noiseTextureWidth);
+	m_onscreen.unif.noiseScale.y = m_height / float(m_postProcess.noiseTextureWidth);
+	m_onscreen.unif.radius = 0.1;// / (1000 - 1);
+	m_onscreen.unif.sampleKernelSize = m_postProcess.kernelSize;
+	m_onscreen.unif.projectionMat = m_scene->camera.GetProj();
+	m_onscreen.unif.viewMat = m_scene->camera.GetView();
+
+	for (auto i = 0; i < m_postProcess.kernelSize; ++i) {
+		m_onscreen.unif.sampleKernel[i] = m_postProcess.kernel[i];
+	}
+	m_onscreen.unif.viewRay = vec3(m_scene->camera.GetView() * vec4(m_scene->camera.forward, 0.0));
+
+	m_vulkanDevice->MapMemory(
+		&m_onscreen.unif,
+		m_onscreen.unifBuffer.memory,
+		sizeof(m_onscreen.unif)
+	);
 }
 
 void VulkanHybridRenderer::PrepareDeferredAttachments()
@@ -1204,27 +1263,6 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 	m_deferred.framebuffer.normal.sampler = m_deferred.framebuffer.sampler;
 	m_deferred.framebuffer.albedo.sampler = m_deferred.framebuffer.sampler;
 	m_deferred.framebuffer.depth.sampler = m_deferred.framebuffer.sampler;
-
-	// Create image descriptors
-	VulkanUtil::Make::SetDescriptorImageInfo(
-		VK_IMAGE_LAYOUT_GENERAL,
-		m_deferred.framebuffer.position
-	);
-
-	VulkanUtil::Make::SetDescriptorImageInfo(
-		VK_IMAGE_LAYOUT_GENERAL,
-		m_deferred.framebuffer.normal
-	);
-
-	VulkanUtil::Make::SetDescriptorImageInfo(
-		VK_IMAGE_LAYOUT_GENERAL,
-		m_deferred.framebuffer.albedo
-	);
-
-	VulkanUtil::Make::SetDescriptorImageInfo(
-		VK_IMAGE_LAYOUT_GENERAL,
-		m_deferred.framebuffer.depth
-	);
 }
 
 void VulkanHybridRenderer::PrepareTextures()

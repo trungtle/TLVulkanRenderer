@@ -13,7 +13,8 @@ namespace VulkanImage {
 		VkImageTiling tiling,
 		VkImageUsageFlags usage, 
 		VkImageAspectFlags aspectMask,
-		VkMemoryPropertyFlags properties
+		VkMemoryPropertyFlags properties,
+		bool repeat
 		)
 	{
 		this->width = width;
@@ -45,7 +46,7 @@ namespace VulkanImage {
 				this->imageView
 			);
 
-			CreateDefaultImageSampler(device->device, &this->sampler);
+			CreateDefaultImageSampler(device->device, &this->sampler, repeat);
 
 			VulkanUtil::Make::SetDescriptorImageInfo(
 				VK_IMAGE_LAYOUT_GENERAL,

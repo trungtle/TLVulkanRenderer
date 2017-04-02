@@ -9,8 +9,6 @@ layout (binding = 0) uniform sampler2D samplerColor;
 layout (binding = 1) uniform Buffer {
 	ivec2 iResolution;
 };
-layout (binding = 2) uniform sampler2D samplerDepth;
-
 layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
@@ -30,16 +28,6 @@ vec4 hatchingColor(vec2 ndcPixel, vec4 color) {
 	return mCol;
 }
 
-// Retriev the depth buffer valuye
-float getDepthColor() {
-	float z = texture(samplerDepth, inUV).r;
-	float n = 1.0; // near plane
-	float f = 1000.0; // far plane
-	float c = (2.0 * n) / (f + n - z * (f - n)); // convert to linear
-
-	return c;
-}
-
 void main() 
 {
 	vec2 q = gl_FragCoord.xy / iResolution.xy;
@@ -49,8 +37,6 @@ void main()
 	// SSAO
 	// https://mynameismjp.wordpress.com/2009/03/10/reconstructing-position-from-depth/
 
-	float c = getDepthColor();
 	vec4 color = texture(samplerColor, inUV);
-	//color = vec4(c, c, c, 1.0);
 	outFragColor = color;
 }
