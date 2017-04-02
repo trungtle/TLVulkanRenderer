@@ -228,8 +228,6 @@ VulkanCPURaytracer::Render() {
 	}
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_stagingImage.image,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
@@ -255,8 +253,6 @@ VulkanCPURaytracer::Render() {
 
 	// Prepare our texture for staging
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_stagingImage.image,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
@@ -265,8 +261,6 @@ VulkanCPURaytracer::Render() {
 	);
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_displayImage.image,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
@@ -274,11 +268,14 @@ VulkanCPURaytracer::Render() {
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	);
 
-	m_vulkanDevice->CopyImage(m_graphics.queue , m_graphics.commandPool, m_displayImage.image, m_stagingImage.image, m_width, m_height);
+	m_vulkanDevice->CopyImage(
+		m_displayImage.image, 
+		m_stagingImage.image, 
+		m_width, 
+		m_height
+		);
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_displayImage.image, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT, 
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
@@ -967,8 +964,6 @@ void VulkanCPURaytracer::PrepareTextures() {
 
 	// Prepare our texture for staging
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_stagingImage.image,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
@@ -989,8 +984,6 @@ void VulkanCPURaytracer::PrepareTextures() {
 	);
 	
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_displayImage.image, 
 		VK_FORMAT_R8G8B8A8_UNORM, 
 		VK_IMAGE_ASPECT_COLOR_BIT,
@@ -998,12 +991,16 @@ void VulkanCPURaytracer::PrepareTextures() {
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	);
 
-	m_vulkanDevice->CopyImage(m_graphics.queue, m_graphics.commandPool, m_displayImage.image, m_stagingImage.image, m_width, m_height);
+	m_vulkanDevice->CopyImage(
+		m_displayImage.image, 
+		m_stagingImage.image, 
+		m_width, 
+		m_height
+	);
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
-		m_displayImage.image, VK_FORMAT_R8G8B8A8_UNORM,
+		m_displayImage.image, 
+		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);

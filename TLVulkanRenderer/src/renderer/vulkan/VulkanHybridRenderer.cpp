@@ -132,11 +132,6 @@ VulkanHybridRenderer::Render() {
 
 	// ===== Raytracing
 
-	//// Wait for offscreen semaphore
-	//m_submitInfo.pWaitSemaphores = &m_offscreenSemaphore;
-	//// Signal ready with render complete semaphpre
-	//m_submitInfo.pSignalSemaphores = &m_semaphores.m_renderComplete;
-
 	// Submit compute commands
 	// Use a fence to ensure that compute command buffer has finished executing before using it again
 	vkWaitForFences(m_vulkanDevice->device, 1, &m_raytrace.fence, VK_TRUE, UINT64_MAX);
@@ -285,7 +280,73 @@ void VulkanHybridRenderer::PreparePostProcessSSAO()
 		glm::normalize(m_postProcess.noise[i]);
 	}
 
+	m_postProcess.stagingImage.Create(
+		m_vulkanDevice,
+		m_width,
+		m_height,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_TILING_LINEAR,
+		VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
+	VkImageSubresource subresource = {};
+	subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	subresource.mipLevel = 0;
+	subresource.arrayLayer = 0;
+
+	VkSubresourceLayout stagingImageLayout;
+	vkGetImageSubresourceLayout(m_vulkanDevice->device, m_postProcess.stagingImage.image, &subresource, &stagingImageLayout);
+
+	VkDeviceSize imageSize = m_width * m_height;
+	m_vulkanDevice->MapMemory(
+		m_postProcess.noise.data(),
+		m_postProcess.stagingImage.imageMemory,
+		imageSize
+	);
+
+	// Prepare our texture for staging
+	m_vulkanDevice->TransitionImageLayout(
+		m_postProcess.stagingImage.image,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_IMAGE_LAYOUT_PREINITIALIZED,
+		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+	);
+
+	// Create our display imageMakeDescriptorImageInfo
+	m_postProcess.noiseTexture.Create(
+		m_vulkanDevice,
+		m_width,
+		m_height,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+	);
+
+	m_vulkanDevice->TransitionImageLayout(
+		m_postProcess.noiseTexture.image,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_IMAGE_LAYOUT_PREINITIALIZED,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+	);
+
+	m_vulkanDevice->CopyImage(
+		m_postProcess.noiseTexture.image, 
+		m_postProcess.stagingImage.image, 
+		m_width, 
+		m_height
+	);
+
+	m_vulkanDevice->TransitionImageLayout(
+		m_postProcess.noiseTexture.image,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void 
@@ -1241,8 +1302,6 @@ void VulkanHybridRenderer::PrepareTextures()
 
 	// Prepare our texture for staging
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_stagingImage.image,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1263,8 +1322,6 @@ void VulkanHybridRenderer::PrepareTextures()
 	);
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_deferred.textures.m_colorMap.image,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1273,12 +1330,14 @@ void VulkanHybridRenderer::PrepareTextures()
 	);
 
 	if (imageSize) {
-		m_vulkanDevice->CopyImage(m_graphics.queue, m_graphics.commandPool, m_deferred.textures.m_colorMap.image, m_stagingImage.image, texWidth, texHeight);
+		m_vulkanDevice->CopyImage(
+			m_deferred.textures.m_colorMap.image, 
+			m_stagingImage.image, 
+			texWidth, 
+			texHeight);
 	}
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_graphics.queue,
-		m_graphics.commandPool,
 		m_deferred.textures.m_colorMap.image, 
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_ASPECT_COLOR_BIT,
@@ -2162,8 +2221,6 @@ VulkanHybridRenderer::PrepareComputeRaytraceTextures() {
 	);
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_compute.queue,
-		m_compute.commandPool,
 		m_raytrace.storageRaytraceImage.image,
 		imageFormat,
 		VK_IMAGE_ASPECT_COLOR_BIT,

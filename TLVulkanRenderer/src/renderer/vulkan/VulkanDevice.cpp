@@ -327,8 +327,6 @@ VulkanDevice::PrepareDepthResources(
 	);
 
 	TransitionImageLayout(
-		queue,
-		commandPool,
 		m_depthTexture.image,
 		depthFormat,
 		VK_IMAGE_ASPECT_DEPTH_BIT,
@@ -821,15 +819,13 @@ VulkanDevice::CreateImageView(
 
 void
 VulkanDevice::TransitionImageLayout(
-	VkQueue queue,
-	VkCommandPool commandPool,
 	VkImage image,
 	VkFormat format,
 	VkImageAspectFlags aspectMask,
 	VkImageLayout oldLayout,
 	VkImageLayout newLayout
-) {
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(commandPool);
+) const {
+	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_graphicsDeviceQueue.cmdPool);
 
 	// Using image memory barrier to transition for image layout. 
 	// There is a buffer memory barrier equivalent
@@ -961,19 +957,17 @@ VulkanDevice::TransitionImageLayout(
 		&imageBarrier
 	);
 
-	EndSingleTimeCommands(queue, commandPool, commandBuffer);
+	EndSingleTimeCommands(m_graphicsDeviceQueue.queue, m_graphicsDeviceQueue.cmdPool, commandBuffer);
 }
 
 void
 VulkanDevice::CopyImage(
-	VkQueue queue,
-	VkCommandPool commandPool,
 	VkImage dstImage,
 	VkImage srcImage,
 	uint32_t width,
 	uint32_t height
 ) {
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(commandPool);
+	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_graphicsDeviceQueue.cmdPool);
 
 	// Subresource is sort of like a buffer for images
 	VkImageSubresourceLayers subResource = {};
@@ -999,7 +993,7 @@ VulkanDevice::CopyImage(
 		&region
 	);
 
-	EndSingleTimeCommands(queue, commandPool, commandBuffer);
+	EndSingleTimeCommands(m_graphicsDeviceQueue.queue, m_graphicsDeviceQueue.cmdPool, commandBuffer);
 }
 
 VkCommandBuffer

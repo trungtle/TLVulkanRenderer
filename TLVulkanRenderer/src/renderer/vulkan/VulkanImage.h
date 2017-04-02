@@ -20,20 +20,24 @@ namespace VulkanImage {
 
 			Image() : width(0), height(0), format(), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr) {
 		};
+		
+		~Image();
 
 		void
-			Create(
-				VulkanDevice* device,
-				uint32_t width,
-				uint32_t height,
-				VkFormat format,
-				VkImageTiling tiling,
-				VkImageUsageFlags usage,
-				VkImageAspectFlags aspectMask,
-				VkMemoryPropertyFlags properties
-			);
+		Create(
+			VulkanDevice* device,
+			uint32_t width,
+			uint32_t height,
+			VkFormat format,
+			VkImageTiling tiling,
+			VkImageUsageFlags usage,
+			VkImageAspectFlags aspectMask,
+			VkMemoryPropertyFlags properties
+		);
 
-			~Image();
+		void
+		Destroy() const;
+
 	private:
 		VulkanDevice* m_device;
 	};

@@ -195,19 +195,15 @@ public:
 
 	void
 	TransitionImageLayout(
-		VkQueue queue,
-		VkCommandPool commandPool,
 		VkImage image,
 		VkFormat format,
 		VkImageAspectFlags aspectMask,
 		VkImageLayout oldLayout,
 		VkImageLayout newLayout
-	);
+	) const;
 
 	void
 	CopyImage(
-		VkQueue queue,
-		VkCommandPool commandPool,
 		VkImage dstImage,
 		VkImage srcImage,
 		uint32_t width,

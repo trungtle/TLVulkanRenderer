@@ -143,6 +143,7 @@ protected:
 		std::vector<glm::vec3> noise;
 
 		// -- Output storage image
+		VulkanImage::Image stagingImage;
 		VulkanImage::Image noiseTexture;
 
 	} m_postProcess;

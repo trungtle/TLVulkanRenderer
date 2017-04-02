@@ -989,47 +989,25 @@ VkResult
 VulkanGPURaytracer::PrepareComputeRaytraceTextureResources() {
 	VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-	m_vulkanDevice->CreateImage(
-		m_vulkanDevice->m_swapchain.extent.width,
-		m_vulkanDevice->m_swapchain.extent.height,
-		1, // only a 2D depth image
-		VK_IMAGE_TYPE_2D,
+	m_raytrace.storageRaytraceImage.Create(
+		m_vulkanDevice,
+		m_width,
+		m_height,
 		imageFormat,
 		VK_IMAGE_TILING_OPTIMAL,
 		// Image is sampled in fragment shader and used as storage for compute output
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_raytrace.storageRaytraceImage.image,
-		m_raytrace.storageRaytraceImage.imageMemory
-	);
-	m_vulkanDevice->CreateImageView(
-		m_raytrace.storageRaytraceImage.image,
-		VK_IMAGE_VIEW_TYPE_2D,
-		imageFormat,
 		VK_IMAGE_ASPECT_COLOR_BIT,
-		m_raytrace.storageRaytraceImage.imageView
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
 
 	m_vulkanDevice->TransitionImageLayout(
-		m_raytrace.queue,
-		m_raytrace.commandPool,
 		m_raytrace.storageRaytraceImage.image,
 		imageFormat,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_IMAGE_LAYOUT_UNDEFINED,
 		VK_IMAGE_LAYOUT_GENERAL
 	);
-
-	// Create sampler
-	CreateDefaultImageSampler(m_vulkanDevice->device, &m_raytrace.storageRaytraceImage.sampler);
-
-	m_raytrace.storageRaytraceImage.width = m_vulkanDevice->m_swapchain.extent.width;
-	m_raytrace.storageRaytraceImage.height = m_vulkanDevice->m_swapchain.extent.height;
-
-	// Initialize descriptor
-	m_raytrace.storageRaytraceImage.descriptor.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	m_raytrace.storageRaytraceImage.descriptor.imageView = m_raytrace.storageRaytraceImage.imageView;
-	m_raytrace.storageRaytraceImage.descriptor.sampler = m_raytrace.storageRaytraceImage.sampler;
 
 	return VK_SUCCESS;
 }

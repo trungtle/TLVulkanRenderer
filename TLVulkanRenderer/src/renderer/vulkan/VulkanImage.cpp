@@ -19,6 +19,7 @@ namespace VulkanImage {
 		this->width = width;
 		this->height = height;
 		this->format = format;
+		this->m_device = device;
 
 		device->CreateImage(
 			width,
@@ -53,20 +54,28 @@ namespace VulkanImage {
 
 	}
 
-	Image::~Image() 
-	{
-		if (sampler) {
+	void Image::Destroy() const {
+		if (sampler)
+		{
 			vkDestroySampler(m_device->device, this->sampler, nullptr);
 		}
-		if (imageView) {
+		if (imageView)
+		{
 			vkDestroyImageView(m_device->device, this->imageView, nullptr);
 		}
-		if (image) {
+		if (image)
+		{
 			vkDestroyImage(m_device->device, this->image, nullptr);
 		}
-		if (imageMemory) {
+		if (imageMemory)
+		{
 			vkFreeMemory(m_device->device, this->imageMemory, nullptr);
 		}
+	}
+
+	Image::~Image() 
+	{
+		Destroy();
 	}
 
 	VkFormat
