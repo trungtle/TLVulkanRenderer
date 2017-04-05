@@ -204,6 +204,8 @@
     <None Include="shaders\raytracing\wireframe.frag.spv" />
     <None Include="shaders\hybrid\hybrid.comp" />
     <None Include="shaders\hybrid\hybrid.comp.spv" />
+    <None Include="shaders\hybrid\blur.frag" />
+    <None Include="shaders\hybrid\pass-through.vert" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">

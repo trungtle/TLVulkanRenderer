@@ -141,7 +141,7 @@ protected:
 			mat4	projectionMat;
 			mat4	viewMat;
 
-			vec3	sampleKernel[16];
+			vec3	sampleKernel[16 * 16];
 			vec3	viewRay;
 		} unif;
 
@@ -161,14 +161,34 @@ protected:
 		size_t noiseTextureWidth;
 		std::vector<glm::vec4> noise;
 
+		VkDescriptorSetLayout descriptorLayout;
+		VkDescriptorSet descriptorSet;
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+
 		// -- Output storage image
 		VulkanImage::Image stagingImage;
 		VulkanImage::Image noiseTexture;
 
-	} m_postProcess;
+	} m_postSSAO;
 
 	void
-		PreparePostProcessSSAO();
+		PreparePostSSAO();
+
+	void
+		PreparePostSSAOBuffers();
+
+	void
+		PreparePostSSAODescriptorLayout();
+
+	void
+		PreparePostSSAODescriptorSet();
+
+	void
+		PreparePostSSAOPipeline();
+
+	void
+		BuildPostSSAOCommbandBuffer();
 
 
 	// -----------

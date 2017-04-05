@@ -227,6 +227,7 @@
     <None Include="shaders\forward\fragShader.spv" />
     <None Include="shaders\forward\vertShader.spv" />
     <None Include="shaders\forward\vertShader.vert" />
+    <None Include="shaders\hybrid\blur.frag" />
     <None Include="shaders\hybrid\generate-spirv.bat" />
     <None Include="shaders\hybrid\hybrid.frag" />
     <None Include="shaders\hybrid\hybrid.frag.spv" />
@@ -234,6 +235,7 @@
     <None Include="shaders\hybrid\hybrid.vert.spv" />
     <None Include="shaders\hybrid\hybrid.comp" />
     <None Include="shaders\hybrid\hybrid.comp.spv" />
+    <None Include="shaders\hybrid\pass-through.vert" />
     <None Include="shaders\hybrid\wireframe.frag" />
     <None Include="shaders\hybrid\wireframe.frag.spv" />
     <None Include="shaders\hybrid\wireframe.vert" />

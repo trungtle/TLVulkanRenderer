@@ -16,7 +16,7 @@ layout (binding = 1) uniform Buffer {
 	mat4	projectionMat;
 	mat4    viewMat;
 
-	vec3	sampleKernel[16];
+	vec3	sampleKernel[16 * 16];
 	vec3	viewRay;
 } ubo;
 layout (binding = 2) uniform sampler2D samplerDepth;
@@ -107,11 +107,23 @@ void main()
 	vec2 p = -1.0+2.0*q;
 	p.x *= -ubo.iResolution.x / ubo.iResolution.y;
 
-	float c = getLinearDepth();
 	vec4 color = texture(samplerColor, inUV);
-	//color = vec4(c, c, c, 1.0);
-	//color = texture(uNoiseTexture, inUV);
 	float ssao = SSAO();
-	//color = vec4(ssao, ssao, ssao, 1.0);
-	outFragColor = color * ssao;
+	//color = color * ssao;
+
+	// -- Blur
+	vec2 texelSize = 1.0 / vec2(textureSize(samplerColor, 0));
+	//float blur = 0.0;
+	
+	//// Just blur 4x4 for our ssao
+	//for (int x = -2; x < 2; ++x) {
+	//	for (int y = -2; y < 2; ++y) {
+	//		vec2 offset = vec2(float(x), float(y)) * texelSize;
+	//		blur += texture(samplerColor, inUV + offset).r;
+	//	}
+	//}
+
+	//blur = blur / (4.0 * 4.0); 
+
+	outFragColor = color;// * blur;
 }

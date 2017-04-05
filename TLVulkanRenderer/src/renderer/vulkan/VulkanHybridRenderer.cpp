@@ -190,7 +190,7 @@ void VulkanHybridRenderer::Prepare() {
 	PrepareDeferred();
 	PrepareComputeRaytrace();
 	PrepareWireframe();
-	PreparePostProcessSSAO();
+	PreparePostSSAO();
 	PrepareOnscreen();
 }
 
@@ -242,53 +242,63 @@ void VulkanHybridRenderer::RebuildCommandBuffers()
 	BuildOnscreenCommandBuffer();
 }
 
-void VulkanHybridRenderer::PreparePostProcessSSAO() 
+void VulkanHybridRenderer::PreparePostSSAO() 
 {
 	// Follow John Chapman tutorial for SSAO
 	https://john-chapman-graphics.blogspot.com/2013/01/ssao-tutorial.html
 
-	m_postProcess.kernelSize = 16;
-	m_postProcess.kernel.resize(m_postProcess.kernelSize);
-	m_postProcess.noiseTextureWidth = 4;
-	m_postProcess.noise.resize(m_postProcess.noiseTextureWidth * m_postProcess.noiseTextureWidth);
+	PreparePostSSAOBuffers();
+	PreparePostSSAODescriptorLayout();
+	PreparePostSSAODescriptorSet();
+	PreparePostSSAOPipeline();
+	BuildPostSSAOCommbandBuffer();
+}
+
+void VulkanHybridRenderer::PreparePostSSAOBuffers() {
+	m_postSSAO.kernelSize = 16 * 16;
+	m_postSSAO.kernel.resize(m_postSSAO.kernelSize);
+	m_postSSAO.noiseTextureWidth = 4;
+	m_postSSAO.noise.resize(m_postSSAO.noiseTextureWidth * m_postSSAO.noiseTextureWidth);
 
 	// -- Generate kernel so that all the sample points are in the hemisphere
-	for (int i = 0; i < m_postProcess.kernelSize; ++i) {
+	for (int i = 0; i < m_postSSAO.kernelSize; ++i)
+	{
 
 		// Random point in range. We will orient the samples along z
 		double x = TLMath::randDouble(m_rng) * 2.0 - 1.0;
 		double y = TLMath::randDouble(m_rng) * 2.0 - 1.0;
 		double z = TLMath::randDouble(m_rng);
-		m_postProcess.kernel[i] = vec3(
+		m_postSSAO.kernel[i] = vec3(
 			x, y, z
 		);
 
 		// Normalize to be within hemisphere
-		glm::normalize(m_postProcess.kernel[i]);
+		glm::normalize(m_postSSAO.kernel[i]);
 
 		// Skew distribution so that distance from the origin has a falloff as we generate more points
-		float scale = float(i) / float(m_postProcess.kernelSize);
+		float scale = float(i) / float(m_postSSAO.kernelSize);
 		scale = TLMath::lerp(0.1f, 1.0f, scale * scale);
-		m_postProcess.kernel[i] *= scale;
+		m_postSSAO.kernel[i] *= scale;
 	}
 
 	// -- Generate noise texture
-	VkDeviceSize textureSize = m_postProcess.noiseTextureWidth * m_postProcess.noiseTextureWidth;
-	for (int i = 0; i < textureSize; ++i) {
-		m_postProcess.noise[i] = vec4(
+	VkDeviceSize textureSize = m_postSSAO.noiseTextureWidth * m_postSSAO.noiseTextureWidth;
+	for (int i = 0; i < textureSize; ++i)
+	{
+		m_postSSAO.noise[i] = vec4(
 			TLMath::randDouble(m_rng) * 2.0 - 1.0,
 			TLMath::randDouble(m_rng) * 2.0 - 1.0,
 			0.0f,
 			1
 		);
-		glm::normalize(m_postProcess.noise[i]);
+		glm::normalize(m_postSSAO.noise[i]);
 	}
 
 	textureSize *= 4;
-	m_postProcess.stagingImage.Create(
+	m_postSSAO.stagingImage.Create(
 		m_vulkanDevice,
-		m_postProcess.noiseTextureWidth,
-		m_postProcess.noiseTextureWidth,
+		m_postSSAO.noiseTextureWidth,
+		m_postSSAO.noiseTextureWidth,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_LINEAR,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -303,48 +313,61 @@ void VulkanHybridRenderer::PreparePostProcessSSAO()
 
 	VkSubresourceLayout stagingImageLayout;
 	vkGetImageSubresourceLayout(
-		m_vulkanDevice->device, 
-		m_postProcess.stagingImage.image, 
-		&subresource, 
+		m_vulkanDevice->device,
+		m_postSSAO.stagingImage.image,
+		&subresource,
 		&stagingImageLayout
-		);
+	);
 
 	m_vulkanDevice->MapMemory(
-		m_postProcess.noise.data(),
-		m_postProcess.stagingImage.imageMemory,
+		m_postSSAO.noise.data(),
+		m_postSSAO.stagingImage.imageMemory,
 		textureSize
 	);
 
 	// Prepare our texture for staging
-	m_postProcess.stagingImage.TransitionImageLayout(
+	m_postSSAO.stagingImage.TransitionImageLayout(
 		VK_IMAGE_LAYOUT_PREINITIALIZED,
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
 	);
 
 	// Create our display imageMakeDescriptorImageInfo
-	m_postProcess.noiseTexture.Create(
+	m_postSSAO.noiseTexture.Create(
 		m_vulkanDevice,
-		m_postProcess.noiseTextureWidth,
-		m_postProcess.noiseTextureWidth,
+		m_postSSAO.noiseTextureWidth,
+		m_postSSAO.noiseTextureWidth,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+		//true // repeat
 	);
 
-	m_postProcess.noiseTexture.TransitionImageLayout(
+	m_postSSAO.noiseTexture.TransitionImageLayout(
 		VK_IMAGE_LAYOUT_PREINITIALIZED,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	);
 
-	m_postProcess.noiseTexture.CopyImage(
-		m_postProcess.stagingImage
+	m_postSSAO.noiseTexture.CopyImage(
+		m_postSSAO.stagingImage
 	);
 
-	m_postProcess.noiseTexture.TransitionImageLayout(
+	m_postSSAO.noiseTexture.TransitionImageLayout(
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+}
+
+void VulkanHybridRenderer::PreparePostSSAODescriptorLayout() {
+}
+
+void VulkanHybridRenderer::PreparePostSSAODescriptorSet() {
+}
+
+void VulkanHybridRenderer::PreparePostSSAOPipeline() {
+}
+
+void VulkanHybridRenderer::BuildPostSSAOCommbandBuffer() {
 }
 
 void 
@@ -816,7 +839,7 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorSet() {
 			4,
 			1,
 			nullptr,
-			&m_postProcess.noiseTexture.descriptor
+			&m_postSSAO.noiseTexture.descriptor
 		),
 	};
 
@@ -1094,15 +1117,15 @@ void VulkanHybridRenderer::UpdateOnscreenUniform()
 	m_onscreen.unif.resolution = m_scene->camera.resolution;
 	m_onscreen.unif.nearClip = 1.0f;// m_scene->camera.nearClip;
 	m_onscreen.unif.farClip = m_scene->camera.farClip;
-	m_onscreen.unif.noiseScale.x = m_width / float(m_postProcess.noiseTextureWidth);
-	m_onscreen.unif.noiseScale.y = m_height / float(m_postProcess.noiseTextureWidth);
+	m_onscreen.unif.noiseScale.x = m_width / float(m_postSSAO.noiseTextureWidth);
+	m_onscreen.unif.noiseScale.y = m_height / float(m_postSSAO.noiseTextureWidth);
 	m_onscreen.unif.radius = 0.1;// / (1000 - 1);
-	m_onscreen.unif.sampleKernelSize = m_postProcess.kernelSize;
+	m_onscreen.unif.sampleKernelSize = m_postSSAO.kernelSize;
 	m_onscreen.unif.projectionMat = m_scene->camera.GetProj();
 	m_onscreen.unif.viewMat = m_scene->camera.GetView();
 
-	for (auto i = 0; i < m_postProcess.kernelSize; ++i) {
-		m_onscreen.unif.sampleKernel[i] = m_postProcess.kernel[i];
+	for (auto i = 0; i < m_postSSAO.kernelSize; ++i) {
+		m_onscreen.unif.sampleKernel[i] = m_postSSAO.kernel[i];
 	}
 	m_onscreen.unif.viewRay = vec3(m_scene->camera.GetView() * vec4(m_scene->camera.forward, 0.0));
 
