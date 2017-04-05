@@ -22,6 +22,9 @@ layout (binding = 1) uniform Buffer {
 layout (binding = 2) uniform sampler2D samplerDepth;
 layout (binding = 3) uniform sampler2D uNormal;
 layout (binding = 4) uniform sampler2D uNoiseTexture;
+layout (binding = 5) uniform PostOptions {
+	bool ssao;
+} postOptions;
 
 layout (location = 0) in vec2 inUV;
 
@@ -108,22 +111,23 @@ void main()
 	p.x *= -ubo.iResolution.x / ubo.iResolution.y;
 
 	vec4 color = texture(samplerColor, inUV);
-	float ssao = SSAO();
-	//color = color * ssao;
-
-	// -- Blur
-	vec2 texelSize = 1.0 / vec2(textureSize(samplerColor, 0));
-	//float blur = 0.0;
+	if(postOptions.ssao) {
+		color = color * SSAO();
+		// -- Blur
+		//vec2 texelSize = 1.0 / vec2(textureSize(samplerColor, 0));
+		//float blur = 0.0;
 	
-	//// Just blur 4x4 for our ssao
-	//for (int x = -2; x < 2; ++x) {
-	//	for (int y = -2; y < 2; ++y) {
-	//		vec2 offset = vec2(float(x), float(y)) * texelSize;
-	//		blur += texture(samplerColor, inUV + offset).r;
-	//	}
-	//}
+		//// Just blur 4x4 for our ssao
+		//for (int x = -2; x < 2; ++x) {
+		//	for (int y = -2; y < 2; ++y) {
+		//		vec2 offset = vec2(float(x), float(y)) * texelSize;
+		//		blur += texture(samplerColor, inUV + offset).r;
+		//	}
+		//}
 
-	//blur = blur / (4.0 * 4.0); 
+		//blur = blur / (4.0 * 4.0); 
 
-	outFragColor = color;// * blur;
+	}
+
+	outFragColor = color;
 }

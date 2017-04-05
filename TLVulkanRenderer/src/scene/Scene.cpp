@@ -23,8 +23,8 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_accel.reset(new SBVH(
-		1,
-		SBVH::Spatial
+		100,
+		SBVH::SAH
 		));
 
 	ParseSceneFile(fileName);
@@ -154,10 +154,14 @@ void Scene::PrepareTestScene()
 	static const Point3 SPONZA_LOOKAT(-6, -6, 0);
 	static const Point3 TRUCK_EYE(4.548, 4.427, 13.23);
 	static const Point3 TRUCK_LOOKAT(0.926, 2.763, -2.958);
+	static const Point3 ELLIE_EYE(-2.75, -155.1811, 120.7701);
+	static const Point3 ELLIE_LOOKAT(-2.75, -135, -12);
 	camera.eye = vec3(0, -20, 45);
 	//camera.eye = vec3(2, 7, 15);
 	//camera.eye = SPONZA_EYE;
 	//camera.lookAt = SPONZA_LOOKAT;
+	camera.eye = ELLIE_EYE;
+	camera.lookAt = ELLIE_LOOKAT;
 	camera.RecomputeAttributes();
 
 	MetalMaterial* mirror = new MetalMaterial();

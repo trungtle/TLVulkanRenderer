@@ -152,6 +152,50 @@ namespace VulkanUtil {
 			return writeDescriptorSet;
 		}
 
+		VkWriteDescriptorSet 
+		MakeWriteDescriptorSet(
+			VkDescriptorType type, 
+			VkDescriptorSet dstSet, 
+			uint32_t dstBinding, 
+			uint32_t descriptorCount, 
+			VkDescriptorBufferInfo* bufferInfo
+		)
+		{
+			VkWriteDescriptorSet writeDescriptorSet = {};
+			writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writeDescriptorSet.dstSet = dstSet;
+			writeDescriptorSet.dstBinding = dstBinding;
+			writeDescriptorSet.dstArrayElement = 0; // descriptor set could be an array
+			writeDescriptorSet.descriptorType = type;
+			writeDescriptorSet.descriptorCount = descriptorCount;
+			writeDescriptorSet.pBufferInfo = bufferInfo;
+			writeDescriptorSet.pImageInfo = nullptr;
+
+			return writeDescriptorSet;
+		}
+
+		VkWriteDescriptorSet 
+		MakeWriteDescriptorSet(
+			VkDescriptorType type, 
+			VkDescriptorSet dstSet, 
+			uint32_t dstBinding, 
+			uint32_t descriptorCount, 
+			VkDescriptorImageInfo* imageInfo
+		)
+		{
+			VkWriteDescriptorSet writeDescriptorSet = {};
+			writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writeDescriptorSet.dstSet = dstSet;
+			writeDescriptorSet.dstBinding = dstBinding;
+			writeDescriptorSet.dstArrayElement = 0; // descriptor set could be an array
+			writeDescriptorSet.descriptorType = type;
+			writeDescriptorSet.descriptorCount = descriptorCount;
+			writeDescriptorSet.pBufferInfo = nullptr;
+			writeDescriptorSet.pImageInfo = imageInfo;
+
+			return writeDescriptorSet;
+		}
+
 		VkVertexInputBindingDescription
 		MakeVertexInputBindingDescription(
 			uint32_t binding,

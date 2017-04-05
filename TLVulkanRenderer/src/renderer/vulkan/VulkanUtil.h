@@ -83,6 +83,24 @@ namespace VulkanUtil {
 			VkDescriptorImageInfo* imageInfo
 		);
 
+		VkWriteDescriptorSet
+		MakeWriteDescriptorSet(
+			VkDescriptorType type,
+			VkDescriptorSet dstSet,
+			uint32_t dstBinding,
+			uint32_t descriptorCount,
+			VkDescriptorBufferInfo* bufferInfo
+		);
+
+		VkWriteDescriptorSet
+		MakeWriteDescriptorSet(
+			VkDescriptorType type,
+			VkDescriptorSet dstSet,
+			uint32_t dstBinding,
+			uint32_t descriptorCount,
+			VkDescriptorImageInfo* imageInfo
+		);
+
 		// ===================
 		// PIPELINE
 		// ===================

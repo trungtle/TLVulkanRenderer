@@ -214,7 +214,7 @@ VulkanCPURaytracer::Render() {
 	{
 		for (int h = 0; h < m_height; h++)
 		{
-			Raytrace(w, h, m_scene, &m_film);
+			Raytrace(w, h, pScene, &m_film);
 		}
 	}
 #endif
@@ -925,7 +925,7 @@ void VulkanCPURaytracer::PrepareTextures() {
 #else
 	for (int w = 0; w < m_width; w++) {
 		for (int h = 0; h < m_height; h++) {
-			Raytrace(w, h, m_scene, &m_film);
+			Raytrace(w, h, pScene, &m_film);
 		}
 	}
 #endif

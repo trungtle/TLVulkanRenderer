@@ -769,6 +769,12 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorLayout()
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
 		),
+		// Options
+		MakeDescriptorSetLayoutBinding(
+			5,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_SHADER_STAGE_FRAGMENT_BIT
+		),
 	};
 
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo =
@@ -806,7 +812,6 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorSet() {
 			m_graphics.descriptorSet,
 			0,
 			1,
-			nullptr,
 			&m_raytrace.storageRaytraceImage.descriptor
 		),
 		MakeWriteDescriptorSet(
@@ -814,15 +819,13 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorSet() {
 			m_graphics.descriptorSet,
 			1,
 			1,
-			&m_onscreen.unifBuffer.descriptor,
-			nullptr
+			&m_onscreen.unifBuffer.descriptor
 		),
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			m_graphics.descriptorSet,
 			2,
 			1,
-			nullptr,
 			&m_deferred.framebuffer.depth.descriptor
 		),
 		MakeWriteDescriptorSet(
@@ -830,7 +833,6 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorSet() {
 			m_graphics.descriptorSet,
 			3,
 			1,
-			nullptr,
 			&m_deferred.framebuffer.normal.descriptor
 		),
 		MakeWriteDescriptorSet(
@@ -838,8 +840,14 @@ void VulkanHybridRenderer::PrepareOnscreenDescriptorSet() {
 			m_graphics.descriptorSet,
 			4,
 			1,
-			nullptr,
 			&m_postSSAO.noiseTexture.descriptor
+		),
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			m_graphics.descriptorSet,
+			5,
+			1,
+			&m_onscreen.optionsBuffer.descriptor
 		),
 	};
 
@@ -852,6 +860,14 @@ void VulkanHybridRenderer::PrepareOnscreenUniformBuffer() {
 	m_onscreen.unifBuffer.Create(
 		m_vulkanDevice,
 		sizeof(m_onscreen.unif),
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	);
+
+	// === Options === //
+	m_onscreen.optionsBuffer.Create(
+		m_vulkanDevice,
+		sizeof(m_onscreen.options),
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
@@ -1114,8 +1130,9 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 
 void VulkanHybridRenderer::UpdateOnscreenUniform() 
 {
+	// -- Uniform
 	m_onscreen.unif.resolution = m_scene->camera.resolution;
-	m_onscreen.unif.nearClip = 1.0f;// m_scene->camera.nearClip;
+	m_onscreen.unif.nearClip = 1.0f;// pScene->camera.nearClip;
 	m_onscreen.unif.farClip = m_scene->camera.farClip;
 	m_onscreen.unif.noiseScale.x = m_width / float(m_postSSAO.noiseTextureWidth);
 	m_onscreen.unif.noiseScale.y = m_height / float(m_postSSAO.noiseTextureWidth);
@@ -1133,6 +1150,23 @@ void VulkanHybridRenderer::UpdateOnscreenUniform()
 		&m_onscreen.unif,
 		m_onscreen.unifBuffer.memory,
 		sizeof(m_onscreen.unif)
+	);
+
+	// -- Options
+
+	auto it = m_config->find("SSAO");
+	if (it != m_config->end() && it->second.compare("true") == 0)
+	{
+		m_onscreen.options.ssao = true;
+	} else
+	{
+		m_onscreen.options.ssao = false;
+	}
+
+	m_vulkanDevice->MapMemory(
+		&m_onscreen.options,
+		m_onscreen.optionsBuffer.memory,
+		sizeof(m_onscreen.options)
 	);
 }
 
@@ -1779,12 +1813,12 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	float SPEED = 32.0f;
 
 	// White
-	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -2.0f, 0.0f, 1.0f);
+	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -150.0f, 0.0f, 1.0f);
 	m_deferred.lightsUnif.m_lights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
 	m_deferred.lightsUnif.m_lights[0].radius = 55.0f;
 
 	// Red
-	m_deferred.lightsUnif.m_lights[1].position = glm::vec4(-2.0f, -6.0f, 0.0f, 0.0f);
+	m_deferred.lightsUnif.m_lights[1].position = glm::vec4(-2.0f, -2.0f, 0.0f, 0.0f);
 	m_deferred.lightsUnif.m_lights[1].color = glm::vec3(0.6f, 0.2f, 0.2f);
 	m_deferred.lightsUnif.m_lights[1].radius = 10.0f;
 	// Blue
@@ -1804,8 +1838,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	m_deferred.lightsUnif.m_lights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
 	m_deferred.lightsUnif.m_lights[5].radius = 25.0f;
 
-	m_deferred.lightsUnif.m_lights[0].position.x = sin(glm::radians(SPEED * timer)) * 5.0f;
-	m_deferred.lightsUnif.m_lights[0].position.z = cos(glm::radians(SPEED * timer)) * 5.0f;
+	m_deferred.lightsUnif.m_lights[0].position.x = sin(glm::radians(SPEED * timer)) * 20.0f;
+	m_deferred.lightsUnif.m_lights[0].position.z = cos(glm::radians(SPEED * timer)) * 20.0f;
 
 	m_deferred.lightsUnif.m_lights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
 	m_deferred.lightsUnif.m_lights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 1.0f;

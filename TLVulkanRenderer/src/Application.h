@@ -21,7 +21,9 @@ public:
 		ERenderingMode renderindMode = ERenderingMode::RAYTRACING_CPU
 	);
 
-	static Application* GetInstanced();
+	static Application* GetInstance();
+
+	static Scene* GetScene();
 	/**
 	 * \brief This is the main loop of Application
 	 */
@@ -29,11 +31,13 @@ public:
 	void Run();
 	void ResetCamera();
 	void ToggleBVHDebug();
+	void ToggleSSAO();
 
 	static void Destroy() {
 		delete Application::pApp;
 	};
 
+	Scene* pScene;
 
 private:
 
@@ -47,9 +51,8 @@ private:
 	~Application();
 
 	static Application* pApp;
-
+	
 	GLFWwindow* m_window;
-	Scene* m_scene;
 	Renderer* m_renderer;
 	std::map<std::string, std::string> m_config;
 

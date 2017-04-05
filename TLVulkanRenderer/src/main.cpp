@@ -13,6 +13,6 @@ int main(int argc, char** argv) {
 
 	// Launch our application using the Vulkan API
 	Application::PreInitialize(sceneFile, 800, 600, EGraphicsAPI::Vulkan, ERenderingMode::HYBRID);
-	Application::GetInstanced()->Run();
+	Application::GetInstance()->Run();
 	Application::Destroy();
 }

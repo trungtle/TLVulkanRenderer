@@ -145,6 +145,12 @@ protected:
 			vec3	viewRay;
 		} unif;
 
+		struct
+		{
+			bool	ssao;
+		} options;
+
+		VulkanBuffer::StorageBuffer optionsBuffer;
 		VulkanBuffer::StorageBuffer unifBuffer;
 		VulkanBuffer::VertexBuffer quadBuffer;
 	} m_onscreen;

@@ -8,7 +8,7 @@
 #include "renderer/vulkan/VulkanCPURayTracer.h"
 #include "renderer/vulkan/VulkanHybridRenderer.h"
 
-static int fpstracker;
+static int g_fpstracker;
 static int fps = 0;
 
 // For camera controls
@@ -28,30 +28,46 @@ int height = 600;
 Point3		g_initialEye;
 Direction	g_initialLookAt;
 
-
+// ===== KEY INPUT ===== //
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
-		switch (key) {
-		case GLFW_KEY_ESCAPE:
-			glfwSetWindowShouldClose(window, GL_TRUE);
-			break;
-		case GLFW_KEY_R:
-			Application::GetInstanced()->ResetCamera();
-			break;
-		case GLFW_KEY_B:
-			Application::GetInstanced()->ToggleBVHDebug();
-		case GLFW_KEY_S:
-			//saveImage();
-			break;
-		case GLFW_KEY_SPACE:
-			//camchanged = true;
-			//Camera &cam = renderState->camera;
-			//cam.lookAt = ogLookAt;
-			break;
+		switch (key)
+		{
+			case GLFW_KEY_ESCAPE:
+				glfwSetWindowShouldClose(window, GL_TRUE);
+				break;
+			case GLFW_KEY_W:
+				Application::GetScene()->camera.Zoom(10);
+				break;
+			case GLFW_KEY_A:
+				Application::GetScene()->camera.TranslateAlongRight(-10);
+				break;
+			case GLFW_KEY_S:
+				Application::GetScene()->camera.Zoom(-10);
+				break;
+			case GLFW_KEY_D:
+				Application::GetScene()->camera.TranslateAlongRight(10);
+				break;
+			case GLFW_KEY_Q:
+				Application::GetScene()->camera.TranslateAlongUp(-10);
+				break;
+			case GLFW_KEY_E:
+				Application::GetScene()->camera.TranslateAlongUp(10);
+				break;
+			case GLFW_KEY_R:
+				Application::GetInstance()->ResetCamera();
+				break;
+			case GLFW_KEY_B:
+				Application::GetInstance()->ToggleBVHDebug();
+				break;
+			case GLFW_KEY_N:
+				Application::GetInstance()->ToggleSSAO();
+				break;
 		}
 	}
 }
 
+// ===== MOUSE INPUT ===== //
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 	leftMousePressed = (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS);
 	rightMousePressed = (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS);
@@ -100,7 +116,7 @@ void Application::PreInitialize(
 	Application::renderingMode = renderindMode;
 };
 
-Application* Application::GetInstanced() {
+Application* Application::GetInstance() {
 	if (Application::pApp == nullptr)
 	{
 		Application::pApp = new Application(
@@ -112,6 +128,11 @@ Application* Application::GetInstanced() {
 	}
 
 	return Application::pApp;
+}
+
+Scene* Application::GetScene()
+{
+	return GetInstance()->pScene;
 }
 
 
@@ -142,11 +163,12 @@ Application::Application(
 	m_config = {
 		{ "USE_SBVH", "true" },
 		{ "VISUALIZE_SBVH", "false"},
-		{ "VISUALIZE_RAY_COST", "true"}
+		{ "VISUALIZE_RAY_COST", "true"},
+		{ "SSAO", "false"}
 	};
-	m_scene = new Scene(sceneFile, m_config);
-	g_initialEye = m_scene->camera.eye;
-	g_initialLookAt = m_scene->camera.lookAt;
+	pScene = new Scene(sceneFile, m_config);
+	g_initialEye = pScene->camera.eye;
+	g_initialLookAt = pScene->camera.lookAt;
 
 	std::shared_ptr<map<string, string>> configPtr(&m_config);
 
@@ -156,16 +178,16 @@ Application::Application(
 
 		switch (renderingMode) {
 		case ERenderingMode::RAYTRACING_GPU:
-			m_renderer = new VulkanGPURaytracer(m_window, m_scene, configPtr);
+			m_renderer = new VulkanGPURaytracer(m_window, pScene, configPtr);
 			break;
 		case ERenderingMode::RAYTRACING_CPU:
-			m_renderer = new VulkanCPURaytracer(m_window, m_scene, configPtr);
+			m_renderer = new VulkanCPURaytracer(m_window, pScene, configPtr);
 			break;
 		case ERenderingMode::HYBRID:
-			m_renderer = new VulkanHybridRenderer(m_window, m_scene, configPtr);
+			m_renderer = new VulkanHybridRenderer(m_window, pScene, configPtr);
 			break;
 		default:
-			m_renderer = new VulkanRenderer(m_window, m_scene, configPtr);
+			m_renderer = new VulkanRenderer(m_window, pScene, configPtr);
 			break;
 		}
 		break;
@@ -174,22 +196,22 @@ Application::Application(
 		break;
 	}
 
-	fpstracker = 0;
+	g_fpstracker = 0;
 
 }
 
 
 Application::~Application() {
-	delete m_scene;
+	delete pScene;
 	delete m_renderer;
 	glfwDestroyWindow(m_window);
 	glfwTerminate();
 }
 
 void Application::ResetCamera() {
-	m_scene->camera.eye = g_initialEye;
-	m_scene->camera.lookAt = g_initialLookAt;
-	m_scene->camera.RecomputeAttributes();
+	pScene->camera.eye = g_initialEye;
+	pScene->camera.lookAt = g_initialLookAt;
+	pScene->camera.RecomputeAttributes();
 }
 
 void Application::ToggleBVHDebug() {
@@ -200,6 +222,19 @@ void Application::ToggleBVHDebug() {
 		m_config.at("VISUALIZE_SBVH") = "true";
 	}
 	m_renderer->RebuildCommandBuffers();
+}
+
+void Application::ToggleSSAO()
+{
+	auto it = m_config.find("SSAO");
+	if (it != m_config.end() && it->second.compare("true") == 0)
+	{
+		m_config.at("SSAO") = "false";
+	}
+	else
+	{
+		m_config.at("SSAO") = "true";
+	}
 }
 
 void Application::Run() {
@@ -213,8 +248,8 @@ void Application::Run() {
 		auto now = std::chrono::system_clock::now();
 		float timeElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 		if (timeElapsed >= 1000) {
-			fps = fpstracker / (timeElapsed / 1000);
-			fpstracker = 0;
+			fps = g_fpstracker / (timeElapsed / 1000);
+			g_fpstracker = 0;
 			start = now;
 		}
 
@@ -226,24 +261,24 @@ void Application::Run() {
 
 		// Update camera
 		if (camchanged) {
-			m_scene->camera.RotateAboutRight(phi);
-			m_scene->camera.RotateAboutUp(theta);
-			m_scene->camera.TranslateAlongRight(-translateX);
-			m_scene->camera.TranslateAlongUp(translateY);
-			m_scene->camera.Zoom(zoom);
+			pScene->camera.RotateAboutRight(phi);
+			pScene->camera.RotateAboutUp(theta);
+			pScene->camera.TranslateAlongRight(-translateX);
+			pScene->camera.TranslateAlongUp(translateY);
+			pScene->camera.Zoom(zoom);
 			zoom = 0;
 			theta = 0;
 			phi = 0;
 			translateX = 0;
 			translateY = 0;
 			camchanged = false;
-			std::cout << "Camera changed. Eye: " << glm::to_string(m_scene->camera.eye) << ", Ref: " << glm::to_string(m_scene->camera.lookAt) << std::endl;
+			std::cout << "Camera changed. Eye: " << glm::to_string(pScene->camera.eye) << ", Ref: " << glm::to_string(pScene->camera.lookAt) << std::endl;
 		}
 
 		// Draw
 		m_renderer->Update();
 		m_renderer->Render();
 
-		fpstracker++;
+		g_fpstracker++;
 	}
 }
