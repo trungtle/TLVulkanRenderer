@@ -1308,7 +1308,7 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		0.0f,
-		0,
+		1.0f,
 		0.0f,
 		1.0f,
 		VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
@@ -1809,13 +1809,13 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	static float timer = 0.0f;
-	timer += 0.005f;
+	//timer += 0.005f;
 	float SPEED = 32.0f;
 
 	// White
-	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -150.0f, 0.0f, 1.0f);
+	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -3.0f, 0.0f, 1.0f);
 	m_deferred.lightsUnif.m_lights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
-	m_deferred.lightsUnif.m_lights[0].radius = 55.0f;
+	m_deferred.lightsUnif.m_lights[0].radius = 100.0f;
 
 	// Red
 	m_deferred.lightsUnif.m_lights[1].position = glm::vec4(-2.0f, -2.0f, 0.0f, 0.0f);

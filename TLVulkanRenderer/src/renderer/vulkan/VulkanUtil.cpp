@@ -550,7 +550,7 @@ namespace VulkanUtil {
 				samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 			}
 			samplerCreateInfo.mipLodBias = 0.0f;
-			samplerCreateInfo.maxAnisotropy = 0;
+			samplerCreateInfo.maxAnisotropy = 1.0f;
 			CheckVulkanResult(
 				vkCreateSampler(device, &samplerCreateInfo, nullptr, sampler),
 				"Failed to create texture sampler"

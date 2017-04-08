@@ -39,8 +39,6 @@ SBVH::Build(
 	m_root = BuildRecursive(first, last, totalNodes, primInfos, orderedGeoms, 0, true);
 	//m_geoms.swap(orderedGeoms);
 	Flatten();
-	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
-	std::cout << "Number of spatial splits: " << m_spatialSplitCount << std::endl;
 }
 
 void SBVH::PartitionEqualCounts(
@@ -510,6 +508,12 @@ SBVH::CalculateSpatialSplitCost(
 	}
 
 	return std::tuple<Cost, BucketID>(minCost, minCostBucket);
+}
+
+void SBVH::PrintStats()
+{
+	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
+	std::cout << "Number of spatial splits: " << m_spatialSplitCount << std::endl;
 }
 
 SBVHNode*
@@ -1120,11 +1124,6 @@ void SBVH::FlattenRecursive(
 void SBVH::Flatten() {
 
 	FlattenRecursive(m_root);
-
-	//@debug
-	//for (auto node : m_nodesPacked) {
-	//	std::cout << node.ToString();
-	//}
 }
 
 void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframeVertexLayout>& vertices)

@@ -11,4 +11,5 @@ public:
 	virtual bool ShadowRay(Ray& r, ColorRGB& color) = 0;
 	virtual void GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframeVertexLayout>& vertices) = 0;
 	virtual void Destroy() = 0;
+	virtual void PrintStats() {};
 };

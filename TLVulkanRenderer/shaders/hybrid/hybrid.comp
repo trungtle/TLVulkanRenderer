@@ -228,25 +228,25 @@ float triangleIntersect(
 }
 
 // Sphere ==========================================================
-/*
-float sphereIntersect(in Ray ray, in int sphereIdx)
-{
-    vec3 spherePos  = sphere[sphereIdx].xyz;
-    float sphereRad = sphere[sphereIdx].w;
-    
-	vec3 oc = ray.origin - spherePos;
-	float b = 2.0 * dot(oc, ray.direction);
-	float c = dot(oc, oc) - sphereRad * sphereRad;
-	float h = b*b - 4.0*c;
-	if (h < 0.0) 
-	{
-		return -1.0;
-	}
-	float t = (-b - sqrt(h)) / 2.0;
 
-	return t;
-}
-*/
+//float sphereIntersect(in Ray ray, in int sphereIdx)
+//{
+//    vec3 spherePos  = sphere[sphereIdx].xyz;
+//    float sphereRad = sphere[sphereIdx].w;
+    
+//	vec3 oc = ray.origin - spherePos;
+//	float b = 2.0 * dot(oc, ray.direction);
+//	float c = dot(oc, oc) - sphereRad * sphereRad;
+//	float h = b*b - 4.0*c;
+//	if (h < 0.0) 
+//	{
+//		return -1.0;
+//	}
+//	float t = (-b - sqrt(h)) / 2.0;
+
+//	return t;
+//}
+
 
 // Aabb ===========================================================
 
@@ -279,189 +279,6 @@ float aabbIntersect(in Ray r, in int node)
         return 1.0f;
 }
 
-// Intersection ===========================================================
-
-/*
-* Iterative stack-less BVH traversal using state logic and pointers to nodes.
-* \ref https://graphics.cg.uni-saarland.de/fileadmin/cguds/papers/2011/hapala_sccg2011/hapala_sccg2011.pdf
-*/
-// void traverseBVH(
-//	int depth
-//	, int num_paths
-//	, PathSegment * pathSegments
-//	, int num_bvhNodes
-//	, BVHNodeDev* bvhNodes
-//	, int rootIdx
-//	, int geoms_size
-//	, Geom * geoms
-//	, ShadeableIntersection * intersections
-//	)
-//{
-//	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
-
-//	if (path_index < num_paths)
-//	{
-//		PathSegment pathSegment = pathSegments[path_index];
-//		float t;
-//		glm::vec3 intersect_point;
-//		glm::vec3 normal;
-//		float t_min = FLT_MAX;
-
-//		glm::vec3 tmp_intersect;
-//		glm::vec3 tmp_normal;
-//		Geom* hit_geom = nullptr;
-
-//		BVHNodeDev current = bvhNodes[rootIdx];
-//		EBVHTransition transition = EBVHTransition::FromParent;
-
-//		bool isIterating = true;
-//		while (isIterating) {
-//			switch (transition) {
-
-//				// 1. From child
-//				// In the fromChild case the current node was already tested when going
-//				// down, and does not have to bce re - tested.The next node to traverse
-//				// is either current’s sibling f arChild(if current is nearChild),
-//				// or its parent(if current was farChild).
-//				//
-//			case EBVHTransition::FromChild:
-//				if (current.idx == rootIdx) {
-//					// Current has reached root
-//					isIterating = false;
-//				}
-//				else if (current.idx == bvhNodes[current.parentIdx].nearChildIdx) {
-//					// Current is near child, so transition to far child
-//					current = bvhNodes[bvhNodes[current.parentIdx].farChildIdx];
-//					transition = EBVHTransition::FromSibling;
-//				}
-//				else {
-//					// Current is far child, go back to parent
-//					current = bvhNodes[current.parentIdx];
-//					transition = EBVHTransition::FromChild;
-//				}
-//				break;
-
-//				// 2. From sibling
-//				// In the fromSibling case, we know that we are entering farChild (it
-//				// cannot be reached in any other way), and that we are traversing this
-//				// node for the first time(i.e.a box test has to be done).If the node
-//				// is missed, we back - track to its parent; otherwise, the current node
-//				// has to be processed : if it is a leaf node, we intersect its primitives
-//				// against the ray, and proceed to parent. Otherwise(i.e. if the node
-//				// was hit but is not a leaf), we enter current’s subtree by performing
-//				// a fromParent step to current’s first child.
-
-//			case EBVHTransition::FromSibling:
-
-//				if (current.geomIdx != -1) {
-//					// Leaf node
-//					t = computeIntersection(pathSegment, geoms[current.geomIdx], tmp_intersect, tmp_normal);
-//					// Compute the minimum t from the intersection tests to determine what
-//					// scene geometry object was hit first.
-//					if (t > 0.0f && t_min > t)
-//					{
-//						t_min = t;
-//						intersect_point = tmp_intersect;
-//						normal = tmp_normal;
-//						hit_geom = &(geoms[current.geomIdx]);
-//					}
-
-//					current = bvhNodes[current.parentIdx];
-//					transition = EBVHTransition::FromChild;
-//				}
-//				else {
-//					// When this isn't a leaf node, check bbox intersection
-//					bool hit = bboxIntersectionTest(current.bboxGeom, pathSegments[path_index].ray);
-//					if (!hit) {
-//						// Missed, go back up to parent
-
-//						if (current.idx == rootIdx) {
-//							// Current has reached root
-//							isIterating = false;
-//						} else {
-//							current = bvhNodes[current.parentIdx];
-//							transition = EBVHTransition::FromChild;
-//						}
-//					}
-//					else {
-//						// Hit, enter its subtree (near child)
-//						current = bvhNodes[current.nearChildIdx];
-//						transition = EBVHTransition::FromParent;
-//					}
-//				}
-//				break;
-
-//				// 3. From parent
-//				// Finally, in the fromParent case, we know that we are entering
-//				// nearChild and we do exactly the same as in the previous case,
-//				// except that every time we would have gone to parent we go to
-//				// farChild child.
-
-//			case EBVHTransition::FromParent:
-//				if (current.geomIdx != -1) {
-//					// Leaf node
-//					t = computeIntersection(pathSegment, geoms[current.geomIdx], tmp_intersect, tmp_normal);
-//					// Compute the minimum t from the intersection tests to determine what
-//					// scene geometry object was hit first.
-//					if (t > 0.0f && t_min > t)
-//					{
-//						t_min = t;
-//						intersect_point = tmp_intersect;
-//						normal = tmp_normal;
-//						hit_geom = &(geoms[current.geomIdx]);
-//					}
-
-//					if (current.idx == rootIdx) {
-//						// Current has reached root
-//						isIterating = false;
-//					} else {
-//						// Go to far sibling
-//						current = bvhNodes[bvhNodes[current.parentIdx].farChildIdx];
-//						transition = EBVHTransition::FromSibling;
-//					}
-//				}
-//				else {
-//					// When this isn't a leaf node, check bbox intersection
-//					bool hit = bboxIntersectionTest(current.bboxGeom, pathSegments[path_index].ray);
-//					if (!hit) {
-//						// Missed, go to far sibling
-//						if (current.idx == rootIdx) {
-//							// Current has reached root
-//							isIterating = false;
-//						} else {
-//							current = bvhNodes[bvhNodes[current.parentIdx].farChildIdx];
-//							transition = EBVHTransition::FromSibling;
-//						}
-//					}
-//					else {
-//						// Hit, enter its subtree
-//						current = bvhNodes[current.nearChildIdx];
-//						transition = EBVHTransition::FromParent;
-//					}
-//				}
-//				break;
-			
-//			default:
-//				// *N.B*: Should never reach here
-//				assert(false);
-//				break;
-//			}
-//		}
-		
-//		if (hit_geom == nullptr)
-//		{
-//			intersections[path_index].t = -1.0f;
-//		}
-//		else
-//		{
-//			//The ray hits something
-//			intersections[path_index].t = t_min;
-//			intersections[path_index].materialId = hit_geom->materialid;
-//			intersections[path_index].surfaceNormal = normal;
-//			intersections[path_index].intersect_point = intersect_point;
-//		}
-//	}
-//}
 
 #define FROM_PARENT		0
 #define FROM_CHILD		1
@@ -505,7 +322,7 @@ int getNearSibling(
 }
 
 
-Intersection calShawdowBVH(
+Intersection calcShadowBVH(
 	in Ray ray,
 	int node
 )
@@ -797,8 +614,8 @@ void shadeMaterial(
 		feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
 		feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
-		float shadow = 1;//calcShadow(feeler, intersect.materialId, dist); 
-		Intersection shadowIsx = calShawdowBVH(feeler, int(bvhNodes[0].id));
+		float shadow = calcShadow(feeler, intersect.materialId, dist); 
+		Intersection shadowIsx = calcShadowBVH(feeler, int(bvhNodes[0].id));
 		if (shadowIsx.t != MAXLEN) {
 			shadow = 0.5;
 		}

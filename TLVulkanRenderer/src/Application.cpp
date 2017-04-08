@@ -30,7 +30,7 @@ Direction	g_initialLookAt;
 
 // ===== KEY INPUT ===== //
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-	if (action == GLFW_PRESS) {
+	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
 		switch (key)
 		{
 			case GLFW_KEY_ESCAPE:

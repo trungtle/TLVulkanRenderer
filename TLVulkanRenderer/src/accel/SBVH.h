@@ -304,6 +304,8 @@ protected:
 		std::vector<BucketInfo>& buckets
 		) const;
 
+	void PrintStats();
+
 	SBVHNode* m_root;
 	int m_maxGeomsInNode;
 	ESplitMethod m_splitMethod;

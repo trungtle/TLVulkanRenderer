@@ -24,8 +24,14 @@ Scene::Scene(
 	// Construct SBVH
 	m_accel.reset(new SBVH(
 		100,
-		SBVH::SAH
+		SBVH::Spatial
 		));
+
+	m_accel->PrintStats();
+	//@debug
+	//for (auto node : m_nodesPacked) {
+	//	std::cout << node.ToString();
+	//}
 
 	ParseSceneFile(fileName);
 	PrepareTestScene();
@@ -160,8 +166,8 @@ void Scene::PrepareTestScene()
 	//camera.eye = vec3(2, 7, 15);
 	//camera.eye = SPONZA_EYE;
 	//camera.lookAt = SPONZA_LOOKAT;
-	camera.eye = ELLIE_EYE;
-	camera.lookAt = ELLIE_LOOKAT;
+	//camera.eye = ELLIE_EYE;
+	//camera.lookAt = ELLIE_LOOKAT;
 	camera.RecomputeAttributes();
 
 	MetalMaterial* mirror = new MetalMaterial();
