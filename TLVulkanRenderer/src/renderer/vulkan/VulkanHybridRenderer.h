@@ -58,17 +58,24 @@ protected:
 		glm::mat4 m_view;
 	};
 
-	struct SSceneLight
+	struct PointLight
 	{
 		glm::vec4 position;
 		glm::vec3 color;
 		float radius;
 	};
 
+	struct DirectionalLight
+	{
+		glm::vec4 position;
+		glm::vec3 color;
+		glm::vec3 direction;
+	};
+
 	struct LightUniform
 	{
-		SSceneLight m_lights[6];
-		glm::vec4	m_viewPos;
+		PointLight m_pointLights[6];
+		DirectionalLight m_directionalLight[6];
 	};
 
 	struct Quad
@@ -272,7 +279,6 @@ protected:
 
 		struct {
 			VulkanBuffer::StorageBuffer mvpUnifStorage;
-			VulkanBuffer::StorageBuffer lightsUnifStorage;
 
 			// -- Lights wireframe
 			VulkanBuffer::VertexBuffer lightsVertexBuffer[6];
@@ -353,7 +359,7 @@ protected:
 		struct UBO
 		{ // Compute shader uniform block object
 			glm::vec4	m_cameraPosition;
-			SSceneLight m_lights[6];
+			PointLight m_lights[6];
 			uint32_t	m_lightCount;
 			uint32_t    m_materialCount;
 

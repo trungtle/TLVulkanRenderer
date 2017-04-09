@@ -3,21 +3,10 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
-struct Light {
-	vec4 position;
-	vec3 color;
-	float radius;
-};
 
 layout (binding = 1) uniform sampler2D samplerColor;
 //layout (binding = 2) uniform sampler2D samplerNormalMap;
-
-layout (binding = 2) uniform LIGHT 
-{
-	Light lights[6];
-	vec4 viewPos;
-} lightsUBO;
-
+ 
 layout (location = 0) in vec3 inWorldPos;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inUV;

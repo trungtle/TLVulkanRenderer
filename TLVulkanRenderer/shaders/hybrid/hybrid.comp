@@ -10,15 +10,21 @@
 #define TWO_PI 6.2831853071795864769252867665590057683943
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476
 #define EPSILON 0.0001
-#define MAXLEN 1000.0
+#define MAXLEN 10000.0
 #define TRACEDEPTH 2
 #define GROUND_MESH_IDX 2
 
 // ===== STRUCT DEFINITION ===== //
-struct Light {
+struct PointLight {
 	vec4 position;
 	vec3 color;
 	float radius;
+};
+
+struct DirectionalLight {
+	vec4 position;
+	vec3 color;
+	vec3 direction;
 };
 
 struct Material
@@ -49,6 +55,9 @@ struct BVHNodePacked
 	int id;
 	int parent;
 	int geomId;
+	int nearId;
+
+	int farId;
 	vec4 bounds[2];
 };
 
@@ -103,7 +112,7 @@ layout (std140, binding = 5) buffer TriangleNormals
 layout (std140, binding = 6) uniform UBO 
 {
 	vec4 cameraPosition;
-	Light lights[6];
+	PointLight lights[6];
 	int lightCount;
 	int materialCount;
 
@@ -250,6 +259,7 @@ float triangleIntersect(
 
 // Aabb ===========================================================
 
+// From Scratch a pixel https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 float aabbIntersect(in Ray r, in int node)
 {
 	BVHNodePacked aabb = bvhNodes[node];
@@ -258,8 +268,9 @@ float aabbIntersect(in Ray r, in int node)
     float tymin = (aabb.bounds[r.sign[1]].y      - r.origin.y) * r.inv_direction.y;
     float tymax = (aabb.bounds[1-r.sign[1]].y    - r.origin.y) * r.inv_direction.y;
     
-    if ( (tmin > tymax) || (tymin > tmax) )
-        return MAXLEN;
+    if ( (tmin > tymax) || (tymin > tmax) ) {
+        return -1;
+	}
     if (tymin > tmin)
         tmin = tymin;
     if (tymax < tmax)
@@ -269,14 +280,15 @@ float aabbIntersect(in Ray r, in int node)
     float tzmax = (aabb.bounds[1-r.sign[2]].z   - r.origin.z) * r.inv_direction.z;
     
     if ( (tmin > tzmax) || (tzmin > tmax) )
-        return MAXLEN;
+        return -1;
    if (tzmin > tmin)
         tmin = tzmin;
     if (tzmax < tmax)
         tmax = tzmax;
         
-    if ( (tmin < MAXLEN) && (tmax > EPSILON) );
+    if ( (tmin < MAXLEN) ) {//&& (tmax > EPSILON) ) {
         return 1.0f;
+	}
 }
 
 
@@ -295,14 +307,14 @@ int getNearChild(
 	in int node
 	)
 {
-	return int(bvhNodes[node].bounds[0].w);
+	return int(bvhNodes[node].nearId);
 }
 
 int getFarChild(
 	in int node
 	)
 {
-	return int(bvhNodes[node].bounds[1].w);
+	return int(bvhNodes[node].farId);
 }
 
 int getFarSibling(
@@ -310,7 +322,7 @@ int getFarSibling(
 	)
 {
 	int parent = bvhNodes[node].parent;
-	return int(bvhNodes[parent].bounds[1].w);
+	return int(bvhNodes[parent].farId);
 }
 
 int getNearSibling(
@@ -318,7 +330,7 @@ int getNearSibling(
 	)
 {
 	int parent = bvhNodes[node].parent;
-	return int(bvhNodes[parent].bounds[0].w);
+	return int(bvhNodes[parent].nearId);
 }
 
 
@@ -452,16 +464,18 @@ Intersection calcShadowBVH(
 					// Not a leaf node, check internal node intersection
 					t = aabbIntersect(ray, current);
 					if ( (t < MAXLEN) && t > EPSILON) {
+
+						//@debug
+						if (current != 0) {
+							isx.t = 1;
+							return isx;
+						}
+
 						// Hit, enter its substree
 						current = getNearChild(current);
 						state = FROM_PARENT;
-					} else {
 
-						//@debug
-						//if (current == 0) {
-						//	isx.t = 1;
-						//	return isx;
-						//}
+					} else {
 
 						// Miss, go to far sibling
 						if (current == root) {
@@ -608,14 +622,13 @@ void shadeMaterial(
 		feeler.origin = intersect.hitPoint + 0.001 * lightVec;
 		feeler.direction = lightVec;
 		//feeler.direction.y = -feeler.direction.y;
-		feeler.direction = vec3(0, 1, 0);
 		feeler.inv_direction = vec3(1/feeler.direction.x, 1/feeler.direction.y, 1/feeler.direction.z);
 		feeler.sign[0] = (feeler.inv_direction.x < 0) ? 1 : 0;
 		feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
 		feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
-		float shadow = calcShadow(feeler, intersect.materialId, dist); 
-		Intersection shadowIsx = calcShadowBVH(feeler, int(bvhNodes[0].id));
+		float shadow = 1;//calcShadow(feeler, intersect.materialId, dist); 
+		Intersection shadowIsx = calcShadowBVH(feeler, 0);
 		if (shadowIsx.t != MAXLEN) {
 			shadow = 0.5;
 		}

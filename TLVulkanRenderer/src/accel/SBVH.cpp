@@ -39,6 +39,13 @@ SBVH::Build(
 	m_root = BuildRecursive(first, last, totalNodes, primInfos, orderedGeoms, 0, true);
 	//m_geoms.swap(orderedGeoms);
 	Flatten();
+
+	//@debug
+	for (auto node : m_nodesPacked)
+	{
+		std::cout << node.ToString();
+	}
+
 }
 
 void SBVH::PartitionEqualCounts(
@@ -514,6 +521,7 @@ void SBVH::PrintStats()
 {
 	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
 	std::cout << "Number of spatial splits: " << m_spatialSplitCount << std::endl;
+	std::cout << "Max depth: " << m_maxDepth << std::endl;
 }
 
 SBVHNode*
@@ -544,13 +552,11 @@ SBVH::BuildRecursive(
 	for (auto prim : primInfos) {
 		if (prim.primitiveId != INVALID_ID) {
 			++numPrimitives;
-		} else {
-			continue;
 		}
 	}
 	
 	// == GENERATE SINGLE GEOMETRY LEAF NODE
-	if (numPrimitives == 1 || depth >= m_maxDepth) {
+	if (numPrimitives == 1 || depth >= m_depthLimit) {
 		return CreateLeaf(nullptr, first, last, nodeCount, primInfos, orderedGeoms, bboxAllGeoms);
 	}
 
@@ -574,6 +580,7 @@ SBVH::BuildRecursive(
 	std::tuple<Cost, BucketID> objSplitCost;
 
 	PrimID mid;
+	bool isSpatialSplit = false;
 	switch(m_splitMethod) {
 		case Spatial:
 			// 1. Find object split candidate
@@ -596,7 +603,6 @@ SBVH::BuildRecursive(
 				objSplitCost =
 					CalculateObjectSplitCost(dim, first, last, primInfos, bboxCentroids, bboxAllGeoms);
 
-				bool isSpatialSplit = false;
 				Cost minSplitCost = std::get<Cost>(objSplitCost);
 				std::tuple<Cost, BucketID> spatialSplitCost;
 				if (m_spatialSplitBudget > 0) {
@@ -738,6 +744,8 @@ SBVH::BuildRecursive(
 
 	// Build parent node
 	SBVHNode* node = new SBVHNode(nullptr, nullptr, nullptr, nodeCount, dim);
+	node->m_depth = depth;
+	node->m_isSpatialSplit = isSpatialSplit;
 	nodeCount++;
 
 	// Build near child
@@ -749,10 +757,14 @@ SBVH::BuildRecursive(
 	if (nearChild) {
 		nearChild->m_parent = node;	
 		node->m_nearChild = nearChild;
+		m_maxDepth = m_maxDepth < depth ? depth : m_maxDepth;
+		node->m_bbox = BBox::BBoxUnion(node->m_bbox, nearChild->m_bbox);
 	}
 	if (farChild) {
 		farChild->m_parent = node;
 		node->m_farChild = farChild;
+		m_maxDepth = m_maxDepth < depth ? depth : m_maxDepth;
+		node->m_bbox = BBox::BBoxUnion(node->m_bbox, farChild->m_bbox);
 	}
 
 	return node;
@@ -1094,16 +1106,12 @@ void SBVH::FlattenRecursive(
 	packed.parent = node->m_parent == nullptr ? -1 : node->m_parent->m_nodeIdx;
 	
 	// .w := Left child index
-	packed.min = vec4(
-		node->m_bbox.m_min, 
-		node->m_nearChild == nullptr ? -1 : node->m_nearChild->m_nodeIdx
-	);
+	packed.min = vec4(node->m_bbox.m_min, 1.);
+	packed.nearId = node->m_nearChild == nullptr ? -1 : node->m_nearChild->m_nodeIdx;
 
 	// .w := Right child index
-	packed.max = vec4(
-		node->m_bbox.m_max,
-		node->m_farChild == nullptr ? -1 : node->m_farChild->m_nodeIdx
-	);
+	packed.max = vec4(node->m_bbox.m_max, 1.);
+	packed.farId = node->m_farChild == nullptr ? -1 : node->m_farChild->m_nodeIdx;
 
 	if (node->IsLeaf()) {
 		SBVHLeaf* leaf = reinterpret_cast<SBVHLeaf*>(node);
@@ -1126,13 +1134,15 @@ void SBVH::Flatten() {
 	FlattenRecursive(m_root);
 }
 
-void SBVH::GenerateVertices(std::vector<uint16>& indices, std::vector<SWireframeVertexLayout>& vertices)
+void SBVH::GenerateVertices(
+	std::vector<uint16>& indices, 
+	std::vector<SWireframeVertexLayout>& vertices)
 {
 	size_t verticeCount = 0;
 	vec3 color;
 	for (auto node : m_nodes)
 	{
-		if (node->IsLeaf())
+		if (node->m_isSpatialSplit)
 		{
 			color = vec3(0, 1, 1);
 		}

@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_set>
 #include <string>
+#include <gtx/string_cast.hpp>
 
 typedef size_t PrimID;
 typedef size_t SBVHNodeId;
@@ -74,6 +75,10 @@ public:
 	virtual std::string ToString() {
 		std::string str = "ID: ";
 		str += std::to_string(m_nodeIdx);
+		str += ", Min: ";
+		str += glm::to_string(m_bbox.m_min);
+		str += ", Max: ";
+		str += glm::to_string(m_bbox.m_max);
 
 		if (m_nearChild) {
 			str += ", Near ID: ";
@@ -99,27 +104,36 @@ public:
 	BBox m_bbox;
 	size_t m_nodeIdx;
 	Dim m_dim;
+	size_t m_depth;
+	bool m_isSpatialSplit;
 };
 
 struct SBVHNodePacked {
 	int32_t id;
 	int32_t parent;
 	int32_t geomId;
-	glm::vec4 min; // .w := left aabb child index.
-	glm::vec4 max;// .w := right aabb child index.
+	int32_t nearId;
+
+	int32_t farId;
+	glm::vec4 min;
+	glm::vec4 max;
 
 	inline std::string ToString() const {
 		std::string str = "ID: ";
 		str += std::to_string(id);
+		str += ", Min: ";
+		str += glm::to_string(min);
+		str += ", Max: ";
+		str += glm::to_string(max);
 
 		str += ", Parent ID: ";
 		str += std::to_string(parent);
 
 		str += ", Near ID: ";
-		str += std::to_string(min.w);
+		str += std::to_string(nearId);
 
 		str += ", Far ID: ";
-		str += std::to_string(max.w);
+		str += std::to_string(farId);
 
 		str += ", Prim ID: ";
 		str += std::to_string(geomId);
@@ -310,8 +324,9 @@ protected:
 	int m_maxGeomsInNode;
 	ESplitMethod m_splitMethod;
 	std::vector<std::shared_ptr<Geometry>> m_prims;
-	unsigned int m_maxDepth = 10;
-	size_t m_spatialSplitBudget = 100;
+	unsigned int m_depthLimit = 20;
+	unsigned int m_maxDepth = 0;
+	size_t m_spatialSplitBudget = 1000;
 	unsigned int m_spatialSplitCount = 0;
 };
 

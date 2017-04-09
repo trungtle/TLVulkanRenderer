@@ -262,6 +262,7 @@
     <ClCompile Include="src\accel\SBVH.cpp" />
     <ClCompile Include="src\geometry\materials\MetalMaterial.cpp" />
     <ClCompile Include="src\geometry\materials\TranslucentMaterial.cpp" />
+    <ClCompile Include="src\lights\DirectionalLight.h" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
     <ClCompile Include="src\renderer\vulkan\VulkanBuffer.cpp" />

@@ -53,6 +53,7 @@
     <ClCompile Include="src\renderer\vulkan\VulkanBuffer.cpp" />
     <ClCompile Include="src\geometry\Cube.cpp" />
     <ClCompile Include="thirdparty\pcg\pcg_basic.c" />
+    <ClCompile Include="src\lights\DirectionalLight.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">

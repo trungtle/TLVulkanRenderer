@@ -27,12 +27,6 @@ Scene::Scene(
 		SBVH::Spatial
 		));
 
-	m_accel->PrintStats();
-	//@debug
-	//for (auto node : m_nodesPacked) {
-	//	std::cout << node.ToString();
-	//}
-
 	ParseSceneFile(fileName);
 	PrepareTestScene();
 }
@@ -258,6 +252,7 @@ void Scene::PrepareTestScene()
 	if (m_useAccel)
 	{
 		m_accel->Build(geometries);
+		m_accel->PrintStats();
 	}
 
 	std::cout << "Number of triangles: " << indices.size() << std::endl;

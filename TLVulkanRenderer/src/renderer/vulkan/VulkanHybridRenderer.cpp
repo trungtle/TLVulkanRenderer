@@ -42,7 +42,7 @@ VulkanHybridRenderer::Update() {
 
 	for (auto l = 0; l < NUM_LIGHTS; ++l)
 	{
-		Transform lightTransform(m_deferred.lightsUnif.m_lights[0].position, glm::vec3(), glm::vec3(1));
+		Transform lightTransform(m_deferred.lightsUnif.m_pointLights[0].position, glm::vec3(), glm::vec3(1));
 		mvp = mvp * lightTransform.T();
 		m_vulkanDevice->MapMemory(
 			&mvp,
@@ -61,6 +61,19 @@ VulkanHybridRenderer::Update() {
 
 void
 VulkanHybridRenderer::Render() {
+
+	// -- Profiling
+	static int profileCount = 0;
+	static auto startTime = std::chrono::high_resolution_clock::now();
+	if (++profileCount >= 100)
+	{
+		profileCount = 0;
+		auto endTime = std::chrono::high_resolution_clock::now();
+		float ms = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+		ms /= 100.0f;
+		startTime = endTime;
+		//m_logger->info("{0}", ms);
+	}
 
 	uint32_t imageIndex;
 
@@ -151,7 +164,6 @@ VulkanHybridRenderer::Render() {
 VulkanHybridRenderer::~VulkanHybridRenderer() {
 
 	m_deferred.buffers.mvpUnifStorage.Destroy();
-	m_deferred.buffers.lightsUnifStorage.Destroy();
 
 	// Flush device to make sure all resources can be freed 
 	vkDeviceWaitIdle(m_vulkanDevice->device);
@@ -427,8 +439,13 @@ void VulkanHybridRenderer::PrepareWireframeVertexBuffers()
 	for (auto l = 0; l < NUM_LIGHTS; ++l) {
 		std::vector<uint16_t> indices;
 		std::vector<SWireframeVertexLayout> vertices;
-		Cube c = Cube(m_deferred.lightsUnif.m_lights[l].position, glm::vec3(1, 1, 1));
-		c.GenerateWireframeVertices(0, indices, vertices, m_deferred.lightsUnif.m_lights[l].color);
+		Cube c = Cube(m_deferred.lightsUnif.m_pointLights[l].position, glm::vec3(1, 1, 1));
+		c.GenerateWireframeVertices(
+			0, 
+			indices, 
+			vertices, 
+			m_deferred.lightsUnif.m_pointLights[l].color
+		);
 	
 		m_deferred.buffers.lightsVertexBuffer[l].CreateWireframe(
 			m_vulkanDevice,
@@ -529,7 +546,7 @@ void VulkanHybridRenderer::PrepareWireframeUniformBuffer()
 	{
 		m_deferred.buffers.lightsWireframeUnifStorage[l].Create(
 			m_vulkanDevice,
-			sizeof(m_deferred.buffers.lightsUnifStorage),
+			sizeof(glm::mat4),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		);
@@ -1512,15 +1529,6 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 			nullptr, // buffer info
 			&m_deferred.textures.m_colorMap.descriptor // image info
 		),
-		//Binding 2: Light uniform
-		MakeWriteDescriptorSet(
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			m_deferred.descriptorSet,
-			2, // binding
-			1, // descriptor count
-			&m_deferred.buffers.lightsUnifStorage.descriptor,
-			nullptr
-		),
 		//// Binding 2: Normal map
 		//MakeWriteDescriptorSet(
 		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -1554,15 +1562,6 @@ void VulkanHybridRenderer::PrepareDeferredUniformBuffer()
 		&m_deferred.mvpUnif,
 		m_deferred.buffers.mvpUnifStorage.memory,
 		sizeof(m_deferred.mvpUnif)
-	);
-
-	// Light buffer
-
-	m_deferred.buffers.lightsUnifStorage.Create(
-		m_vulkanDevice,
-		sizeof(m_deferred.buffers.lightsUnifStorage),
-		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 	);
 }
 
@@ -1809,58 +1808,49 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	static float timer = 0.0f;
-	//timer += 0.005f;
+	timer += 0.005f;
 	float SPEED = 32.0f;
 
 	// White
-	m_deferred.lightsUnif.m_lights[0].position = glm::vec4(0.0f, -3.0f, 0.0f, 1.0f);
-	m_deferred.lightsUnif.m_lights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
-	m_deferred.lightsUnif.m_lights[0].radius = 100.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -15.0f, 0.0f, 1.0f);
+	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
+	m_deferred.lightsUnif.m_pointLights[0].radius = 100.0f;
 
 	// Red
-	m_deferred.lightsUnif.m_lights[1].position = glm::vec4(-2.0f, -2.0f, 0.0f, 0.0f);
-	m_deferred.lightsUnif.m_lights[1].color = glm::vec3(0.6f, 0.2f, 0.2f);
-	m_deferred.lightsUnif.m_lights[1].radius = 10.0f;
+	m_deferred.lightsUnif.m_pointLights[1].position = glm::vec4(-2.0f, -2.0f, 0.0f, 0.0f);
+	m_deferred.lightsUnif.m_pointLights[1].color = glm::vec3(0.6f, 0.2f, 0.2f);
+	m_deferred.lightsUnif.m_pointLights[1].radius = 10.0f;
 	// Blue
-	m_deferred.lightsUnif.m_lights[2].position = glm::vec4(2.0f, 0.0f, 0.0f, 0.0f);
-	m_deferred.lightsUnif.m_lights[2].color = glm::vec3(0.0f, 0.0f, 2.5f);
-	m_deferred.lightsUnif.m_lights[2].radius = 5.0f;
+	m_deferred.lightsUnif.m_pointLights[2].position = glm::vec4(2.0f, 0.0f, 0.0f, 0.0f);
+	m_deferred.lightsUnif.m_pointLights[2].color = glm::vec3(0.0f, 0.0f, 2.5f);
+	m_deferred.lightsUnif.m_pointLights[2].radius = 5.0f;
 	//// Yellow
-	m_deferred.lightsUnif.m_lights[3].position = glm::vec4(0.0f, 0.9f, 0.5f, 0.0f);
-	m_deferred.lightsUnif.m_lights[3].color = glm::vec3(1.0f, 1.0f, 0.0f);
-	m_deferred.lightsUnif.m_lights[3].radius = 2.0f;
+	m_deferred.lightsUnif.m_pointLights[3].position = glm::vec4(0.0f, 0.9f, 0.5f, 0.0f);
+	m_deferred.lightsUnif.m_pointLights[3].color = glm::vec3(1.0f, 1.0f, 0.0f);
+	m_deferred.lightsUnif.m_pointLights[3].radius = 2.0f;
 	// Green
-	m_deferred.lightsUnif.m_lights[4].position = glm::vec4(0.0f, 0.5f, 0.0f, 0.0f);
-	m_deferred.lightsUnif.m_lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
-	m_deferred.lightsUnif.m_lights[4].radius = 5.0f;
+	m_deferred.lightsUnif.m_pointLights[4].position = glm::vec4(0.0f, 0.5f, 0.0f, 0.0f);
+	m_deferred.lightsUnif.m_pointLights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
+	m_deferred.lightsUnif.m_pointLights[4].radius = 5.0f;
 	// Yellow
-	m_deferred.lightsUnif.m_lights[5].position = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-	m_deferred.lightsUnif.m_lights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
-	m_deferred.lightsUnif.m_lights[5].radius = 25.0f;
+	m_deferred.lightsUnif.m_pointLights[5].position = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+	m_deferred.lightsUnif.m_pointLights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
+	m_deferred.lightsUnif.m_pointLights[5].radius = 25.0f;
 
-	m_deferred.lightsUnif.m_lights[0].position.x = sin(glm::radians(SPEED * timer)) * 20.0f;
-	m_deferred.lightsUnif.m_lights[0].position.z = cos(glm::radians(SPEED * timer)) * 20.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position.x = sin(glm::radians(SPEED * timer)) * 20.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position.z = cos(glm::radians(SPEED * timer)) * 20.0f;
 
-	m_deferred.lightsUnif.m_lights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
-	m_deferred.lightsUnif.m_lights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
+	m_deferred.lightsUnif.m_pointLights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
+	m_deferred.lightsUnif.m_pointLights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
 
-	m_deferred.lightsUnif.m_lights[2].position.x = 4.0f + sin(glm::radians(SPEED * timer)) * 2.0f;
-	m_deferred.lightsUnif.m_lights[2].position.z = 0.0f + cos(glm::radians(SPEED * timer)) * 2.0f;
+	m_deferred.lightsUnif.m_pointLights[2].position.x = 4.0f + sin(glm::radians(SPEED * timer)) * 2.0f;
+	m_deferred.lightsUnif.m_pointLights[2].position.z = 0.0f + cos(glm::radians(SPEED * timer)) * 2.0f;
 
-	m_deferred.lightsUnif.m_lights[4].position.x = 0.0f + sin(glm::radians(SPEED * timer + 90.0f)) * 5.0f;
-	m_deferred.lightsUnif.m_lights[4].position.z = 0.0f - cos(glm::radians(SPEED * timer + 45.0f)) * 5.0f;
+	m_deferred.lightsUnif.m_pointLights[4].position.x = 0.0f + sin(glm::radians(SPEED * timer + 90.0f)) * 5.0f;
+	m_deferred.lightsUnif.m_pointLights[4].position.z = 0.0f - cos(glm::radians(SPEED * timer + 45.0f)) * 5.0f;
 
-	m_deferred.lightsUnif.m_lights[5].position.x = 0.0f + sin(glm::radians(-SPEED * timer + 135.0f)) * 10.0f;
-	m_deferred.lightsUnif.m_lights[5].position.z = 0.0f - cos(glm::radians(-SPEED * timer - 45.0f)) * 10.0f;
-
-	// Current view position
-	m_deferred.lightsUnif.m_viewPos = glm::vec4(m_scene->camera.eye, 0.0f) * glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f);
-
-	m_vulkanDevice->MapMemory(
-		&m_deferred.lightsUnif,
-		m_deferred.buffers.lightsUnifStorage.memory,
-		sizeof(m_deferred.lightsUnif)
-	);
+	m_deferred.lightsUnif.m_pointLights[5].position.x = 0.0f + sin(glm::radians(-SPEED * timer + 135.0f)) * 10.0f;
+	m_deferred.lightsUnif.m_pointLights[5].position.z = 0.0f - cos(glm::radians(-SPEED * timer - 45.0f)) * 10.0f;
 
 }
 
@@ -2389,7 +2379,7 @@ void VulkanHybridRenderer::UpdateComputeRaytraceUniform()
 
 	for (int i = 0; i < NUM_LIGHTS; ++i)
 	{
-		m_raytrace.ubo.m_lights[i] = m_deferred.lightsUnif.m_lights[i];
+		m_raytrace.ubo.m_lights[i] = m_deferred.lightsUnif.m_pointLights[i];
 	}
 	m_raytrace.ubo.m_lightCount = 1;
 	m_raytrace.ubo.m_materialCount = m_scene->materials.size();
