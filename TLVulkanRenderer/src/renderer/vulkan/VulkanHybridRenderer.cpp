@@ -1812,7 +1812,7 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	float SPEED = 32.0f;
 
 	// White
-	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -15.0f, 0.0f, 1.0f);
+	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -5.0f, 0.0f, 1.0f);
 	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
 	m_deferred.lightsUnif.m_pointLights[0].radius = 100.0f;
 
@@ -1837,8 +1837,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	m_deferred.lightsUnif.m_pointLights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
 	m_deferred.lightsUnif.m_pointLights[5].radius = 25.0f;
 
-	m_deferred.lightsUnif.m_pointLights[0].position.x = sin(glm::radians(SPEED * timer)) * 20.0f;
-	m_deferred.lightsUnif.m_pointLights[0].position.z = cos(glm::radians(SPEED * timer)) * 20.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position.x = sin(glm::radians(SPEED * timer)) * 5.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position.z = cos(glm::radians(SPEED * timer)) * 5.0f;
 
 	m_deferred.lightsUnif.m_pointLights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
 	m_deferred.lightsUnif.m_pointLights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 1.0f;

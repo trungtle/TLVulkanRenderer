@@ -181,18 +181,7 @@ SBVHLeaf* SBVH::CreateLeaf(
 	BBox& bboxAllGeoms
 	) {
 
-	PrimID numPrimitives = 0;
-	for (auto prim : primInfos)
-	{
-		if (prim.primitiveId != INVALID_ID)
-		{
-			++numPrimitives;
-		}
-		else
-		{
-			continue;
-		}
-	}
+	PrimID numPrimitives = last - first;
 
 	size_t firstGeomOffset = orderedGeoms.size();
 	std::unordered_set<PrimID> geomIds;
@@ -1102,14 +1091,11 @@ void SBVH::FlattenRecursive(
 	m_nodes.push_back(node);
 
 	SBVHNodePacked packed;
-	packed.id = node->m_nodeIdx;
 	packed.parent = node->m_parent == nullptr ? -1 : node->m_parent->m_nodeIdx;
 	
-	// .w := Left child index
 	packed.min = vec4(node->m_bbox.m_min, 1.);
 	packed.nearId = node->m_nearChild == nullptr ? -1 : node->m_nearChild->m_nodeIdx;
 
-	// .w := Right child index
 	packed.max = vec4(node->m_bbox.m_max, 1.);
 	packed.farId = node->m_farChild == nullptr ? -1 : node->m_farChild->m_nodeIdx;
 

@@ -23,8 +23,8 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_accel.reset(new SBVH(
-		100,
-		SBVH::Spatial
+		1,
+		SBVH::SAH
 		));
 
 	ParseSceneFile(fileName);
@@ -175,19 +175,15 @@ void Scene::PrepareTestScene()
 	lambertWhite->m_colorDiffuse = vec3(0.6, 0.6, 0.7);
 	materials.push_back(lambertWhite);
 
-	TranslucentMaterial* translucent = new TranslucentMaterial();
-	translucent->m_colorTransparent = vec3(0.6, 0.6, 0.0);
 
 
 	for (auto mat : materials) {
 		mat->m_colorAmbient = vec3(0.1, 0.1, 0.1);
 	}
 
-
 	// Turn meshes into triangles
 	for (int m = 0; m < meshes.size(); m++)
 	{
-		//meshes[m].SetTransform(Transform(glm::vec3(0, 0, 0), glm::vec3(0), glm::vec3(1, 1, 1)));
 		size_t len = 232271 < meshes[m].triangles.size() ? 232271 : meshes[m].triangles.size();
 		for (int t = 0; t < len; t++)
 		{
@@ -197,26 +193,7 @@ void Scene::PrepareTestScene()
 		}
 	}
 
-	// Add buildings
-	//std::shared_ptr<Cube> road(new Cube(vec3(0, -0.5, -1), vec3(30, 1, 10), lambertWhite));
-	//road.get()->SetName(std::string("road"));
-	//geometries.push_back(road);
-
-	//std::shared_ptr<Cube> bulding1(new Cube(vec3(2, 4, -5.5), vec3(6, 10, 5), lambertWhite));
-	//bulding1.get()->SetName(std::string("bulding1"));
-	//geometries.push_back(bulding1);
-
-	//std::shared_ptr<Cube> bulding2(new Cube(vec3(-4, 2.5, -5.5), vec3(8, 7, 5), lambertWhite));
-	//bulding2.get()->SetName(std::string("bulding2"));
-	//geometries.push_back(bulding2);
-
-	//std::shared_ptr<Cube> bulding3(new Cube(vec3(-9, 3, -5.5), vec3(6, 9, 5), lambertWhite));
-	//bulding3.get()->SetName(std::string("bulding3"));
-	//geometries.push_back(bulding3);
-
-	//std::shared_ptr<Cube> screen(new Cube(vec3(-1, 2.5, 5), vec3(5, 5, 1), translucent));
-	//screen.get()->SetName(std::string("screen"));
-	//geometries.push_back(screen);
+	// duplicate meshes
 
 	 //Add spheres
 	//int numSpheres = 5;
@@ -240,6 +217,7 @@ void Scene::PrepareTestScene()
 	//	geometries.push_back(s);
 	//}
 
+	//PrepareBoxes();
 	//PrepareCornellBox();
 
 	// Add lights
@@ -296,4 +274,34 @@ void Scene::PrepareCornellBox() {
 	std::shared_ptr<Cube> ceiling(new Cube(vec3(0, 2.5, 0), vec3(5, 0.2, 5), lambertWhite));
 	ceiling.get()->SetName(std::string("Ceiling"));
 	geometries.push_back(ceiling);
+}
+
+void Scene::PrepareBoxes() {
+	LambertMaterial* lambertWhite = new LambertMaterial();
+	lambertWhite->m_colorDiffuse = vec3(0.6, 0.6, 0.7);
+	materials.push_back(lambertWhite);
+
+	TranslucentMaterial* translucent = new TranslucentMaterial();
+	translucent->m_colorTransparent = vec3(0.6, 0.6, 0.0);
+
+	// Add buildings
+	std::shared_ptr<Cube> road(new Cube(vec3(0, -0.5, -1), vec3(30, 1, 10), lambertWhite));
+	road.get()->SetName(std::string("road"));
+	geometries.push_back(road);
+
+	std::shared_ptr<Cube> bulding1(new Cube(vec3(2, 4, -5.5), vec3(6, 10, 5), lambertWhite));
+	bulding1.get()->SetName(std::string("bulding1"));
+	geometries.push_back(bulding1);
+
+	std::shared_ptr<Cube> bulding2(new Cube(vec3(-4, 2.5, -5.5), vec3(8, 7, 5), lambertWhite));
+	bulding2.get()->SetName(std::string("bulding2"));
+	geometries.push_back(bulding2);
+
+	std::shared_ptr<Cube> bulding3(new Cube(vec3(-9, 3, -5.5), vec3(6, 9, 5), lambertWhite));
+	bulding3.get()->SetName(std::string("bulding3"));
+	geometries.push_back(bulding3);
+
+	std::shared_ptr<Cube> screen(new Cube(vec3(-1, 2.5, 5), vec3(5, 5, 1), translucent));
+	screen.get()->SetName(std::string("screen"));
+	geometries.push_back(screen);
 }

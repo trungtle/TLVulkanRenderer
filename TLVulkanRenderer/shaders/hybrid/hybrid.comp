@@ -52,7 +52,7 @@ struct Triangle
 
 struct BVHNodePacked
 {
-	int id;
+	//int id;
 	int parent;
 	int geomId;
 	int nearId;
@@ -322,7 +322,7 @@ int getFarSibling(
 	)
 {
 	int parent = bvhNodes[node].parent;
-	return int(bvhNodes[parent].farId);
+	return bvhNodes[parent].farId;
 }
 
 int getNearSibling(
@@ -330,7 +330,7 @@ int getNearSibling(
 	)
 {
 	int parent = bvhNodes[node].parent;
-	return int(bvhNodes[parent].nearId);
+	return bvhNodes[parent].nearId;
 }
 
 
@@ -350,7 +350,7 @@ Intersection calcShadowBVH(
 	float tMin = MAXLEN;
 
 	Intersection isx;
-	isx.t = MAXLEN;
+	isx.t = -1;
 
 
 	bool isIterating = true;
@@ -367,19 +367,19 @@ Intersection calcShadowBVH(
 			// or its parent(if current was farChild).
 			//
 			case FROM_CHILD:
-				{
-					if (current == root) {
-						isIterating = false;
-					} else if (current == getNearSibling(current)) {
-						current = getFarSibling(current);
-						state = FROM_SIBLING;
+			{
+				if (current == root) {
+					isIterating = false;
+				} else if (current == getNearSibling(current)) {
+					current = getFarSibling(current);
+					state = FROM_SIBLING;
 
-					} else {
-						current = getParent(current);
-						state = FROM_CHILD;
-					}
-					break;
+				} else {
+					current = getParent(current);
+					state = FROM_CHILD;
 				}
+				break;
+			}
 			// 2. From sibling
 			// In the fromSibling case, we know that we are entering farChild (it
 			// cannot be reached in any other way), and that we are traversing this
@@ -393,6 +393,8 @@ Intersection calcShadowBVH(
 			{
 				if (bvhNodes[current].geomId > -1) {
 					// Leaf node
+					isx.t = 1;
+					return isx;
 					
 					// Reconstruct triangle
 					Triangle tri;
@@ -415,8 +417,17 @@ Intersection calcShadowBVH(
 					t = aabbIntersect(ray, current);
 					if ( (t < MAXLEN) && (t > EPSILON) ) {
 						// Hit, enter its subtree (near child)
-						current = getNearChild(current);
-						state = FROM_PARENT;
+						int nearChild = getNearChild(current);
+						int farChild = getFarChild(current);
+
+						if (nearChild != -1) {
+							current = nearChild;
+							state = FROM_PARENT;
+						} else {
+							current = farChild;
+							state = FROM_SIBLING;
+						}
+
 					} else {
 						// Miss, go backup to parent
 						if (current == root) {
@@ -465,15 +476,18 @@ Intersection calcShadowBVH(
 					t = aabbIntersect(ray, current);
 					if ( (t < MAXLEN) && t > EPSILON) {
 
-						//@debug
-						if (current != 0) {
-							isx.t = 1;
-							return isx;
+						// Hit, enter its subtree (near child)
+						int nearChild = getNearChild(current);
+						int farChild = getFarChild(current);
+
+						if (nearChild != -1) {
+							current = nearChild;
+							state = FROM_PARENT;
+						} else {
+							current = farChild;
+							state = FROM_SIBLING;
 						}
 
-						// Hit, enter its substree
-						current = getNearChild(current);
-						state = FROM_PARENT;
 
 					} else {
 
@@ -481,6 +495,7 @@ Intersection calcShadowBVH(
 						if (current == root) {
 							isIterating = false;
 						} else {
+
 							current = getFarSibling(current);
 							state = FROM_SIBLING;
 						}
@@ -629,7 +644,7 @@ void shadeMaterial(
 			
 		float shadow = 1;//calcShadow(feeler, intersect.materialId, dist); 
 		Intersection shadowIsx = calcShadowBVH(feeler, 0);
-		if (shadowIsx.t != MAXLEN) {
+		if (shadowIsx.t > 0) {
 			shadow = 0.5;
 		}
 		vec3 diffuseColor = material.diffuse.rgb;

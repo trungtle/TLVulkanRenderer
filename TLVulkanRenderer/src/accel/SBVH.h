@@ -109,7 +109,6 @@ public:
 };
 
 struct SBVHNodePacked {
-	int32_t id;
 	int32_t parent;
 	int32_t geomId;
 	int32_t nearId;
@@ -119,8 +118,7 @@ struct SBVHNodePacked {
 	glm::vec4 max;
 
 	inline std::string ToString() const {
-		std::string str = "ID: ";
-		str += std::to_string(id);
+		std::string str = "";
 		str += ", Min: ";
 		str += glm::to_string(min);
 		str += ", Max: ";
