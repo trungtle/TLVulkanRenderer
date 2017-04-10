@@ -77,6 +77,16 @@ VulkanHybridRenderer::Render() {
 
 	uint32_t imageIndex;
 
+	// Acquire the swapchain
+	vkAcquireNextImageKHR(
+		m_vulkanDevice->device,
+		m_vulkanDevice->m_swapchain.swapchain,
+		UINT64_MAX, // Timeout
+		m_imageAvailableSemaphore,
+		VK_NULL_HANDLE,
+		&imageIndex
+	);
+
 	// Submit command buffers
 	std::vector<VkSemaphore> waitSemaphores = { m_imageAvailableSemaphore };
 	std::vector<VkSemaphore> signalSemaphores = { m_renderFinishedSemaphore };
@@ -88,15 +98,6 @@ VulkanHybridRenderer::Render() {
 		m_graphics.commandBuffers[imageIndex]
 	);
 
-	// Acquire the swapchain
-	vkAcquireNextImageKHR(
-		m_vulkanDevice->device,
-		m_vulkanDevice->m_swapchain.swapchain,
-		UINT64_MAX, // Timeout
-		m_imageAvailableSemaphore,
-		VK_NULL_HANDLE,
-		&imageIndex
-	);
 
 	// The scene render command buffer has to wait for the offscreen
 	// rendering to be finished before we can use the framebuffer 

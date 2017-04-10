@@ -326,5 +326,6 @@ protected:
 	unsigned int m_maxDepth = 0;
 	size_t m_spatialSplitBudget = 1000;
 	unsigned int m_spatialSplitCount = 0;
+	size_t m_numPrimInfos = 0;
 };
 

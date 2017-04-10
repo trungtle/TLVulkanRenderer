@@ -15,4 +15,8 @@ namespace TLMath {
 	inline float lerp(float v0, float v1, float t) {
 		return v0 + t * (v1 - v0);
 	}
+
+	inline glm::vec3 lerp(glm::vec3 v0, glm::vec3 v1, float t) {
+		return v0 + t * (v1 - v0);
+	}
 }

@@ -31,6 +31,8 @@ SBVH::Build(
 		primInfos[i] = { i, m_prims[i]->GetBBox()};
 	}
 
+	m_numPrimInfos = primInfos.size();
+
 	PrimID totalNodes = 0;
 
 	std::vector<std::shared_ptr<Geometry>> orderedGeoms;
@@ -41,10 +43,10 @@ SBVH::Build(
 	Flatten();
 
 	//@debug
-	for (auto node : m_nodesPacked)
-	{
-		std::cout << node.ToString();
-	}
+	//for (auto node : m_nodesPacked)
+	//{
+	//	std::cout << node.ToString();
+	//}
 
 }
 
@@ -511,6 +513,7 @@ void SBVH::PrintStats()
 	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
 	std::cout << "Number of spatial splits: " << m_spatialSplitCount << std::endl;
 	std::cout << "Max depth: " << m_maxDepth << std::endl;
+	std::cout << "Temp primitive infos generated: " << m_numPrimInfos << std::endl;
 }
 
 SBVHNode*
@@ -1128,14 +1131,22 @@ void SBVH::GenerateVertices(
 	vec3 color;
 	for (auto node : m_nodes)
 	{
+
 		if (node->m_isSpatialSplit)
 		{
 			color = vec3(0, 1, 1);
+		} else if (node->IsLeaf()) 
+		{
+			color = vec3(1, 1, 0);
 		}
 		else
 		{
-			color = vec3(1, 0, 0);
+			color = vec3(1, 0, 1);
 		}
+		vec3 red(1, 0, 0);
+		vec3 green(0, 1, 0);
+		auto t = node->m_depth / (float)m_maxDepth;		
+		color = TLMath::lerp(green, red, t);
 		// Setup vertices
 		glm::vec3 centroid = node->m_bbox.m_centroid;
 		glm::vec3 translation = centroid;
