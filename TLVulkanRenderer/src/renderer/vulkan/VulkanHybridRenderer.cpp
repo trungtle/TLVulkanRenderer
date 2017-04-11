@@ -1832,6 +1832,12 @@ void VulkanHybridRenderer::PrepareComputeRaytraceDescriptorLayout() {
 			9,
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 10 : spheres 
+		MakeDescriptorSetLayoutBinding(
+			10,
+			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			VK_SHADER_STAGE_COMPUTE_BIT
 		)
 	};
 
@@ -1872,7 +1878,6 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			0, // Binding 0
 			1,
-			nullptr,
 			&m_deferred.framebuffer.position.descriptor
 		),
 		// Binding 1 : Normals storage image
@@ -1881,7 +1886,6 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			1, // Binding 1
 			1,
-			nullptr,
 			&m_deferred.framebuffer.normal.descriptor
 		),
 		// Binding 2 : Result of raytracing storage image
@@ -1890,7 +1894,6 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			2, // Binding 2
 			1,
-			nullptr,
 			&m_raytrace.storageRaytraceImage.descriptor
 		),
 		// Binding 3 : Index buffer
@@ -1899,8 +1902,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			3, // Binding 3
 			1,
-			&m_raytrace.buffers.indices.descriptor,
-			nullptr
+			&m_raytrace.buffers.indices.descriptor
 		),
 		// Binding 4 : Position buffer
 		MakeWriteDescriptorSet(
@@ -1908,8 +1910,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			4, // Binding 4
 			1,
-			&m_raytrace.buffers.positions.descriptor,
-			nullptr
+			&m_raytrace.buffers.positions.descriptor
 		),
 		// Binding 5 : Normal buffer
 		MakeWriteDescriptorSet(
@@ -1917,8 +1918,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			5, // Binding 5
 			1,
-			&m_raytrace.buffers.normals.descriptor,
-			nullptr
+			&m_raytrace.buffers.normals.descriptor
 		),
 		// Binding 6 : UBO
 		MakeWriteDescriptorSet(
@@ -1926,8 +1926,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			6, // Binding 6
 			1,
-			&m_raytrace.buffers.uniform.descriptor,
-			nullptr
+			&m_raytrace.buffers.uniform.descriptor
 		),
 		// Binding 7 : Materials buffer
 		MakeWriteDescriptorSet(
@@ -1935,8 +1934,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			7, // Binding 7
 			1,
-			&m_raytrace.buffers.materials.descriptor,
-			nullptr
+			&m_raytrace.buffers.materials.descriptor
 		),
 		// Binding 8 : bvh buffer
 		MakeWriteDescriptorSet(
@@ -1944,8 +1942,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			8, // Binding 8
 			1,
-			&m_raytrace.buffers.bvh.descriptor,
-			nullptr
+			&m_raytrace.buffers.bvh.descriptor
 		),
 		// Binding 9 : albedo
 		MakeWriteDescriptorSet(
@@ -1953,8 +1950,15 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			9, // Binding 9
 			1,
-			nullptr,
 			&m_deferred.framebuffer.albedo.descriptor
+		),
+		// Binding 10 : spheres
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			m_raytrace.descriptorSet,
+			10, // Binding 10
+			1,
+			&m_raytrace.buffers.spheres.descriptor
 		),
 	};
 
@@ -2126,7 +2130,6 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 		m_raytrace.buffers.bvh.memory
 	);
 
-	// Copy over to vertex buffer in device local memory
 	m_vulkanDevice->CopyBuffer(
 		m_raytrace.buffers.bvh,
 		stagingBuffer,
@@ -2135,6 +2138,46 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	);
 
 	m_raytrace.buffers.bvh.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.bvh.buffer, 0, bufferSize);
+
+	// Cleanup staging buffer memory
+	stagingBuffer.Destroy();
+
+	// =========== Spheres
+	bufferSize = m_scene->spherePackeds.size() * sizeof(SpherePacked);
+
+	// Stage
+	m_vulkanDevice->CreateBufferAndMemory(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer.buffer,
+		stagingBuffer.memory
+	);
+
+	m_vulkanDevice->MapMemory(
+		m_scene->spherePackeds.data(),
+		stagingBuffer.memory,
+		bufferSize
+	);
+
+	// -----------------------------------------
+
+	m_vulkanDevice->CreateBufferAndMemory(
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_raytrace.buffers.spheres.buffer,
+		m_raytrace.buffers.spheres.memory
+	);
+
+	m_vulkanDevice->CopyBuffer(
+		m_raytrace.buffers.spheres,
+		stagingBuffer,
+		bufferSize,
+		true
+	);
+
+	m_raytrace.buffers.spheres.descriptor = MakeDescriptorBufferInfo(m_raytrace.buffers.spheres.buffer, 0, bufferSize);
 
 	// Cleanup staging buffer memory
 	stagingBuffer.Destroy();

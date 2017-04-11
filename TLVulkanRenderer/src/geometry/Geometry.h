@@ -93,6 +93,12 @@ public:
 
 };
 
+struct SpherePacked
+{
+	glm::vec3 position;
+	float radius;
+};
+
 class Sphere : public Geometry
 {
 public:

@@ -196,26 +196,31 @@ void Scene::PrepareTestScene()
 	// duplicate meshes
 
 	 //Add spheres
-	//int numSpheres = 5;
-	//for (int i = 0; i < numSpheres; i++) {
-	//	Material* mat;
-	//	if (i % 2)
-	//	{
-	//		mat = mirror;
-	//	}
-	//	else
-	//	{
-	//		mat = glass;
-	//	}
-	//	std::shared_ptr<Sphere> s(new Sphere(glm::vec3(
-	//		sin(glm::radians(360.0f * i / numSpheres)) * 1,
-	//		-2.4 + (0.5 + i * 0.25) * 0.5 + 2.5,
-	//		cos(glm::radians(360.0f * i / numSpheres)) * 1 + 3
-	//		), 0.5 + i * 0.25, mat));
-	//	std::string name = "Sphere" + i;
-	//	s.get()->SetName(name);
-	//	geometries.push_back(s);
-	//}
+	int numSpheres = 5;
+	for (int i = 0; i < numSpheres; i++) {
+		Material* mat;
+		if (i % 2)
+		{
+			mat = mirror;
+		}
+		else
+		{
+			mat = glass;
+		}
+		vec3 position = glm::vec3(
+			sin(glm::radians(360.0f * i / numSpheres)) * 1,
+			-2.4 + (0.5 + i * 0.25) * 0.5 + 2.5,
+			cos(glm::radians(360.0f * i / numSpheres)) * 1 + 3
+		);
+		float radius = 0.5 + i * 0.25;
+		std::shared_ptr<Sphere> s(new Sphere(position, radius, mat));
+		std::string name = "Sphere" + i;
+		s.get()->SetName(name);
+		geometries.push_back(s);
+
+		SpherePacked packedSphere = { position, radius };
+		spherePackeds.push_back(packedSphere);
+	}
 
 	//PrepareBoxes();
 	//PrepareCornellBox();

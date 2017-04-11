@@ -716,8 +716,8 @@ VulkanDevice::CreateBufferAndMemory(
 
 void
 VulkanDevice::CopyBuffer(
-	VulkanBuffer::StorageBuffer dstBuffer,
-	VulkanBuffer::StorageBuffer srcBuffer,
+	VulkanBuffer::StorageBuffer& dstBuffer,
+	VulkanBuffer::StorageBuffer& srcBuffer,
 	VkDeviceSize size,
 	bool isCompute
 ) const {

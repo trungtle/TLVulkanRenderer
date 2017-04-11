@@ -1,7 +1,14 @@
 #include "VulkanBuffer.h"
 #include "VulkanDevice.h"
 
-void VulkanBuffer::StorageBuffer::Create(const VulkanDevice* device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags memoryProperties) {
+void 
+VulkanBuffer::StorageBuffer::Create(
+	const VulkanDevice* device, 
+	const VkDeviceSize size, 
+	const VkBufferUsageFlags usage, 
+	const VkMemoryPropertyFlags memoryProperties
+) 
+{
 	m_device = device;
 	device->CreateBufferAndMemory(
 		size,
@@ -14,6 +21,44 @@ void VulkanBuffer::StorageBuffer::Create(const VulkanDevice* device, const VkDev
 	descriptor.buffer = buffer;
 	descriptor.offset = 0;
 	descriptor.range = size;
+}
+
+void 
+VulkanBuffer::StorageBuffer::CreateFromData(
+	VulkanDevice* device, 
+	void* data, 
+	const VkDeviceSize size, 
+	const VkBufferUsageFlags usage, 
+	const VkMemoryPropertyFlags memoryProperties,
+	bool isCompute
+)
+{
+	// Stage
+	StorageBuffer staging;
+	staging.Create(
+		device,
+		size,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	);
+	
+	device->MapMemory(
+		data,
+		staging.memory,
+		size
+	);
+
+	// Copy to memory
+	Create(device, size, usage, memoryProperties);
+
+	device->CopyBuffer(
+		*this,
+		staging,
+		size,
+		isCompute
+	);
+
+	staging.Destroy();
 }
 
 void VulkanBuffer::StorageBuffer::Destroy() const {

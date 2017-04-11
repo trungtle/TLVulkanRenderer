@@ -349,6 +349,7 @@ protected:
 			VulkanBuffer::StorageBuffer positions;
 			VulkanBuffer::StorageBuffer normals;
 			VulkanBuffer::StorageBuffer bvh;
+			VulkanBuffer::StorageBuffer spheres;
 
 		} buffers;
 

@@ -23,7 +23,17 @@ namespace VulkanBuffer {
 			const VkDeviceSize size,
 			const VkBufferUsageFlags usage,
 			const VkMemoryPropertyFlags memoryProperties
-		);;
+		);
+
+		void CreateFromData(
+			VulkanDevice* device,
+			void* data,
+			const VkDeviceSize size,
+			const VkBufferUsageFlags usage,
+			const VkMemoryPropertyFlags memoryProperties,
+			bool isCompute = false
+		);
+
 
 		void Destroy(
 		) const;

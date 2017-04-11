@@ -31,6 +31,7 @@ public:
 	std::vector<LambertMaterial*> materials;
 	std::vector<Mesh> meshes;
 	std::vector<std::shared_ptr<Geometry>> geometries;
+	std::vector<SpherePacked> spherePackeds;
 	std::vector<Light*> lights;
 	std::unique_ptr<AccelStructure> m_accel;
 

@@ -164,8 +164,8 @@ public:
 
 	void
 	CopyBuffer(
-		VulkanBuffer::StorageBuffer dstBuffer,
-		VulkanBuffer::StorageBuffer srcBuffer,
+		VulkanBuffer::StorageBuffer& dstBuffer,
+		VulkanBuffer::StorageBuffer& srcBuffer,
 		VkDeviceSize size,
 		bool isCompute = false // Set to true if using compute buffers
 	) const;
