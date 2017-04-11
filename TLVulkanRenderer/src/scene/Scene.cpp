@@ -157,7 +157,7 @@ void Scene::PrepareTestScene()
 	static const Point3 ELLIE_EYE(-2.75, -155.1811, 120.7701);
 	static const Point3 ELLIE_LOOKAT(-2.75, -135, -12);
 	camera.eye = vec3(0, -20, 45);
-	//camera.eye = vec3(2, 7, 15);
+	camera.eye = vec3(2, 7, 15);
 	//camera.eye = SPONZA_EYE;
 	//camera.lookAt = SPONZA_LOOKAT;
 	//camera.eye = ELLIE_EYE;

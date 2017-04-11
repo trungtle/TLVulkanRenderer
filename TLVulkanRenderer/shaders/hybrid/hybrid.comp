@@ -618,6 +618,8 @@ void shadeMaterial(
 
 	path.remainingBounces = 0;
 
+	vec3 sun = vec3(100, 100, 100);
+
 	for (int i = 0; i < 10; ++i) {
 					
 		if (i >= ubo.lightCount) {
@@ -643,11 +645,12 @@ void shadeMaterial(
 		feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
 		float shadow = 1;//calcShadow(feeler, intersect.materialId, dist); 
-		Intersection shadowIsx = calcShadowBVH(feeler, 0);
-		if (shadowIsx.t > 0) {
-			shadow = 0.5;
-		}
+		//Intersection shadowIsx = calcShadowBVH(feeler, 0);
+		//if (shadowIsx.t > 0) {
+		//	shadow = 0.5;
+		//}
 		vec3 diffuseColor = material.diffuse.rgb;
+		diffuseColor *= lightDiffuse(intersect.hitNormal, sun);
 		float atten = 0.1;
 		if (shadow > 0.5) {
 			// Attenuation
@@ -688,7 +691,7 @@ void main()
 	path.ray.origin = position + 0.01 * path.ray.direction;
 	path.objectId = materialId; // Use material ID as object ID
 	path.bounces = 0;
-	path.color = texture(albedo, uv).rgb * materials[materialId].diffuse.rgb;
+	path.color = texture(albedo, uv).rgb;// * materials[materialId].diffuse.rgb;
 
 	if (normal == vec3(0, 0, 0)) {
 		// Nothing to compute here
@@ -706,7 +709,7 @@ void main()
 	intersection.t = 1;
 
 	// Shade and reflect
-	shadeMaterial(intersection, path);
+	//shadeMaterial(intersection, path);
 
 	// Trace ray
 	//while(path.remainingBounces > 0) {

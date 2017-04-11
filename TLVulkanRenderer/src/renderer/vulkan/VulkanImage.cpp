@@ -1,20 +1,22 @@
 #include "VulkanImage.h"
 #include "VulkanDevice.h"
 #include "VulkanCPURayTracer.h"
+#include "tinygltfloader/stb_image.h"
 
-namespace VulkanImage {
+namespace VulkanImage
+{
 
 	void
-	Image::Create(
-		VulkanDevice* device, 
-		uint32_t width, 
-		uint32_t height,
-		VkFormat format,
-		VkImageTiling tiling,
-		VkImageUsageFlags usage, 
-		VkImageAspectFlags aspectMask,
-		VkMemoryPropertyFlags properties,
-		bool repeat
+		Image::Create(
+			VulkanDevice* device,
+			uint32_t width,
+			uint32_t height,
+			VkFormat format,
+			VkImageTiling tiling,
+			VkImageUsageFlags usage,
+			VkImageAspectFlags aspectMask,
+			VkMemoryPropertyFlags properties,
+			bool repeat
 		)
 	{
 		this->width = width;
@@ -27,7 +29,7 @@ namespace VulkanImage {
 			width,
 			height,
 			1, // only a 2D depth image
-			VK_IMAGE_TYPE_2D, 
+			VK_IMAGE_TYPE_2D,
 			format,
 			tiling,
 			usage,
@@ -36,7 +38,8 @@ namespace VulkanImage {
 			this->imageMemory
 		);
 
-		if (usage & VK_IMAGE_USAGE_SAMPLED_BIT) {
+		if (usage & VK_IMAGE_USAGE_SAMPLED_BIT)
+		{
 			// Create image view, sampler, descriptor if we're going to use this
 			device->CreateImageView(
 				this->image,
@@ -56,6 +59,128 @@ namespace VulkanImage {
 
 	}
 
+	void 
+	Image::CreateFromTexture(
+		VulkanDevice* device,
+		Texture* texture,
+		VkFormat format,
+		VkImageUsageFlags imageUsageFlags,
+		VkImageLayout imageLayout,
+		bool forceLinear
+		) 
+	{
+		m_texture = reinterpret_cast<ImageTexture*>(texture);
+
+		if (m_texture)
+		{
+			Image staging;
+
+			// Stage image
+			staging.Create(
+				device,
+				m_texture->width(),
+				m_texture->height(),
+				format,
+				VK_IMAGE_TILING_LINEAR,
+				VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+			VkImageSubresource subresource = {};
+			subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			subresource.mipLevel = 0;
+			subresource.arrayLayer = 0;
+
+			VkSubresourceLayout stagingImageLayout;
+			vkGetImageSubresourceLayout(device->device, staging.image, &subresource, &stagingImageLayout);
+
+			void* data;
+
+			VkDeviceSize imageSize = m_texture->width() *  m_texture->width() * 4;
+			vkMapMemory(device->device, staging.imageMemory, 0, imageSize, 0, &data);
+			if (stagingImageLayout.rowPitch == m_texture->width() * 4)
+			{
+				memcpy(data, m_texture->getRawByte(), static_cast<size_t>(imageSize));
+			}
+			else
+			{
+				uint8_t* dataBytes = reinterpret_cast<uint8_t*>(data);
+
+				for (int y = 0; y < m_texture->height(); y++)
+				{
+					memcpy(&dataBytes[y * stagingImageLayout.rowPitch], &m_texture->getRawByte()[y *  m_texture->width() * 4], m_texture->width() * 4);
+				}
+			}
+
+			vkUnmapMemory(device->device, staging.imageMemory);
+
+			// Prepare our texture for staging
+			device->TransitionImageLayout(
+				staging.image,
+				format,
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				VK_IMAGE_LAYOUT_PREINITIALIZED,
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+			);
+
+			// Create our display imageMakeDescriptorImageInfo
+			this->Create(
+				device,
+				m_texture->width(),
+				m_texture->height(),
+				format,
+				VK_IMAGE_TILING_OPTIMAL,
+				VK_IMAGE_USAGE_TRANSFER_DST_BIT | imageUsageFlags,
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+			);
+
+			device->TransitionImageLayout(
+				image,
+				format,
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				VK_IMAGE_LAYOUT_PREINITIALIZED,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+			);
+
+			device->CopyImage(
+				image,
+				staging.image,
+				m_texture->width(),
+				m_texture->height());
+
+			device->TransitionImageLayout(
+				image,
+				format,
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				imageLayout);
+		}
+	}
+
+	void
+		Image::CreateFromFile(
+			VulkanDevice* device,
+			std::string filepath,
+			VkFormat format,
+			VkImageUsageFlags imageUsageFlags,
+			VkImageLayout imageLayout,
+			bool forceLinear
+		)
+	{
+		m_device = device;
+		int texWidth, texHeight, texChannels;
+		std::string path = "scenes/textures/";
+		path += filepath;
+		Byte* imageBytes = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+		// Texture bytes
+		Texture* texture = new ImageTexture(imageBytes, texWidth, texHeight);
+		CreateFromTexture(device, texture);
+
+	}
+
+
 	void Image::Destroy() const {
 		if (sampler)
 		{
@@ -72,6 +197,9 @@ namespace VulkanImage {
 		if (imageMemory)
 		{
 			vkFreeMemory(m_device->device, this->imageMemory, nullptr);
+		}
+		if (m_texture) {
+			delete m_texture;
 		}
 	}
 

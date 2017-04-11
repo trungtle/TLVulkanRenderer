@@ -2,6 +2,7 @@
 
 #include <vulkan.h>
 #include <vector>
+#include "Texture.h"
 
 class VulkanDevice;
 
@@ -19,7 +20,7 @@ namespace VulkanImage {
 			VkSampler sampler;
 			VkDescriptorImageInfo descriptor;
 
-			Image() : width(0), height(0), format(), aspectMask(0), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr) {
+			Image() : width(0), height(0), format(), aspectMask(0), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr), m_texture(nullptr) {
 		};
 		
 		~Image();
@@ -38,6 +39,26 @@ namespace VulkanImage {
 		);
 
 		void
+		CreateFromTexture(
+			VulkanDevice* device,
+			Texture* texture,
+			VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
+			VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+			VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			bool forceLinear = false
+		);
+
+		void
+		CreateFromFile(
+			VulkanDevice* device,
+			std::string filepath,
+			VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
+			VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+			VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			bool forceLinear = false
+		);
+
+		void
 		Destroy() const;
 
 		void
@@ -51,20 +72,24 @@ namespace VulkanImage {
 
 	private:
 		VulkanDevice* m_device;
+		/**
+		 * \brief 
+		 */
+		ImageTexture* m_texture;
 	};
 
-	struct Texture
-	{
-		VkSampler sampler;
-		VkImage image;
-		VkImageLayout imageLayout;
-		VkDeviceMemory deviceMemory;
-		VkImageView view;
-		uint32_t width, height;
-		uint32_t mipLevels;
-		uint32_t layerCount;
-		VkDescriptorImageInfo descriptor;
-	};
+	//struct Texture
+	//{
+	//	VkSampler sampler;
+	//	VkImage image;
+	//	VkImageLayout imageLayout;
+	//	VkDeviceMemory deviceMemory;
+	//	VkImageView view;
+	//	uint32_t width, height;
+	//	uint32_t mipLevels;
+	//	uint32_t layerCount;
+	//	VkDescriptorImageInfo descriptor;
+	//};
 
 	/**
 	* \brief Find a supported format from a list of candidates

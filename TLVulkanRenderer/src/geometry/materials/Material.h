@@ -1,10 +1,10 @@
 #pragma once
 #include <glm/glm.hpp>
-#include <vector>
 #include <Texture.h>
 #include <scene/SceneUtil.h>
 #include <Color.h>
 #include <geometry/Ray.h>
+#include "renderer/vulkan/VulkanImage.h"
 
 class Intersection;
 
@@ -52,4 +52,5 @@ public:
 	float		m_refracti;
 	float	    m_reflectivity;
 	Texture*	m_texture;
+	VulkanImage::Image m_vkImage;
 };

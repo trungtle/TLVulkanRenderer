@@ -992,6 +992,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					//TextureData* dev_diffuseTex = NULL;
 					MaterialPacked materialPacked;
 					Texture* texture = nullptr;
+					LambertMaterial* lambert = nullptr;
+					std::string path;
 					if (!primitive.material.empty()) {
 						const tinygltf::Material& mat = tinygltfScene.materials.at(primitive.material);
 
@@ -1002,7 +1004,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 								if (tinygltfScene.images.find(tex.source) != tinygltfScene.images.end()) {
 									const tinygltf::Image& image = tinygltfScene.images.at(tex.source);
 									int texWidth, texHeight, texChannels;
-									std::string path = "scenes/textures/";
+									path = "scenes/textures/";
 									path += image.uri;
 									Byte* imageBytes = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
@@ -1041,7 +1043,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 							materialPacked.transparency = 1.0f;
 						}
 
-						scene->materials.push_back(new LambertMaterial(materialPacked, texture));
+						lambert = new LambertMaterial(materialPacked, texture);
+						scene->materials.push_back(lambert);
 
 						scene->materialPackeds.push_back(materialPacked);
 						++materialId;
@@ -1056,7 +1059,6 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 				{
 					ivec4 idx = scene->indices[j];
 					
-
 					if (scene->verticeUVs.size() == 0) {
 						// No UVs
 						newMesh.triangles.push_back(

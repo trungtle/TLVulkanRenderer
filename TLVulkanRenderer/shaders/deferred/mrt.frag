@@ -35,8 +35,5 @@ void main()
 	outNormal = vec4(inNormal, 0.0);
 
 	vec4 color = texture(samplerColor, inUV);
-	if (color == vec4(0, 0, 0, 0)) {
-		color = vec4(0.5, 0.5, 0.5, 1.0);
-	}
 	outAlbedo = color;
 }

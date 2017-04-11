@@ -1,7 +1,6 @@
 #include "VulkanHybridRenderer.h"
 #include "Utilities.h"
 #include "scene/Camera.h"
-#include "tinygltfloader/tiny_gltf_loader.h"
 #include "accel/SBVH.h"
 #include <gtc/quaternion.hpp>
 
@@ -1347,103 +1346,9 @@ void VulkanHybridRenderer::PrepareTextures()
 
 	for (auto m : m_scene->materials)
 	{
-		if (m->m_texture != nullptr && m->m_texture->hasRawByte())
-		{
-			texWidth = m->m_texture->width();
-			texHeight = m->m_texture->height();
-			break;
-		}
+		m->m_vkImage.CreateFromTexture(m_vulkanDevice, m->m_texture);
 	}
 
-	// Stage image
-	m_stagingImage.Create(
-		m_vulkanDevice,
-		texWidth,
-		texHeight,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_TILING_LINEAR,
-		VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-	VkImageSubresource subresource = {};
-	subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	subresource.mipLevel = 0;
-	subresource.arrayLayer = 0;
-
-	VkSubresourceLayout stagingImageLayout;
-	vkGetImageSubresourceLayout(m_vulkanDevice->device, m_stagingImage.image, &subresource, &stagingImageLayout);
-
-	void* data;
-
-	for (auto m : m_scene->materials) {
-		if (m->m_texture != nullptr && m->m_texture->hasRawByte()) {
-
-			imageSize = m->m_texture->width() *  m->m_texture->width() * 4;
-
-			vkMapMemory(m_vulkanDevice->device, m_stagingImage.imageMemory, 0, imageSize, 0, &data);
-			if (stagingImageLayout.rowPitch == m->m_texture->width() * 4)
-			{
-				memcpy(data, m->m_texture->getRawByte(), (size_t)imageSize);
-			}
-			else
-			{
-				uint8_t* dataBytes = reinterpret_cast<uint8_t*>(data);
-
-				for (int y = 0; y <  m->m_texture->height(); y++)
-				{
-					memcpy(&dataBytes[y * stagingImageLayout.rowPitch], &m->m_texture->getRawByte()[y *  m->m_texture->width() * 4], m->m_texture->width() * 4);
-				}
-			}
-
-			vkUnmapMemory(m_vulkanDevice->device, m_stagingImage.imageMemory);
-			break;
-		}
-	}
-
-	// Prepare our texture for staging
-	m_vulkanDevice->TransitionImageLayout(
-		m_stagingImage.image,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		VK_IMAGE_LAYOUT_PREINITIALIZED,
-		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-	);
-
-	// Create our display imageMakeDescriptorImageInfo
-	m_deferred.textures.m_colorMap.Create(
-		m_vulkanDevice,
-		texWidth,
-		texHeight,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-	);
-
-	m_vulkanDevice->TransitionImageLayout(
-		m_deferred.textures.m_colorMap.image,
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		VK_IMAGE_LAYOUT_PREINITIALIZED,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-	);
-
-	if (imageSize) {
-		m_vulkanDevice->CopyImage(
-			m_deferred.textures.m_colorMap.image, 
-			m_stagingImage.image, 
-			texWidth, 
-			texHeight);
-	}
-
-	m_vulkanDevice->TransitionImageLayout(
-		m_deferred.textures.m_colorMap.image, 
-		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	VulkanUtil::Make::SetDescriptorImageInfo(
 		VK_IMAGE_LAYOUT_GENERAL,
@@ -1528,7 +1433,7 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 			1, // binding
 			1, // descriptor count
 			nullptr, // buffer info
-			&m_deferred.textures.m_colorMap.descriptor // image info
+			&m_scene->materials[0]->m_vkImage.descriptor // image info
 		),
 		//// Binding 2: Normal map
 		//MakeWriteDescriptorSet(

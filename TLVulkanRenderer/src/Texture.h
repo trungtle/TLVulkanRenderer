@@ -38,6 +38,10 @@ public:
 
 class ImageTexture : public Texture {
 public:
+	ImageTexture(Byte* rawBytes, int width, int height) :
+		m_bytes(rawBytes), m_width(width), m_height(height)
+	{};
+
 	ImageTexture(std::string name, std::vector<unsigned char> data, Byte* rawBytes, int width, int height) :
 		m_name(name), m_image(data), m_bytes(rawBytes), m_width(width), m_height(height)
 	{};
