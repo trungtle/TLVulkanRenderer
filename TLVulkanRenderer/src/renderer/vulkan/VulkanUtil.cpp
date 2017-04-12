@@ -426,7 +426,8 @@ namespace VulkanUtil {
 			VkImageType imageType,
 			VkFormat format,
 			VkImageTiling tiling,
-			VkImageUsageFlags usage
+			VkImageUsageFlags usage,
+			VkImageCreateFlags flags
 		)
 		{
 			VkImageCreateInfo imageInfo = {};
@@ -443,7 +444,7 @@ namespace VulkanUtil {
 			imageInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 			imageInfo.samples = VK_SAMPLE_COUNT_1_BIT; // For multisampling
 			imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // used only by one queue that supports transfer operations
-			imageInfo.flags = 0; // We might look into this for flags that support sparse image (if we need to do voxel 3D texture for volumetric)
+			imageInfo.flags = flags; // We might look into this for flags that support sparse image (if we need to do voxel 3D texture for volumetric)
 
 			return imageInfo;
 		}

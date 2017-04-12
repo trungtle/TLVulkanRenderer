@@ -185,6 +185,7 @@ public:
 		VkImageTiling tiling,
 		VkImageUsageFlags usage,
 		VkMemoryPropertyFlags properties,
+		VkImageCreateFlags flags,
 		VkImage& image,
 		VkDeviceMemory& imageMemory
 	);

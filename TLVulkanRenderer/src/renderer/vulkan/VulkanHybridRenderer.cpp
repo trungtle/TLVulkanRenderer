@@ -201,6 +201,7 @@ void VulkanHybridRenderer::Prepare() {
 	PrepareVertexBuffers();
 	PrepareDescriptorPool();
 
+	PrepareSkybox();
 	PrepareDeferred();
 	PrepareComputeRaytrace();
 	PrepareWireframe();
@@ -288,11 +289,14 @@ void VulkanHybridRenderer::PrepareSkyboxCubemap() {
 		//	0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image
 		//	);
 	}
-
-	//m_skybox.envmap.CreateFromFile(
-
-
-	//);
+	
+	m_skybox.envmap.CreateFromFile(
+		m_vulkanDevice,
+		"textures/skyboxes/SkyboxSet1/CloudyLightRays/CloudyLightRaysBack2048.png",
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT,
+		VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT
+	);
 
 
 	// Custom sampler with clamping adress mode
@@ -314,34 +318,92 @@ void VulkanHybridRenderer::PrepareSkyboxCubemap() {
 }
 
 void VulkanHybridRenderer::PrepareSkyboxDescriptorLayout() {
-	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
+	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
+	{
+		// Binding 0 : Vertex shader uniform buffer
 		MakeDescriptorSetLayoutBinding(
 			0,
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			VK_SHADER_STAGE_VERTEX_BIT
 		),
+		// Binding 1 : Position texture target / Scene colormap
+		MakeDescriptorSetLayoutBinding(
+			1,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_FRAGMENT_BIT
+		),
+		// Binding 2 : Normals texture target
+		MakeDescriptorSetLayoutBinding(
+			2,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_SHADER_STAGE_FRAGMENT_BIT
+		)
+		//// Binding 2 : Normals texture target
+		//MakeDescriptorSetLayoutBinding(
+		//	2,
+		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		//	VK_SHADER_STAGE_FRAGMENT_BIT
+		//	)
 	};
 
-	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo =
+	VkDescriptorSetLayoutCreateInfo descriptorLayout =
 		MakeDescriptorSetLayoutCreateInfo(
 			setLayoutBindings.data(),
 			setLayoutBindings.size()
 		);
 
-	VkResult result = vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorSetLayoutCreateInfo, nullptr, &m_wireframe.descriptorSetLayout);
-	if (result != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create descriptor set layout");
-	}
-
-	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_wireframe.descriptorSetLayout);
 	CheckVulkanResult(
-		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_wireframe.pipelineLayout),
-		"Failed to create pipeline layout."
+		vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorLayout, nullptr, &m_skybox.descriptorLayout),
+		"Failed to create descriptor set layout"
+	);
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo =
+		MakePipelineLayoutCreateInfo(&m_skybox.descriptorLayout);
+
+	CheckVulkanResult(
+		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_skybox.pipelineLayout),
+		"Failed to create pipeline layout"
 	);
 }
 
 void VulkanHybridRenderer::PrepareSkyboxDescriptorSet() {
+	VkDescriptorSetAllocateInfo descriptorSetAllocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_skybox.descriptorLayout);
+
+	CheckVulkanResult(
+		vkAllocateDescriptorSets(m_vulkanDevice->device, &descriptorSetAllocInfo, &m_skybox.descriptorSet),
+		"failed to allocate descriptor sets"
+	);
+
+	std::vector<VkWriteDescriptorSet> writeDescriptorSets =
+	{
+		// Binding 0: Vertex shader uniform buffer
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			m_deferred.descriptorSet,
+			0, // binding
+			1, // descriptor count
+			&m_deferred.buffers.mvpUnifStorage.descriptor
+		),
+		//Binding 1: Color map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_deferred.descriptorSet,
+			1, // binding
+			1, // descriptor count
+			&m_skybox.envmap.descriptor
+		),
+		//// Binding 2: Normal map
+		//MakeWriteDescriptorSet(
+		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		//	m_deferred.descriptorSet,
+		//	2, // binding
+		//	1, // descriptor count
+		//	nullptr, // buffer info
+		//	&m_deferred.textures.m_normalMap.descriptor // image info
+		//),
+	};
+
+	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
 }
 
 void VulkanHybridRenderer::PrepareSkyboxPipeline() {
@@ -407,6 +469,7 @@ void VulkanHybridRenderer::PreparePostSSAOBuffers() {
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_LINEAR,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+		0,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -444,6 +507,7 @@ void VulkanHybridRenderer::PreparePostSSAOBuffers() {
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		0,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 		//true // repeat
@@ -498,6 +562,7 @@ VulkanHybridRenderer::CreateAttachment(
 		format,
 		VK_IMAGE_TILING_OPTIMAL,
 		usage | VK_IMAGE_USAGE_SAMPLED_BIT,
+		0,
 		aspectMask,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
@@ -1791,11 +1856,14 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 	// skybox
 	{
+		std::vector<VkDeviceSize> offsets = {
+			m_skybox.m_buffers.skyboxBuffer.offsets.at(POLYGON),
+		};
+
 		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_skybox.descriptorSet, 0, NULL);
-		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, 1, &m_skybox.m_buffers.skyboxBuffer.storageBuffer, m_skybox.m_buffers.skyboxBuffer.offsets.at(POLYGON));
-		vkCmdBindIndexBuffer(m_deferred.commandBuffer, models.skybox.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdBindPipeline(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
-		vkCmdDrawIndexed(m_deferred.commandBuffer, models.skybox.indexCount, 1, 0, 0, 0);
+		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, 1, &m_skybox.m_buffers.skyboxBuffer.storageBuffer.buffer, offsets.data());
+		vkCmdBindIndexBuffer(m_deferred.commandBuffer, m_skybox.m_buffers.skyboxBuffer.storageBuffer.buffer, m_skybox.m_buffers.skyboxBuffer.offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
+		vkCmdDrawIndexed(m_deferred.commandBuffer, m_skybox.m_buffers.skyboxBuffer.indexCount, 1, 0, 0, 0);
 	}
 
 	vkCmdEndRenderPass(m_deferred.commandBuffer);
@@ -2335,6 +2403,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceTextures() {
 		VK_IMAGE_TILING_OPTIMAL,
 		// Image is sampled in fragment shader and used as storage for compute output
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+		0,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		m_raytrace.storageRaytraceImage.image,
 		m_raytrace.storageRaytraceImage.imageMemory

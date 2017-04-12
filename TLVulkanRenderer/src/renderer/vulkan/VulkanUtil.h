@@ -225,7 +225,8 @@ namespace VulkanUtil {
 				VkImageType imageType,
 				VkFormat format,
 				VkImageTiling tiling,
-				VkImageUsageFlags usage
+				VkImageUsageFlags usage,
+				VkImageCreateFlags flags = 0
 			);
 
 
@@ -317,8 +318,4 @@ namespace VulkanUtil {
 		}
 	}
 
-	inline void CreateTextureImage(
-		) {
-		
-	}
 }

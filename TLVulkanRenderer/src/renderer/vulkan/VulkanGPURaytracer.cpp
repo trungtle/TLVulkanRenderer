@@ -997,6 +997,7 @@ VulkanGPURaytracer::PrepareComputeRaytraceTextureResources() {
 		VK_IMAGE_TILING_OPTIMAL,
 		// Image is sampled in fragment shader and used as storage for compute output
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+		0,
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);

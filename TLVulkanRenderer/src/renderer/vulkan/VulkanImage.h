@@ -12,6 +12,7 @@ namespace VulkanImage {
 		public:
 			int width;
 			int height;
+			uint32_t mipLevels;
 			VkFormat format;
 			VkImageAspectFlags aspectMask;
 			VkImage image;
@@ -20,7 +21,7 @@ namespace VulkanImage {
 			VkSampler sampler;
 			VkDescriptorImageInfo descriptor;
 
-			Image() : width(0), height(0), format(), aspectMask(0), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr), m_texture(nullptr) {
+			Image() : width(0), height(0), mipLevels(0), format(), aspectMask(0), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr), m_texture(nullptr) {
 		};
 		
 		~Image();
@@ -33,6 +34,7 @@ namespace VulkanImage {
 			VkFormat format,
 			VkImageTiling tiling,
 			VkImageUsageFlags usage,
+			VkImageCreateFlags createFlags,
 			VkImageAspectFlags aspectMask,
 			VkMemoryPropertyFlags properties,
 			bool repeat = false
@@ -44,6 +46,7 @@ namespace VulkanImage {
 			Texture* texture,
 			VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
 			VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+			VkImageCreateFlags createFlags = 0,
 			VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 			bool forceLinear = false
 		);
@@ -54,6 +57,7 @@ namespace VulkanImage {
 			std::string filepath,
 			VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
 			VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+			VkImageCreateFlags createFlags = 0,
 			VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 			bool forceLinear = false
 		);

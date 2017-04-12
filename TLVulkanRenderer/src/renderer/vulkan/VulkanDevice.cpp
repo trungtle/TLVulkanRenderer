@@ -317,6 +317,7 @@ VulkanDevice::PrepareDepthResources(
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		0,
 		m_depthTexture.image,
 		m_depthTexture.imageMemory
 	);
@@ -746,6 +747,7 @@ VulkanDevice::CreateImage(
 	VkImageTiling tiling,
 	VkImageUsageFlags usage,
 	VkMemoryPropertyFlags memPropertyFlags,
+	VkImageCreateFlags flags,
 	VkImage& image,
 	VkDeviceMemory& imageMemory
 ) {
@@ -756,7 +758,8 @@ VulkanDevice::CreateImage(
 		imageType,
 		format,
 		tiling,
-		usage
+		usage,
+		flags
 	);
 
 	VulkanUtil::CheckVulkanResult(
@@ -813,6 +816,10 @@ VulkanDevice::CreateImageView(
 	imageViewCreateInfo.subresourceRange.levelCount = 1;
 	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 	imageViewCreateInfo.subresourceRange.layerCount = 1; // Could have more if we're doing stereoscopic rendering
+	if (viewType == VK_IMAGE_VIEW_TYPE_CUBE || viewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY)
+	{
+		imageViewCreateInfo.subresourceRange.layerCount = 6; // Cubemap
+	}
 
 	VkResult result = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &imageView);
 	if (result != VK_SUCCESS) {
