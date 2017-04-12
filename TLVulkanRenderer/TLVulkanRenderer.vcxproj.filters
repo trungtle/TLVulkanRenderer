@@ -157,6 +157,7 @@
     <ClInclude Include="src\geometry\materials\TranslucentMaterial.h" />
     <ClInclude Include="src\geometry\Cube.h" />
     <ClInclude Include="thirdparty\pcg\pcg_basic.h" />
+    <ClInclude Include="src\scene\Model.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

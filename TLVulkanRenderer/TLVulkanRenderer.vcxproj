@@ -175,6 +175,7 @@
     <ClInclude Include="src\geometry\Transform.h" />
     <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanHybridRenderer.h" />
+    <ClInclude Include="src\scene\Model.h" />
     <ClInclude Include="src\Texture.h" />
     <ClInclude Include="src\MathUtil.h" />
     <ClInclude Include="src\renderer\Film.h" />

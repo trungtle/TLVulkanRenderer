@@ -159,18 +159,6 @@ void SBVH::PartitionSpatial(
 	}
 
 	mid = (front + back) / 2;
-
-	//PrimInfo *pmid = std::partition(
-	//	&primInfos[first], &primInfos[last - 1] + 1,
-	//	[=](const PrimInfo& gi)
-	//{
-	//	BucketID startEdgeBucket = NUM_BUCKET * bboxAllGeoms.Offset(gi.bbox.m_min)[dim];;
-	//	assert(startEdgeBucket <= NUM_BUCKET);
-	//	if (startEdgeBucket == NUM_BUCKET) startEdgeBucket = NUM_BUCKET - 1;
-
-	//	return startEdgeBucket <= minCostBucket;
-	//});
-	//mid = pmid - &primInfos[0];
 }
 
 SBVHLeaf* SBVH::CreateLeaf(

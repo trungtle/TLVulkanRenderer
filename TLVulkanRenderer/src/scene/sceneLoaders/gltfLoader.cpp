@@ -802,6 +802,12 @@ static std::string GetFilePathExtension(const std::string& FileName) {
 	return "";
 }
 
+static std::string GetFilepath(const std::string& FileName) {
+	if (FileName.find_last_of("/") != std::string::npos)
+		return FileName.substr(0, FileName.find_last_of("/") + 1);
+	return "";
+}
+
 bool gltfLoader::Load(std::string fileName, Scene* scene)
 {
 	tinygltf::Scene tinygltfScene;
@@ -822,6 +828,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 	// Can't find file
 	if (!err.empty()) {
 		printf("Err: %s\n", err.c_str());
+		return false;
 	}
 
 	if (!ret) {
@@ -916,7 +923,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 
 					Byte* startMaterialIdByte = reinterpret_cast<Byte*>(materialIdData.data());
-					Byte* endMaterialIdByte = reinterpret_cast<Byte*>(&materialIdData[materialIdData.size()]);
+					Byte* endMaterialIdByte = reinterpret_cast<Byte*>(&materialIdData[materialIdData.size() - 1] + 1);
 					std::vector<Byte> materialIdBytes(startMaterialIdByte, endMaterialIdByte);
 					geom->bytes.insert(std::make_pair(EVertexAttribute::MATERIALID, materialIdBytes));
 				}
@@ -994,6 +1001,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					Texture* texture = nullptr;
 					LambertMaterial* lambert = nullptr;
 					std::string path;
+
 					if (!primitive.material.empty()) {
 						const tinygltf::Material& mat = tinygltfScene.materials.at(primitive.material);
 
@@ -1004,7 +1012,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 								if (tinygltfScene.images.find(tex.source) != tinygltfScene.images.end()) {
 									const tinygltf::Image& image = tinygltfScene.images.at(tex.source);
 									int texWidth, texHeight, texChannels;
-									path = "scenes/textures/";
+									path = GetFilepath(fileName);
 									path += image.uri;
 									Byte* imageBytes = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 

@@ -272,7 +272,7 @@ void Application::Run() {
 			translateX = 0;
 			translateY = 0;
 			camchanged = false;
-			std::cout << "Camera changed. Eye: " << glm::to_string(pScene->camera.eye) << ", Ref: " << glm::to_string(pScene->camera.lookAt) << std::endl;
+			//std::cout << "Camera changed. Eye: " << glm::to_string(pScene->camera.eye) << ", Ref: " << glm::to_string(pScene->camera.lookAt) << std::endl;
 		}
 
 		// Draw

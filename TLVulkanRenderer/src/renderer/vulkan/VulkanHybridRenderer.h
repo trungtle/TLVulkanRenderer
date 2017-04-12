@@ -163,6 +163,25 @@ protected:
 	} m_onscreen;
 
 	// -----------
+	// SKYBOX
+	// -----------
+
+	void PrepareSkybox();
+	void PrepareSkyboxCubemap();
+	void PrepareSkyboxDescriptorLayout();
+	void PrepareSkyboxDescriptorSet();
+	void PrepareSkyboxPipeline();
+
+	struct {
+		VkDescriptorSetLayout descriptorLayout;
+		VkDescriptorSet descriptorSet;
+		VkPipelineLayout pipelineLayout;
+		VkPipeline pipeline;
+
+		std::vector<VulkanImage::Image> textures;
+	} m_skybox;
+
+	// -----------
 	// POST PROCESS
 	// -----------
 

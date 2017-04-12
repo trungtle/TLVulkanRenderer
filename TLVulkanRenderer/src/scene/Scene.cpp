@@ -53,7 +53,9 @@ Scene::~Scene() {
 
 void Scene::ParseSceneFile(std::string fileName)
 {
-	m_sceneLoader->Load(fileName, this);
+	if(!m_sceneLoader->Load(fileName, this)) {
+		throw std::runtime_error("Failed to load scene file");
+	}
 }
 
 Intersection 

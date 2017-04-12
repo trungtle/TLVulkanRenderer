@@ -3,6 +3,8 @@
 #include "scene/Camera.h"
 #include "accel/SBVH.h"
 #include <gtc/quaternion.hpp>
+#include <GL/gl.h>
+#include "tinygltfloader/stb_image.h"
 
 VulkanHybridRenderer::VulkanHybridRenderer(
 	GLFWwindow* window,
@@ -238,7 +240,7 @@ VulkanHybridRenderer::PrepareDescriptorPool() {
 	VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = MakeDescriptorPoolCreateInfo(
 		poolSizes.size(),
 		poolSizes.data(),
-		20
+		30
 	);
 
 	CheckVulkanResult(
@@ -252,6 +254,63 @@ VulkanHybridRenderer::PrepareDescriptorPool() {
 void VulkanHybridRenderer::RebuildCommandBuffers() 
 {
 	BuildOnscreenCommandBuffer();
+}
+
+void VulkanHybridRenderer::PrepareSkybox() {
+	PrepareSkyboxCubemap();
+	PrepareSkyboxDescriptorLayout();
+	PrepareSkyboxDescriptorSet();
+	PrepareSkyboxPipeline();
+}
+
+void VulkanHybridRenderer::PrepareSkyboxCubemap() {
+
+	// Load skybox
+	int width, height;
+	unsigned char* image;
+	std::string path = "textures/";
+	m_skybox.textures.resize(6);
+	for (int i = 0; i < m_skybox.textures.size(); i++)
+	{
+		//image = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		//GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+		//	0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image
+		//	);
+	}
+}
+
+void VulkanHybridRenderer::PrepareSkyboxDescriptorLayout() {
+	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
+		MakeDescriptorSetLayoutBinding(
+			0,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_SHADER_STAGE_VERTEX_BIT
+		),
+	};
+
+	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo =
+		MakeDescriptorSetLayoutCreateInfo(
+			setLayoutBindings.data(),
+			setLayoutBindings.size()
+		);
+
+	VkResult result = vkCreateDescriptorSetLayout(m_vulkanDevice->device, &descriptorSetLayoutCreateInfo, nullptr, &m_wireframe.descriptorSetLayout);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create descriptor set layout");
+	}
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_wireframe.descriptorSetLayout);
+	CheckVulkanResult(
+		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_wireframe.pipelineLayout),
+		"Failed to create pipeline layout."
+	);
+}
+
+void VulkanHybridRenderer::PrepareSkyboxDescriptorSet() {
+}
+
+void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 }
 
 void VulkanHybridRenderer::PreparePostSSAO() 
@@ -434,8 +493,8 @@ void VulkanHybridRenderer::PrepareWireframeVertexBuffers()
 	GenerateWireframeBVHNodes();
 
 	// Generate wireframe for lights
-	
 	UpdateDeferredLightsUniform();
+
 	for (auto l = 0; l < NUM_LIGHTS; ++l) {
 		std::vector<uint16_t> indices;
 		std::vector<SWireframeVertexLayout> vertices;
@@ -1341,9 +1400,6 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 
 void VulkanHybridRenderer::PrepareTextures()
 {
-	VkDeviceSize imageSize = 0;
-	size_t texWidth = 512, texHeight = 512;
-
 	for (auto m : m_scene->materials)
 	{
 		m->m_vkImage.CreateFromTexture(m_vulkanDevice, m->m_texture);
@@ -1423,8 +1479,7 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 			m_deferred.descriptorSet,
 			0, // binding
 			1, // descriptor count
-			&m_deferred.buffers.mvpUnifStorage.descriptor, // buffer info
-			nullptr // image info
+			&m_deferred.buffers.mvpUnifStorage.descriptor
 		),
 		 //Binding 1: Color map
 		MakeWriteDescriptorSet(
@@ -1432,8 +1487,7 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 			m_deferred.descriptorSet,
 			1, // binding
 			1, // descriptor count
-			nullptr, // buffer info
-			&m_scene->materials[0]->m_vkImage.descriptor // image info
+			&m_scene->materials[0]->m_vkImage.descriptor 
 		),
 		//// Binding 2: Normal map
 		//MakeWriteDescriptorSet(
@@ -1697,14 +1751,18 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 		if (m_scene->vertexData[b]->attribInfo.at(INDEX).componentTypeByteSize == 4) {
 			indexType = VK_INDEX_TYPE_UINT32;
 		}
-
 		vkCmdBindIndexBuffer(m_deferred.commandBuffer, vertexBuffer.storageBuffer.buffer, vertexBuffer.offsets.at(INDEX), indexType);
-
-		// Bind uniform buffer
 		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_deferred.descriptorSet, 0, nullptr);
-
-		// Record draw command for the triangle!
 		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->vertexData[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
+	}
+
+	// skybox
+	{
+		//vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayouts.models, 0, 1, &m_skybox.descriptorSet, 0, NULL);
+		//vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, 1, &models.skybox.vertices.buffer, offsets);
+		//vkCmdBindIndexBuffer(m_deferred.commandBuffer, models.skybox.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
+		//vkCmdBindPipeline(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
+		//vkCmdDrawIndexed(m_deferred.commandBuffer, models.skybox.indexCount, 1, 0, 0, 0);
 	}
 
 	vkCmdEndRenderPass(m_deferred.commandBuffer);

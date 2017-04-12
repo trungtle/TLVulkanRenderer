@@ -28,7 +28,7 @@ typedef struct VertexAttributeInfoTyp {
 } VertexAttributeInfo;
 
 // ---------
-// GEOMETRY
+// Model
 // ----------
 
 struct VertexData {
