@@ -123,7 +123,6 @@ namespace VulkanImage
 				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
 			);
 
-			// Create our display imageMakeDescriptorImageInfo
 			this->Create(
 				device,
 				m_texture->width(),

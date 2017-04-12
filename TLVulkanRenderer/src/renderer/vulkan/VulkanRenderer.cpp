@@ -232,8 +232,8 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 	// -- VERTEX INPUT STAGE
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// Input binding description
-	VertexAttributeInfo positionAttrib = m_scene->vertexData[0]->attribInfo.at(POSITION);
-	VertexAttributeInfo normalAttrib = m_scene->vertexData[0]->attribInfo.at(NORMAL);
+	AttribInfo positionAttrib = m_scene->models[0]->attribInfo.at(POSITION);
+	AttribInfo normalAttrib = m_scene->models[0]->attribInfo.at(NORMAL);
 	std::vector<VkVertexInputBindingDescription> bindingDesc = {
 		MakeVertexInputBindingDescription(
 			0, // binding
@@ -603,7 +603,7 @@ VkResult
 VulkanRenderer::PrepareVertexBuffers() {
 	m_graphics.geometryBuffers.clear();
 
-	for (VertexData* geomData : m_scene->vertexData) {
+	for (Model* geomData : m_scene->models) {
 		VulkanBuffer::VertexBuffer geomBuffer;
 
 		// ----------- Vertex attributes --------------
@@ -808,7 +808,7 @@ VulkanRenderer::BuildCommandBuffers() {
 			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.pipelineLayout, 0, 1, &m_graphics.descriptorSet, 0, nullptr);
 
 			// Record draw command for the triangle!
-			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_scene->vertexData[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
+			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_scene->models[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
 		}
 
 		// Record end renderpass

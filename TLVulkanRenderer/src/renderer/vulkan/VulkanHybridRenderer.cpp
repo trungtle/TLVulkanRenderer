@@ -214,7 +214,7 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 
 	// ----------- Vertex attributes --------------
 
-	for (VertexData* vertexData : m_scene->vertexData)
+	for (Model* vertexData : m_scene->models)
 	{
 		VulkanBuffer::VertexBuffer vertexBuffer;
 		vertexBuffer.Create(
@@ -257,6 +257,17 @@ void VulkanHybridRenderer::RebuildCommandBuffers()
 }
 
 void VulkanHybridRenderer::PrepareSkybox() {
+
+	std::vector<uint16_t> indices;
+	std::vector<SPolygonVertexLayout> vertices;
+	Cube box(vec3(0), vec3(1000));
+	box.GenerateVertices(0, indices, vertices);
+	m_skybox.m_buffers.skyboxBuffer.CreatePolygon(
+		m_vulkanDevice, 
+		indices, 
+		vertices
+		);
+
 	PrepareSkyboxCubemap();
 	PrepareSkyboxDescriptorLayout();
 	PrepareSkyboxDescriptorSet();
@@ -277,6 +288,29 @@ void VulkanHybridRenderer::PrepareSkyboxCubemap() {
 		//	0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image
 		//	);
 	}
+
+	//m_skybox.envmap.CreateFromFile(
+
+
+	//);
+
+
+	// Custom sampler with clamping adress mode
+	VkSamplerCreateInfo sampler{};
+	sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	sampler.magFilter = VK_FILTER_LINEAR;
+	sampler.minFilter = VK_FILTER_LINEAR;
+	sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	sampler.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler.addressModeV = sampler.addressModeU;
+	sampler.addressModeW = sampler.addressModeU;
+	sampler.maxLod = (float)12;
+	sampler.maxLod = 1.0f;
+	sampler.anisotropyEnable = VK_TRUE;
+	sampler.maxAnisotropy = m_vulkanDevice->properties.limits.maxSamplerAnisotropy;
+	sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+	vkCreateSampler(m_vulkanDevice->device, &sampler, nullptr, &m_skybox.envmap.sampler);
+	m_skybox.envmap.descriptor.sampler = m_skybox.envmap.sampler;
 }
 
 void VulkanHybridRenderer::PrepareSkyboxDescriptorLayout() {
@@ -1405,7 +1439,6 @@ void VulkanHybridRenderer::PrepareTextures()
 		m->m_vkImage.CreateFromTexture(m_vulkanDevice, m->m_texture);
 	}
 
-
 	VulkanUtil::Make::SetDescriptorImageInfo(
 		VK_IMAGE_LAYOUT_GENERAL,
 		m_deferred.textures.m_normalMap
@@ -1748,21 +1781,21 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 		// Bind index buffer
 		VkIndexType indexType = VK_INDEX_TYPE_UINT16;
-		if (m_scene->vertexData[b]->attribInfo.at(INDEX).componentTypeByteSize == 4) {
+		if (m_scene->models[b]->attribInfo.at(INDEX).componentTypeByteSize == 4) {
 			indexType = VK_INDEX_TYPE_UINT32;
 		}
 		vkCmdBindIndexBuffer(m_deferred.commandBuffer, vertexBuffer.storageBuffer.buffer, vertexBuffer.offsets.at(INDEX), indexType);
 		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_deferred.descriptorSet, 0, nullptr);
-		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->vertexData[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
+		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->models[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
 	}
 
 	// skybox
 	{
-		//vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayouts.models, 0, 1, &m_skybox.descriptorSet, 0, NULL);
-		//vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, 1, &models.skybox.vertices.buffer, offsets);
-		//vkCmdBindIndexBuffer(m_deferred.commandBuffer, models.skybox.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
-		//vkCmdBindPipeline(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
-		//vkCmdDrawIndexed(m_deferred.commandBuffer, models.skybox.indexCount, 1, 0, 0, 0);
+		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_skybox.descriptorSet, 0, NULL);
+		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, 1, &m_skybox.m_buffers.skyboxBuffer.storageBuffer, m_skybox.m_buffers.skyboxBuffer.offsets.at(POLYGON));
+		vkCmdBindIndexBuffer(m_deferred.commandBuffer, models.skybox.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindPipeline(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
+		vkCmdDrawIndexed(m_deferred.commandBuffer, models.skybox.indexCount, 1, 0, 0, 0);
 	}
 
 	vkCmdEndRenderPass(m_deferred.commandBuffer);
@@ -1896,6 +1929,12 @@ void VulkanHybridRenderer::PrepareComputeRaytraceDescriptorLayout() {
 			10,
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 11 : Env map
+		MakeDescriptorSetLayoutBinding(
+			11,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_COMPUTE_BIT
 		)
 	};
 
@@ -2018,6 +2057,14 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			1,
 			&m_raytrace.buffers.spheres.descriptor
 		),
+		// Binding 11 : envr map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			11, // Binding 10
+			1,
+			&m_scene->materials[0]->m_vkImage.descriptor
+		),
 	};
 
 	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
@@ -2077,7 +2124,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	stagingBuffer.Destroy();
 
 	// =========== VERTICE POSITIONS
-	bufferSize = m_scene->verticePositions.size() * sizeof(glm::vec4);
+	bufferSize = m_scene->positions.size() * sizeof(glm::vec4);
 
 	// Stage
 	m_vulkanDevice->CreateBufferAndMemory(
@@ -2089,7 +2136,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	);
 
 	m_vulkanDevice->MapMemory(
-		m_scene->verticePositions.data(),
+		m_scene->positions.data(),
 		stagingBuffer.memory,
 		bufferSize,
 		0
@@ -2119,7 +2166,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	stagingBuffer.Destroy();
 
 	// =========== VERTICE NORMALS
-	bufferSize = m_scene->verticeNormals.size() * sizeof(glm::vec4);
+	bufferSize = m_scene->normals.size() * sizeof(glm::vec4);
 
 	// Stage
 	m_vulkanDevice->CreateBufferAndMemory(
@@ -2131,7 +2178,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	);
 
 	m_vulkanDevice->MapMemory(
-		m_scene->verticeNormals.data(),
+		m_scene->normals.data(),
 		stagingBuffer.memory,
 		bufferSize
 	);

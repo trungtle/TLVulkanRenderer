@@ -810,7 +810,7 @@ static std::string GetFilepath(const std::string& FileName) {
 
 bool gltfLoader::Load(std::string fileName, Scene* scene)
 {
-	tinygltf::Scene tinygltfScene;
+	tinygltf::Scene gltfscene;
 	tinygltf::TinyGLTFLoader loader;
 	std::string err;
 	std::string ext = GetFilePathExtension(fileName);
@@ -818,11 +818,11 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 	bool ret = false;
 	if (ext.compare("glb") == 0) {
 		// binary glTF.
-		ret = loader.LoadBinaryFromFile(&tinygltfScene, &err, fileName.c_str());
+		ret = loader.LoadBinaryFromFile(&gltfscene, &err, fileName.c_str());
 	}
 	else {
 		// ascii glTF.
-		ret = loader.LoadASCIIFromFile(&tinygltfScene, &err, fileName.c_str());
+		ret = loader.LoadASCIIFromFile(&gltfscene, &err, fileName.c_str());
 	}
 
 	// Can't find file
@@ -838,9 +838,9 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 	// ----------- Transformation matrix --------- 
 	std::map<std::string, glm::mat4> nodeString2Matrix;
-	auto rootNodeNamesList = tinygltfScene.scenes.at(tinygltfScene.defaultScene);
+	auto rootNodeNamesList = gltfscene.scenes.at(gltfscene.defaultScene);
 	for (auto& sceneNode : rootNodeNamesList) {
-		TraverseGLTFNode(nodeString2Matrix, tinygltfScene, sceneNode, glm::mat4(1.0f));
+		TraverseGLTFNode(nodeString2Matrix, gltfscene, sceneNode, glm::mat4(1.0f));
 	}
 
 	// -------- For each mesh -----------
@@ -849,27 +849,27 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 	unsigned vertOffset = 0;
 	for (auto& nodeString : nodeString2Matrix) {
 
-		const tinygltf::Node& node = tinygltfScene.nodes.at(nodeString.first);
+		const tinygltf::Node& node = gltfscene.nodes.at(nodeString.first);
 		const glm::mat4& matrix = nodeString.second;
 		const glm::mat3& matrixNormal = glm::transpose(glm::inverse(glm::mat3(matrix)));
 
 		int materialId = 0;
 		for (auto& meshName : node.meshes) {
-			auto& mesh = tinygltfScene.meshes.at(meshName);
+			auto& mesh = gltfscene.meshes.at(meshName);
 			for (size_t i = 0; i < mesh.primitives.size(); i++) {
 				auto primitive = mesh.primitives[i];
 				if (primitive.indices.empty()) {
 					return true;
 				}
 
-				VertexData* geom = new VertexData();
+				Model* model = new Model();
 
 				// -------- Indices ----------
 				{
 					// Get accessor info
-					auto indexAccessor = tinygltfScene.accessors.at(primitive.indices);
-					auto indexBufferView = tinygltfScene.bufferViews.at(indexAccessor.bufferView);
-					auto indexBuffer = tinygltfScene.buffers.at(indexBufferView.buffer);
+					auto indexAccessor = gltfscene.accessors.at(primitive.indices);
+					auto indexBufferView = gltfscene.bufferViews.at(indexAccessor.bufferView);
+					auto indexBuffer = gltfscene.buffers.at(indexBufferView.buffer);
 
 					int componentLength = GLTF_COMPONENT_LENGTH_LOOKUP.at(indexAccessor.type);
 					int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(indexAccessor.componentType);
@@ -881,14 +881,14 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					auto last = indexBuffer.data.begin() + bufferOffset + bufferLength;
 					std::vector<Byte> data = std::vector<Byte>(first, last);
 
-					VertexAttributeInfo attributeInfo = {
+					AttribInfo attributeInfo = {
 						indexAccessor.byteStride,
 						indexAccessor.count,
 						componentLength,
 						componentTypeByteSize
 					};
-					geom->attribInfo.insert(std::make_pair(EVertexAttribute::INDEX, attributeInfo));
-					geom->bytes.insert(std::make_pair(EVertexAttribute::INDEX, data));
+					model->attribInfo.insert(std::make_pair(EAttrib::INDEX, attributeInfo));
+					model->bytes.insert(std::make_pair(EAttrib::INDEX, data));
 
 					int indicesCount = indexAccessor.count;
 					switch (componentTypeByteSize) {
@@ -919,13 +919,13 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					}
 
 					attributeInfo.componentTypeByteSize = 4;
-					geom->attribInfo.insert(std::make_pair(EVertexAttribute::MATERIALID, attributeInfo));
+					model->attribInfo.insert(std::make_pair(EAttrib::MATERIALID, attributeInfo));
 
 
 					Byte* startMaterialIdByte = reinterpret_cast<Byte*>(materialIdData.data());
 					Byte* endMaterialIdByte = reinterpret_cast<Byte*>(&materialIdData[materialIdData.size() - 1] + 1);
 					std::vector<Byte> materialIdBytes(startMaterialIdByte, endMaterialIdByte);
-					geom->bytes.insert(std::make_pair(EVertexAttribute::MATERIALID, materialIdBytes));
+					model->bytes.insert(std::make_pair(EAttrib::MATERIALID, materialIdBytes));
 				}
 
 
@@ -934,9 +934,9 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 				for (auto& attribute : primitive.attributes) {
 
 					// Get accessor info
-					auto& accessor = tinygltfScene.accessors.at(attribute.second);
-					auto& bufferView = tinygltfScene.bufferViews.at(accessor.bufferView);
-					auto& buffer = tinygltfScene.buffers.at(bufferView.buffer);
+					auto& accessor = gltfscene.accessors.at(attribute.second);
+					auto& bufferView = gltfscene.bufferViews.at(accessor.bufferView);
+					auto& buffer = gltfscene.buffers.at(bufferView.buffer);
 					int componentLength = GLTF_COMPONENT_LENGTH_LOOKUP.at(accessor.type);
 					int componentTypeByteSize = GLTF_COMPONENT_BYTE_SIZE_LOOKUP.at(accessor.componentType);
 
@@ -947,136 +947,160 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					auto last = buffer.data.begin() + bufferOffset + bufferLength;
 					std::vector<Byte> data = std::vector<Byte>(first, last);
 
-					EVertexAttribute attributeType;
+					EAttrib attributeType;
 
 					// -------- Position attribute -----------
 
 					if (attribute.first.compare("POSITION") == 0) {
-						attributeType = EVertexAttribute::POSITION;
+						attributeType = EAttrib::POSITION;
 						int positionCount = accessor.count;
 						glm::vec3* positions = reinterpret_cast<glm::vec3*>(data.data());
 						for (auto p = 0; p < positionCount; ++p) {
 							positions[p] = glm::vec3(matrix * glm::vec4(positions[p], 1.0f));
-							scene->verticePositions.push_back(glm::vec4(positions[p], 1.0f));
+							scene->positions.push_back(glm::vec4(positions[p], 1.0f));
 						}
 					}
 
 					// -------- Normal attribute -----------
 
 					else if (attribute.first.compare("NORMAL") == 0) {
-						attributeType = EVertexAttribute::NORMAL;
+						attributeType = EAttrib::NORMAL;
 						int normalCount = accessor.count;
 						glm::vec3* normals = reinterpret_cast<glm::vec3*>(data.data());
 						for (auto p = 0; p < normalCount; ++p) {
 							normals[p] = glm::normalize(matrixNormal * glm::vec4(normals[p], 0.0f));
-							scene->verticeNormals.push_back(glm::vec4(normals[p], 0.0f));
+							scene->normals.push_back(glm::vec4(normals[p], 0.0f));
 						}
 					}
 
 					// -------- Texcoord attribute -----------
 
 					else if (attribute.first.compare("TEXCOORD_0") == 0) {
-						attributeType = EVertexAttribute::TEXCOORD;
+						attributeType = EAttrib::TEXCOORD;
 						int uvCount = accessor.count;
 						glm::vec2* uvs = reinterpret_cast<glm::vec2*>(data.data());
 						for (auto p = 0; p < uvCount; ++p)
 						{
-							scene->verticeUVs.push_back(uvs[p]);
+							scene->uvs.push_back(uvs[p]);
 						}
 					}
 
-					VertexAttributeInfo attributeInfo = {
+					AttribInfo attributeInfo = {
 						accessor.byteStride,
 						accessor.count,
 						componentLength,
 						componentTypeByteSize
 					};
-					geom->attribInfo.insert(std::make_pair(attributeType, attributeInfo));
-					geom->bytes.insert(std::make_pair(attributeType, data));
+					model->attribInfo.insert(std::make_pair(attributeType, attributeInfo));
+					model->bytes.insert(std::make_pair(attributeType, data));
 
-					// ----------Materials-------------
-
-					//TextureData* dev_diffuseTex = NULL;
-					MaterialPacked materialPacked;
-					Texture* texture = nullptr;
-					LambertMaterial* lambert = nullptr;
-					std::string path;
-
-					if (!primitive.material.empty()) {
-						const tinygltf::Material& mat = tinygltfScene.materials.at(primitive.material);
-
-						if (mat.values.find("diffuse") != mat.values.end()) {
-							std::string diffuseTexName = mat.values.at("diffuse").string_value;
-							if (tinygltfScene.textures.find(diffuseTexName) != tinygltfScene.textures.end()) {
-								const tinygltf::Texture& tex = tinygltfScene.textures.at(diffuseTexName);
-								if (tinygltfScene.images.find(tex.source) != tinygltfScene.images.end()) {
-									const tinygltf::Image& image = tinygltfScene.images.at(tex.source);
-									int texWidth, texHeight, texChannels;
-									path = GetFilepath(fileName);
-									path += image.uri;
-									Byte* imageBytes = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-
-									// Texture bytes
-									texture = new ImageTexture(image.name, image.image, imageBytes, image.width, image.height);
-								}
-							}
-							else {
-								auto diff = mat.values.at("diffuse").number_array;
-								materialPacked.diffuse = glm::vec4(diff.at(0), diff.at(1), diff.at(2), diff.at(3));
-							}
-						}
-
-						if (mat.values.find("ambient") != mat.values.end()) {
-							auto amb = mat.values.at("ambient").number_array;
-							materialPacked.ambient = glm::vec4(amb.at(0), amb.at(1), amb.at(2), amb.at(3));
-						}
-						if (mat.values.find("emission") != mat.values.end()) {
-							auto em = mat.values.at("emission").number_array;
-							materialPacked.emission = glm::vec4(em.at(0), em.at(1), em.at(2), em.at(3));
-
-						}
-						if (mat.values.find("specular") != mat.values.end()) {
-							auto spec = mat.values.at("specular").number_array;
-							materialPacked.specular = glm::vec4(spec.at(0), spec.at(1), spec.at(2), spec.at(3));
-
-						}
-						if (mat.values.find("shininess") != mat.values.end()) {
-							materialPacked.shininess = mat.values.at("shininess").number_array.at(0);
-						}
-
-						if (mat.values.find("transparency") != mat.values.end()) {
-							materialPacked.transparency = mat.values.at("transparency").number_array.at(0);
-						}
-						else {
-							materialPacked.transparency = 1.0f;
-						}
-
-						lambert = new LambertMaterial(materialPacked, texture);
-						scene->materials.push_back(lambert);
-
-						scene->materialPackeds.push_back(materialPacked);
-						++materialId;
-
-					} // --End of materials
 				} // -- End of attributes
 
-				scene->vertexData.push_back(geom);
+				  // ----------Materials-------------
 
+				MaterialPacked materialPacked;
+				Texture* texture = nullptr;
+				std::string path;
+
+				if (!primitive.material.empty())
+				{
+					const tinygltf::Material& mat = gltfscene.materials.at(primitive.material);
+
+					if (mat.values.find("diffuse") != mat.values.end())
+					{
+						std::string diffuseTexName = mat.values.at("diffuse").string_value;
+						if (gltfscene.textures.find(diffuseTexName) != gltfscene.textures.end())
+						{
+							const tinygltf::Texture& tex = gltfscene.textures.at(diffuseTexName);
+							if (gltfscene.images.find(tex.source) != gltfscene.images.end())
+							{
+								// Load texture
+								const tinygltf::Image& image = gltfscene.images.at(tex.source);
+
+								// Load texture bytes
+								int texWidth, texHeight, texChannels;
+								path = GetFilepath(fileName);
+								path += image.uri;
+								Byte* imageBytes = stbi_load(
+									path.c_str(),
+									&texWidth,
+									&texHeight,
+									&texChannels,
+									STBI_rgb_alpha
+								);
+
+								texture = new ImageTexture(
+									image.name,
+									image.image,
+									imageBytes,
+									image.width,
+									image.height
+								);
+							}
+						}
+						else
+						{
+							auto diff = mat.values.at("diffuse").number_array;
+							materialPacked.diffuse = glm::vec4(diff.at(0), diff.at(1), diff.at(2), diff.at(3));
+						}
+					}
+
+					if (mat.values.find("ambient") != mat.values.end())
+					{
+						auto amb = mat.values.at("ambient").number_array;
+						materialPacked.ambient = glm::vec4(amb.at(0), amb.at(1), amb.at(2), amb.at(3));
+					}
+
+					if (mat.values.find("emission") != mat.values.end())
+					{
+						auto em = mat.values.at("emission").number_array;
+						materialPacked.emission = glm::vec4(em.at(0), em.at(1), em.at(2), em.at(3));
+					}
+
+					if (mat.values.find("specular") != mat.values.end())
+					{
+						auto spec = mat.values.at("specular").number_array;
+						materialPacked.specular = glm::vec4(spec.at(0), spec.at(1), spec.at(2), spec.at(3));
+
+					}
+					if (mat.values.find("shininess") != mat.values.end())
+					{
+						materialPacked.shininess = mat.values.at("shininess").number_array.at(0);
+					}
+
+					if (mat.values.find("transparency") != mat.values.end())
+					{
+						materialPacked.transparency = mat.values.at("transparency").number_array.at(0);
+					}
+					else
+					{
+						materialPacked.transparency = 1.0f;
+					}
+
+					scene->materials.push_back(new LambertMaterial(materialPacked, texture));
+					scene->materialPackeds.push_back(materialPacked);
+					++materialId;
+
+				} // --End of materials
+
+				scene->models.push_back(model);
+				
+				// Generate mesh for ray tracing
 				Mesh newMesh;
 				for (unsigned int j = idxOffset; j < scene->indices.size(); j++)
 				{
 					ivec4 idx = scene->indices[j];
 					
-					if (scene->verticeUVs.size() == 0) {
+					if (scene->uvs.size() == 0) {
 						// No UVs
 						newMesh.triangles.push_back(
 							Triangle(
-								scene->verticePositions[idx.x + vertOffset],
-								scene->verticePositions[idx.y + vertOffset],
-								scene->verticePositions[idx.z + vertOffset],
-								scene->verticeNormals[idx.x + vertOffset],
-								scene->verticeNormals[idx.y + vertOffset],
-								scene->verticeNormals[idx.z + vertOffset],
+								scene->positions[idx.x + vertOffset],
+								scene->positions[idx.y + vertOffset],
+								scene->positions[idx.z + vertOffset],
+								scene->normals[idx.x + vertOffset],
+								scene->normals[idx.y + vertOffset],
+								scene->normals[idx.z + vertOffset],
 								scene->materials[materialId - 1]
 							)
 						);
@@ -1085,15 +1109,15 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					{
 						newMesh.triangles.push_back(
 							Triangle(
-								scene->verticePositions[idx.x + vertOffset],
-								scene->verticePositions[idx.y + vertOffset],
-								scene->verticePositions[idx.z + vertOffset],
-								scene->verticeNormals[idx.x + vertOffset],
-								scene->verticeNormals[idx.y + vertOffset],
-								scene->verticeNormals[idx.z + vertOffset],
-								scene->verticeUVs[idx.x + vertOffset],
-								scene->verticeUVs[idx.y + vertOffset],
-								scene->verticeUVs[idx.z + vertOffset],
+								scene->positions[idx.x + vertOffset],
+								scene->positions[idx.y + vertOffset],
+								scene->positions[idx.z + vertOffset],
+								scene->normals[idx.x + vertOffset],
+								scene->normals[idx.y + vertOffset],
+								scene->normals[idx.z + vertOffset],
+								scene->uvs[idx.x + vertOffset],
+								scene->uvs[idx.y + vertOffset],
+								scene->uvs[idx.z + vertOffset],
 								scene->materials[materialId - 1]
 							)
 						);
@@ -1101,13 +1125,13 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 				}
 				scene->meshes.push_back(newMesh);
 				idxOffset = scene->indices.size();
-				vertOffset = scene->verticePositions.size();
+				vertOffset = scene->positions.size();
 
 			} // -- End of mesh primitives
 		} // -- End of meshes
 
 		 // Normalize material IDs
-		for (auto vertexData : scene->vertexData)
+		for (auto vertexData : scene->models)
 		{
 			for (auto b = 0; b < vertexData->bytes.at(MATERIALID).size(); b+=sizeof(int32_t))
 			{

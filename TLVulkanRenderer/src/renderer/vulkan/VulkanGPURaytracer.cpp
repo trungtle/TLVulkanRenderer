@@ -807,7 +807,7 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
 
 	// =========== VERTICE POSITIONS
-	bufferSize = m_scene->verticePositions.size() * sizeof(glm::vec4);
+	bufferSize = m_scene->positions.size() * sizeof(glm::vec4);
 
 	// Stage
 	m_vulkanDevice->CreateBufferAndMemory(
@@ -819,7 +819,7 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 	);
 
 	m_vulkanDevice->MapMemory(
-		m_scene->verticePositions.data(),
+		m_scene->positions.data(),
 		stagingBuffer.memory,
 		bufferSize,
 		0
@@ -850,7 +850,7 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 	vkFreeMemory(m_vulkanDevice->device, stagingBuffer.memory, nullptr);
 
 	// =========== VERTICE NORMALS
-	bufferSize = m_scene->verticeNormals.size() * sizeof(glm::vec4);
+	bufferSize = m_scene->normals.size() * sizeof(glm::vec4);
 
 	// Stage
 	m_vulkanDevice->CreateBufferAndMemory(
@@ -862,7 +862,7 @@ VulkanGPURaytracer::PrepareComputeRaytraceStorageBuffer() {
 	);
 
 	m_vulkanDevice->MapMemory(
-		m_scene->verticeNormals.data(),
+		m_scene->normals.data(),
 		stagingBuffer.memory,
 		bufferSize,
 		0

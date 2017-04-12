@@ -143,6 +143,8 @@ VulkanDevice::SelectPhysicalDevice() {
 		}
 	}
 
+	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
 	return physicalDevice != nullptr ? VK_SUCCESS : VK_ERROR_DEVICE_LOST;
 }
 
@@ -383,6 +385,7 @@ VulkanDevice::PrepareFramebuffers(
 
 void VulkanDevice::Initialize(GLFWwindow* window) {
 	VkResult result = InitializeVulkanInstance();
+
 	assert(result == VK_SUCCESS);
 	m_logger->info<std::string>("Initalizes Vulkan instance");
 

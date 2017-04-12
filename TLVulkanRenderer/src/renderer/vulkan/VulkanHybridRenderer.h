@@ -179,6 +179,11 @@ protected:
 		VkPipeline pipeline;
 
 		std::vector<VulkanImage::Image> textures;
+		VulkanImage::Image envmap;
+
+		struct {			
+			VulkanBuffer::VertexBuffer skyboxBuffer;
+		} m_buffers;
 	} m_skybox;
 
 	// -----------

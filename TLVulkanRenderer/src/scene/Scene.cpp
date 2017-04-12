@@ -33,7 +33,7 @@ Scene::Scene(
 
 
 Scene::~Scene() {
-	for (VertexData* geom : vertexData) {
+	for (Model* geom : models) {
 		delete geom;
 		geom = nullptr;
 	}

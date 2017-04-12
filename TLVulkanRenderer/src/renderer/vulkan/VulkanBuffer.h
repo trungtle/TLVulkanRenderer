@@ -46,20 +46,26 @@ namespace VulkanBuffer {
 		/**
 		* \brief Byte offsets for vertex attributes and resource buffers into our unified buffer
 		*/
-		std::map<EVertexAttribute, VkDeviceSize> offsets;
+		std::map<EAttrib, VkDeviceSize> offsets;
 
 		StorageBuffer storageBuffer;
 		uint32_t indexCount;
 
 		void Create(
 			const VulkanDevice* device,
-			VertexData* meshData
+			Model* meshData
 		);
 
 		void CreateWireframe(
 			const VulkanDevice* device,
 			const std::vector<uint16_t>& indices,
 			const std::vector<SWireframeVertexLayout>& vertices
+		);
+
+		void CreatePolygon(
+			const VulkanDevice* device,
+			const std::vector<uint16_t>& indices,
+			const std::vector<SPolygonVertexLayout>& vertices
 		);
 	};
 }

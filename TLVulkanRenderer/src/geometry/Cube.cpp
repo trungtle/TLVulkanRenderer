@@ -149,3 +149,130 @@ void Cube::GenerateWireframeVertices(
 	indices.push_back(5 + offset);
 	indices.push_back(7 + offset);
 }
+
+void Cube::GenerateVertices(
+	const int offset, 
+	std::vector<uint16_t>& indices, 
+	std::vector<SPolygonVertexLayout>& vertices
+	) 
+{
+	int idx = 0;
+
+	static const int CUB_IDX_COUNT = 36;
+	static const int CUB_VERT_COUNT = 24;
+
+	vec3 cub_vert_pos[CUB_VERT_COUNT];
+
+	//Front face
+	//UR
+	cub_vert_pos[idx++] = glm::vec3(0.5f, 0.5f, 0.5f);
+	//LR
+	cub_vert_pos[idx++] = glm::vec3(0.5f, -0.5f, 0.5f);
+	//LL
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, -0.5f, 0.5f);
+	//UL
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, 0.5f, 0.5f);
+
+	//Right face
+	//UR
+	cub_vert_pos[idx++] = glm::vec3(0.5f, 0.5f, -0.5f);
+	//LR
+	cub_vert_pos[idx++] = glm::vec3(0.5f, -0.5f, -0.5f);
+	//LL
+	cub_vert_pos[idx++] = glm::vec3(0.5f, -0.5f, 0.5f);
+	//UL
+	cub_vert_pos[idx++] = glm::vec3(0.5f, 0.5f, 0.5f);
+
+	//Left face
+	//UR
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, 0.5f, 0.5f);
+	//LR
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, -0.5f, 0.5f);
+	//LL
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, -0.5f, -0.5f);
+	//UL
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, 0.5f, -0.5f);
+
+	//Back face
+	//UR
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, 0.5f, -0.5f);
+	//LR
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, -0.5f, -0.5f);
+	//LL
+	cub_vert_pos[idx++] = glm::vec3(0.5f, -0.5f, -0.5f);
+	//UL
+	cub_vert_pos[idx++] = glm::vec3(0.5f, 0.5f, -0.5f);
+
+	//Top face
+	//UR
+	cub_vert_pos[idx++] = glm::vec3(0.5f, 0.5f, -0.5f);
+	//LR
+	cub_vert_pos[idx++] = glm::vec3(0.5f, 0.5f, 0.5f);
+	//LL
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, 0.5f, 0.5f);
+	//UL
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, 0.5f, -0.5f);
+
+	//Bottom face
+	//UR
+	cub_vert_pos[idx++] = glm::vec3(0.5f, -0.5f, 0.5f);
+	//LR
+	cub_vert_pos[idx++] = glm::vec3(0.5f, -0.5f, -0.5f);
+	//LL
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, -0.5f, -0.5f);
+	//UL
+	cub_vert_pos[idx++] = glm::vec3(-0.5f, -0.5f, 0.5f);
+
+
+	vec3 cub_vert_nor[CUB_VERT_COUNT];
+	idx = 0;
+	//Front
+	for (int i = 0; i < 4; i++)
+	{
+		cub_vert_nor[idx++] = glm::vec3(0, 0, 1);
+	}
+	//Right
+	for (int i = 0; i < 4; i++)
+	{
+		cub_vert_nor[idx++] = glm::vec3(1, 0, 0);
+	}
+	//Left
+	for (int i = 0; i < 4; i++)
+	{
+		cub_vert_nor[idx++] = glm::vec3(-1, 0, 0);
+	}
+	//Back
+	for (int i = 0; i < 4; i++)
+	{
+		cub_vert_nor[idx++] = glm::vec3(0, 0, -1);
+	}
+	//Top
+	for (int i = 0; i < 4; i++)
+	{
+		cub_vert_nor[idx++] = glm::vec3(0, 1, 0);
+	}
+	//Bottom
+	for (int i = 0; i < 4; i++)
+	{
+		cub_vert_nor[idx++] = glm::vec3(0, -1, 0);
+	}
+
+	for (int i = 0; i < CUB_VERT_COUNT; ++i) {
+		vertices.push_back({
+			cub_vert_pos[i],
+			cub_vert_nor[i],
+			GetUV(cub_vert_pos[i])
+		});
+	}
+
+	// Setup indices
+	for (int i = 0; i < 6; i++)
+	{
+		indices.push_back(i * 4 + offset);
+		indices.push_back(i * 4 + 1 + offset);
+		indices.push_back(i * 4 + 2 + offset);
+		indices.push_back(i * 4 + offset);
+		indices.push_back(i * 4 + 2 + offset);
+		indices.push_back(i * 4 + 3 + offset);
+	}
+}

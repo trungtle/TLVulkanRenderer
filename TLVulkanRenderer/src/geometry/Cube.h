@@ -28,6 +28,22 @@ public:
 		return N;
 	}
 
+	glm::vec3 GetCubeNormal(const glm::vec3& P) const {
+		int idx = 0;
+		float val = -1;
+		for (int i = 0; i < 3; i++)
+		{
+			if (glm::abs(P[i]) > val)
+			{
+				idx = i;
+				val = glm::abs(P[i]);
+			}
+		}
+		glm::vec3 N(0, 0, 0);
+		N[idx] = glm::sign(P[idx]);
+		return N;
+	}
+
 	glm::vec4 GetCubeTangent(const glm::vec4& P) const {
 		int idx = 0;
 		float val = -1;
@@ -98,5 +114,11 @@ public:
 		std::vector<uint16_t>& indices, 
 		std::vector<SWireframeVertexLayout>& vertices,
 		const ColorRGB& color
+	);
+
+	void GenerateVertices(
+		const int offset,
+		std::vector<uint16_t>& indices,
+		std::vector<SPolygonVertexLayout>& vertices
 	);
 };

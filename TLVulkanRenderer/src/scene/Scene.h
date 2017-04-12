@@ -22,11 +22,11 @@ public:
 	Camera camera;
 	
 	std::vector<glm::ivec4> indices;
-	std::vector<glm::vec4> verticePositions;
-	std::vector<glm::vec4> verticeNormals;
-	std::vector<glm::vec2> verticeUVs;
+	std::vector<glm::vec4> positions;
+	std::vector<glm::vec4> normals;
+	std::vector<glm::vec2> uvs;
 
-	std::vector<VertexData*> vertexData;
+	std::vector<Model*> models;
 	std::vector<MaterialPacked> materialPackeds;
 	std::vector<LambertMaterial*> materials;
 	std::vector<Mesh> meshes;

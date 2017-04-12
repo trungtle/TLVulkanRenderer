@@ -310,8 +310,8 @@ SBVH::CalculateSpatialSplitCost(
 				if ((bbox.m_min[dim] < nearSplitPlane && bbox.m_max[dim] < nearSplitPlane) || bbox.m_min[dim] > farSplitPlane && bbox.m_max[dim] > farSplitPlane) {
 					continue;
 				}
-				bbox.m_min[dim] = max(bbox.m_min[dim], nearSplitPlane);
-				bbox.m_max[dim] = min(bbox.m_max[dim], farSplitPlane);
+				bbox.m_min[dim] = std::max(bbox.m_min[dim], nearSplitPlane);
+				bbox.m_max[dim] = std::min(bbox.m_max[dim], farSplitPlane);
 				assert(bbox.m_min[dim] <= bbox.m_max[dim]);
 				bbox.m_centroid = BBox::Centroid(bbox.m_min, bbox.m_max);
 				bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);

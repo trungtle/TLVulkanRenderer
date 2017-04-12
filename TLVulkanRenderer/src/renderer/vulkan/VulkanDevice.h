@@ -33,6 +33,11 @@ public:
 	}
 
 	/**
+	 * \brief Physical device properties
+	 */
+	VkPhysicalDeviceProperties properties;
+
+	/**
 	* \brief If true, will include the validation layer
 	*/
 	bool isEnableValidationLayers;

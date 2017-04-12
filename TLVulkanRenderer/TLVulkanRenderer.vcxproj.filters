@@ -158,6 +158,7 @@
     <ClInclude Include="src\geometry\Cube.h" />
     <ClInclude Include="thirdparty\pcg\pcg_basic.h" />
     <ClInclude Include="src\scene\Model.h" />
+    <ClInclude Include="src\util\DDSLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

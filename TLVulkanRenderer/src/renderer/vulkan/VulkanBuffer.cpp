@@ -68,7 +68,7 @@ void VulkanBuffer::StorageBuffer::Destroy() const {
 
 void VulkanBuffer::VertexBuffer::Create(
 	const VulkanDevice* vulkanDevice,
-	VertexData* vertexData
+	Model* vertexData
 )
 {
 	// At the mimum we always have indices and position
@@ -198,6 +198,63 @@ VulkanBuffer::VertexBuffer::CreateWireframe(
 	VkDeviceSize bufferSize = indexBufferSize + vertexBufferSize;
 	this->offsets.insert(std::make_pair(INDEX, indexBufferOffset));
 	this->offsets.insert(std::make_pair(WIREFRAME, vertexBufferOffset));
+
+	// Stage buffer memory on host
+	// We want staging so that we can map the vertex data on the host but
+	// then transfer it to the device local memory for faster performance
+	// This is the recommended way to allocate buffer memory,
+	VulkanBuffer::StorageBuffer staging;
+	staging.Create(
+		device,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+	);
+
+	// Filling the stage buffer with data
+	void* data;
+	vkMapMemory(device->device, staging.memory, 0, bufferSize, 0, &data);
+	memcpy((Byte*)data, (Byte*)indices.data(), static_cast<size_t>(indexBufferSize));
+	memcpy((Byte*)data + vertexBufferOffset, (Byte*)vertices.data(), static_cast<size_t>(vertexBufferSize));
+	vkUnmapMemory(device->device, staging.memory);
+
+	// -----------------------------------------
+
+	this->storageBuffer.Create(
+		device,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+	);
+
+	// Copy over to vertex buffer in device local memory
+	device->CopyBuffer(
+		this->storageBuffer,
+		staging,
+		bufferSize
+	);
+
+	// Cleanup staging buffer memory
+	staging.Destroy();
+
+	indexCount = indices.size();
+}
+
+void
+VulkanBuffer::VertexBuffer::CreatePolygon(
+	const VulkanDevice* device,
+	const std::vector<uint16_t>& indices,
+	const std::vector<SPolygonVertexLayout>& vertices
+)
+{
+	VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
+	VkDeviceSize indexBufferOffset = 0;
+	VkDeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
+	VkDeviceSize vertexBufferOffset = indexBufferSize;
+
+	VkDeviceSize bufferSize = indexBufferSize + vertexBufferSize;
+	this->offsets.insert(std::make_pair(INDEX, indexBufferOffset));
+	this->offsets.insert(std::make_pair(POLYGON, vertexBufferOffset));
 
 	// Stage buffer memory on host
 	// We want staging so that we can map the vertex data on the host but

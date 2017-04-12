@@ -1,40 +1,6 @@
 #pragma once
-#include "Typedef.h"
+#include "Model.h"
 #include <glm/glm.hpp>
-#include <map>
-#include <vector>
-
-// ---------
-// VERTEX
-// ----------
-
-typedef enum {
-	INDEX,
-	POSITION,
-	NORMAL,
-	TEXCOORD,
-	COLOR,
-	TANGENT,
-	BITANGENT,
-	MATERIALID,
-	WIREFRAME
-} EVertexAttribute;
-
-typedef struct VertexAttributeInfoTyp {
-	size_t byteStride;
-	size_t count;
-	int componentLength;
-	int componentTypeByteSize;
-} VertexAttributeInfo;
-
-// ---------
-// Model
-// ----------
-
-struct VertexData {
-	std::map<EVertexAttribute, std::vector<Byte>> bytes;
-	std::map<EVertexAttribute, VertexAttributeInfo> attribInfo;
-};
 
 // ---------
 // MATERIAL

@@ -201,6 +201,7 @@
     <ClInclude Include="src\scene\SceneUtil.h" />
     <ClInclude Include="src\Typedef.h" />
     <ClInclude Include="src\Utilities.h" />
+    <ClInclude Include="src\util\DDSLoader.h" />
     <ClInclude Include="thirdparty\pcg\pcg_basic.h" />
     <ClInclude Include="thirdparty\tinygltfloader\picojson.h" />
     <ClInclude Include="thirdparty\tinygltfloader\stb_image.h" />
