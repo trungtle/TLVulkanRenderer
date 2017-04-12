@@ -699,7 +699,7 @@ void main()
 		vec3 skyColor = mix(vec3(1, 1, 1), vec3(0.5, 0.8, 1.0), t);
 
 		normal = normalize(position);
-		skyColor = texture(samplerEnvMap, envMapEquirect(normal)).rgb;
+		skyColor = texture(samplerEnvMap,uv).rgb;
 
 		imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(skyColor, 1.0));
 

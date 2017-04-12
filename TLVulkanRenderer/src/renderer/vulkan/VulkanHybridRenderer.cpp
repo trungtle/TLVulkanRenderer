@@ -200,6 +200,8 @@ VulkanHybridRenderer::~VulkanHybridRenderer() {
 void VulkanHybridRenderer::Prepare() {
 	PrepareVertexBuffers();
 	PrepareDescriptorPool();
+	PrepareTextures();
+	PrepareDeferredUniformBuffer();
 
 	PrepareSkybox();
 	PrepareDeferred();
@@ -282,39 +284,15 @@ void VulkanHybridRenderer::PrepareSkyboxCubemap() {
 	unsigned char* image;
 	std::string path = "textures/";
 	m_skybox.textures.resize(6);
-	for (int i = 0; i < m_skybox.textures.size(); i++)
-	{
-		//image = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-		//GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-		//	0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image
-		//	);
-	}
-	
+
 	m_skybox.envmap.CreateFromFile(
 		m_vulkanDevice,
 		"textures/skyboxes/SkyboxSet1/CloudyLightRays/CloudyLightRaysBack2048.png",
+		//"textures/statue.jpg",
 		VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT,
-		VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT
+		VK_IMAGE_USAGE_SAMPLED_BIT
 	);
 
-
-	// Custom sampler with clamping adress mode
-	VkSamplerCreateInfo sampler{};
-	sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	sampler.magFilter = VK_FILTER_LINEAR;
-	sampler.minFilter = VK_FILTER_LINEAR;
-	sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	sampler.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	sampler.addressModeV = sampler.addressModeU;
-	sampler.addressModeW = sampler.addressModeU;
-	sampler.maxLod = (float)12;
-	sampler.maxLod = 1.0f;
-	sampler.anisotropyEnable = VK_TRUE;
-	sampler.maxAnisotropy = m_vulkanDevice->properties.limits.maxSamplerAnisotropy;
-	sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	vkCreateSampler(m_vulkanDevice->device, &sampler, nullptr, &m_skybox.envmap.sampler);
-	m_skybox.envmap.descriptor.sampler = m_skybox.envmap.sampler;
 }
 
 void VulkanHybridRenderer::PrepareSkyboxDescriptorLayout() {
@@ -379,7 +357,7 @@ void VulkanHybridRenderer::PrepareSkyboxDescriptorSet() {
 		// Binding 0: Vertex shader uniform buffer
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			m_deferred.descriptorSet,
+			m_skybox.descriptorSet,
 			0, // binding
 			1, // descriptor count
 			&m_deferred.buffers.mvpUnifStorage.descriptor
@@ -387,7 +365,7 @@ void VulkanHybridRenderer::PrepareSkyboxDescriptorSet() {
 		//Binding 1: Color map
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			m_deferred.descriptorSet,
+			m_skybox.descriptorSet,
 			1, // binding
 			1, // descriptor count
 			&m_skybox.envmap.descriptor
@@ -569,8 +547,6 @@ VulkanHybridRenderer::CreateAttachment(
 }
 
 void VulkanHybridRenderer::PrepareDeferred() {
-	PrepareTextures();
-	PrepareDeferredUniformBuffer();
 	PrepareDeferredDescriptorLayout();
 	PrepareDeferredAttachments();
 	PrepareDeferredDescriptorSet();
@@ -2131,7 +2107,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			m_raytrace.descriptorSet,
 			11, // Binding 10
 			1,
-			&m_scene->materials[0]->m_vkImage.descriptor
+			&m_skybox.envmap.descriptor
 		),
 	};
 
@@ -2392,28 +2368,19 @@ void VulkanHybridRenderer::PrepareComputeRaytraceUniformBuffer()
 
 VkResult
 VulkanHybridRenderer::PrepareComputeRaytraceTextures() {
+
 	VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-	m_vulkanDevice->CreateImage(
-		m_vulkanDevice->m_swapchain.extent.width,
-		m_vulkanDevice->m_swapchain.extent.height,
-		1, // only a 2D depth image
-		VK_IMAGE_TYPE_2D,
+	m_raytrace.storageRaytraceImage.Create(
+		m_vulkanDevice,
+		m_width,
+		m_height,
 		imageFormat,
 		VK_IMAGE_TILING_OPTIMAL,
-		// Image is sampled in fragment shader and used as storage for compute output
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
 		0,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_raytrace.storageRaytraceImage.image,
-		m_raytrace.storageRaytraceImage.imageMemory
-	);
-	m_vulkanDevice->CreateImageView(
-		m_raytrace.storageRaytraceImage.image,
-		VK_IMAGE_VIEW_TYPE_2D,
-		imageFormat,
 		VK_IMAGE_ASPECT_COLOR_BIT,
-		m_raytrace.storageRaytraceImage.imageView
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 	);
 
 	m_vulkanDevice->TransitionImageLayout(
@@ -2422,18 +2389,6 @@ VulkanHybridRenderer::PrepareComputeRaytraceTextures() {
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		VK_IMAGE_LAYOUT_UNDEFINED,
 		VK_IMAGE_LAYOUT_GENERAL
-	);
-
-	// Create sampler
-	CreateDefaultImageSampler(m_vulkanDevice->device, &m_raytrace.storageRaytraceImage.sampler);
-
-	m_raytrace.storageRaytraceImage.width = m_vulkanDevice->m_swapchain.extent.width;
-	m_raytrace.storageRaytraceImage.height = m_vulkanDevice->m_swapchain.extent.height;
-
-	// Initialize descriptor
-	VulkanUtil::Make::SetDescriptorImageInfo(
-		VK_IMAGE_LAYOUT_GENERAL,
-		m_raytrace.storageRaytraceImage
 	);
 
 	return VK_SUCCESS;

@@ -325,6 +325,7 @@ VulkanDevice::PrepareDepthResources(
 		m_depthTexture.image,
 		VK_IMAGE_VIEW_TYPE_2D,
 		depthFormat,
+		1,
 		VK_IMAGE_ASPECT_DEPTH_BIT,
 		m_depthTexture.imageView
 	);
@@ -352,6 +353,7 @@ VulkanDevice::PrepareFramebuffers(
 			m_swapchain.images[i],
 			VK_IMAGE_VIEW_TYPE_2D,
 			m_swapchain.imageFormat,
+			1,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			m_swapchain.imageViews[i]
 		);
@@ -794,6 +796,7 @@ VulkanDevice::CreateImageView(
 	const VkImage& image,
 	VkImageViewType viewType,
 	VkFormat format,
+	uint32_t mipLevels,
 	VkImageAspectFlags aspectFlags,
 	VkImageView& imageView
 ) const {
@@ -804,16 +807,16 @@ VulkanDevice::CreateImageView(
 	imageViewCreateInfo.viewType = viewType; // 1D, 2D, 3D textures or cubemap
 
 	// Use default mapping for swizzle
-	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-	imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+	imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
 
 	// The subresourcerange field is used to specify the purpose of this image view
 	// https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkImageSubresourceRange
 	imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags; // Use as color, depth, or stencil targets
 	imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-	imageViewCreateInfo.subresourceRange.levelCount = 1;
+	imageViewCreateInfo.subresourceRange.levelCount = mipLevels;
 	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 	imageViewCreateInfo.subresourceRange.layerCount = 1; // Could have more if we're doing stereoscopic rendering
 	if (viewType == VK_IMAGE_VIEW_TYPE_CUBE || viewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY)
@@ -835,6 +838,38 @@ VulkanDevice::TransitionImageLayout(
 	VkImageLayout oldLayout,
 	VkImageLayout newLayout
 ) const {
+	VkImageSubresourceRange subresourceRange;
+	subresourceRange.aspectMask = aspectMask;
+	//if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+	//	if (VulkanImage::DepthFormatHasStencilComponent(format)) {
+	//		imageBarrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+	//	}
+	//}
+	subresourceRange.baseMipLevel = 0;
+	subresourceRange.levelCount = 1;
+	subresourceRange.baseArrayLayer = 0;
+	subresourceRange.layerCount = 1;
+
+	TransitionImageLayout(
+		image,
+		format,
+		aspectMask,
+		oldLayout,
+		newLayout,
+		subresourceRange
+	);
+}
+
+void 
+VulkanDevice::TransitionImageLayout(
+	VkImage image, 
+	VkFormat format, 
+	VkImageAspectFlags aspectMask, 
+	VkImageLayout oldLayout, 
+	VkImageLayout newLayout, 
+	VkImageSubresourceRange subresourceRange
+	) const 
+{
 	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_graphicsDeviceQueue.cmdPool);
 
 	// Using image memory barrier to transition for image layout. 
@@ -846,16 +881,7 @@ VulkanDevice::TransitionImageLayout(
 	imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // (this isn't the default value so we must set it)
 	imageBarrier.image = image;
-	imageBarrier.subresourceRange.aspectMask = aspectMask;
-	if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-		if (VulkanImage::DepthFormatHasStencilComponent(format)) {
-			imageBarrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-		}
-	}
-	imageBarrier.subresourceRange.baseMipLevel = 0;
-	imageBarrier.subresourceRange.levelCount = 1;
-	imageBarrier.subresourceRange.baseArrayLayer = 0;
-	imageBarrier.subresourceRange.layerCount = 1;
+	imageBarrier.subresourceRange = subresourceRange;
 
 	// *Code from Sascha Willems's Vulkan Samples:
 	// https://github.com/SaschaWillems/Vulkan
@@ -1001,6 +1027,34 @@ VulkanDevice::CopyImage(
 		dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1,
 		&region
+	);
+
+	EndSingleTimeCommands(m_graphicsDeviceQueue.queue, m_graphicsDeviceQueue.cmdPool, commandBuffer);
+}
+
+void 
+VulkanDevice::CopyBufferToImage(
+	VkImage dstImage, 
+	VkBuffer srcBuffer, 
+	const std::vector<VkBufferImageCopy>& copyRegions
+)
+{
+	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_graphicsDeviceQueue.cmdPool);
+
+	// Subresource is sort of like a buffer for images
+	VkImageSubresourceLayers subResource = {};
+	subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	subResource.baseArrayLayer = 0;
+	subResource.mipLevel = 0;
+	subResource.layerCount = copyRegions.size();
+
+	vkCmdCopyBufferToImage(
+		commandBuffer,
+		srcBuffer,
+		dstImage,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		copyRegions.size(),
+		copyRegions.data()
 	);
 
 	EndSingleTimeCommands(m_graphicsDeviceQueue.queue, m_graphicsDeviceQueue.cmdPool, commandBuffer);

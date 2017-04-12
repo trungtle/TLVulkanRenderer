@@ -1,5 +1,7 @@
 #pragma once
 
+//#include <gli/gli.hpp>
+
 #define GLFW_INCLUDE_VULKAN
 #include <vector>
 #include <glfw3.h>
@@ -195,6 +197,7 @@ public:
 		const VkImage& image,
 		VkImageViewType viewType,
 		VkFormat format,
+		uint32_t mipLevels,
 		VkImageAspectFlags aspectFlags,
 		VkImageView& imageView
 	) const;
@@ -209,12 +212,29 @@ public:
 	) const;
 
 	void
+	TransitionImageLayout(
+		VkImage image,
+		VkFormat format,
+		VkImageAspectFlags aspectMask,
+		VkImageLayout oldLayout,
+		VkImageLayout newLayout,
+		VkImageSubresourceRange subresourceRange
+	) const;
+
+	void
 	CopyImage(
 		VkImage dstImage,
 		VkImage srcImage,
 		uint32_t width,
 		uint32_t height
 	);
+
+	void
+		CopyBufferToImage(
+			VkImage dstImage,
+			VkBuffer srcBuffer,
+			const std::vector<VkBufferImageCopy>& copyRegions
+		);
 
 	// ================================================
 	// Class functions

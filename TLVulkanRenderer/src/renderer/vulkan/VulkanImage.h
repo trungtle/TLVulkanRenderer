@@ -21,7 +21,7 @@ namespace VulkanImage {
 			VkSampler sampler;
 			VkDescriptorImageInfo descriptor;
 
-			Image() : width(0), height(0), mipLevels(0), format(), aspectMask(0), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr), m_texture(nullptr) {
+			Image() : width(0), height(0), mipLevels(1), format(), aspectMask(0), image(nullptr), imageView(nullptr), imageMemory(nullptr), sampler(nullptr), m_device(nullptr), m_texture(nullptr) {
 		};
 		
 		~Image();
@@ -61,6 +61,16 @@ namespace VulkanImage {
 			VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 			bool forceLinear = false
 		);
+
+		//void
+		//CreateCubemapFromFile(
+		//	VulkanDevice* device,
+		//	std::string filepath,
+		//	VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
+		//	VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+		//	VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		//	bool forceLinear = false
+		//);
 
 		void
 		Destroy() const;
