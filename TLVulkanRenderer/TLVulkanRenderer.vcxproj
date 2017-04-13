@@ -426,6 +426,8 @@
     <None Include="shaders\hybrid\hybrid.comp" />
     <None Include="shaders\hybrid\hybrid.comp.spv" />
     <None Include="shaders\hybrid\pass-through.vert" />
+    <None Include="shaders\hybrid\skybox.frag" />
+    <None Include="shaders\hybrid\skybox.vert" />
     <None Include="shaders\hybrid\wireframe.frag" />
     <None Include="shaders\hybrid\wireframe.frag.spv" />
     <None Include="shaders\hybrid\wireframe.vert" />
@@ -581,7 +583,6 @@
     <ClCompile Include="src\scene\Scene.cpp" />
     <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
-    <ClCompile Include="thirdparty\glm\detail\dummy.cpp" />
     <ClCompile Include="thirdparty\glm\detail\glm.cpp" />
     <ClCompile Include="thirdparty\pcg\pcg_basic.c" />
   </ItemGroup>

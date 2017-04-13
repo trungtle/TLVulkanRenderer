@@ -423,6 +423,7 @@ namespace VulkanUtil {
 			uint32_t width,
 			uint32_t height,
 			uint32_t depth,
+			uint32_t mipLevels,
 			VkImageType imageType,
 			VkFormat format,
 			VkImageTiling tiling,
@@ -436,8 +437,11 @@ namespace VulkanUtil {
 			imageInfo.extent.width = width;
 			imageInfo.extent.height = height;
 			imageInfo.extent.depth = depth;
-			imageInfo.mipLevels = 1;
+			imageInfo.mipLevels = mipLevels;
 			imageInfo.arrayLayers = 1;
+			if (flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) {
+				imageInfo.arrayLayers = 6;
+			}
 			imageInfo.format = format;
 			imageInfo.tiling = tiling;
 			imageInfo.usage = usage;

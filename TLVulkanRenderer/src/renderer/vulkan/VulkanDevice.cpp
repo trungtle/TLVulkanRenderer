@@ -315,6 +315,7 @@ VulkanDevice::PrepareDepthResources(
 		m_swapchain.extent.width,
 		m_swapchain.extent.height,
 		1, // only a 2D depth image
+		1,
 		VK_IMAGE_TYPE_2D,
 		depthFormat,
 		VK_IMAGE_TILING_OPTIMAL,
@@ -747,6 +748,7 @@ VulkanDevice::CreateImage(
 	uint32_t width,
 	uint32_t height,
 	uint32_t depth,
+	uint32_t mipLevels,
 	VkImageType imageType,
 	VkFormat format,
 	VkImageTiling tiling,
@@ -760,6 +762,7 @@ VulkanDevice::CreateImage(
 		width,
 		height,
 		depth,
+		mipLevels,
 		imageType,
 		format,
 		tiling,
@@ -843,11 +846,6 @@ VulkanDevice::TransitionImageLayout(
 ) const {
 	VkImageSubresourceRange subresourceRange;
 	subresourceRange.aspectMask = aspectMask;
-	//if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-	//	if (VulkanImage::DepthFormatHasStencilComponent(format)) {
-	//		imageBarrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-	//	}
-	//}
 	subresourceRange.baseMipLevel = 0;
 	subresourceRange.levelCount = 1;
 	subresourceRange.baseArrayLayer = 0;

@@ -2,6 +2,7 @@
 #include "VulkanDevice.h"
 #include "VulkanCPURayTracer.h"
 #include "tinygltfloader/stb_image.h"
+#include <gli.hpp>
 
 namespace VulkanImage
 {
@@ -30,6 +31,7 @@ namespace VulkanImage
 			width,
 			height,
 			1, // only a 2D depth image
+			mipLevels,
 			VK_IMAGE_TYPE_2D,
 			format,
 			tiling,
@@ -44,7 +46,7 @@ namespace VulkanImage
 		{
 			// Create image view, sampler, descriptor if we're going to use this
 			VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
-			if (flags == VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) {
+			if (flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) {
 				viewType = VK_IMAGE_VIEW_TYPE_CUBE;
 			}
 
@@ -189,128 +191,149 @@ namespace VulkanImage
 
 	}
 
-	//void
-	//Image::CreateCubemapFromFile(
-	//	VulkanDevice* device,
-	//	std::string filepath,
-	//	VkFormat format,
-	//	VkImageUsageFlags imageUsageFlags,
-	//	VkImageLayout imageLayout,
-	//	bool forceLinear
-	//)
-	//{
-	//	m_device = device;
+	void
+	Image::CreateCubemapFromFile(
+		VulkanDevice* device,
+		std::string filepath,
+		VkFormat format,
+		VkImageUsageFlags imageUsageFlags,
+		VkImageLayout imageLayout,
+		bool forceLinear
+	)
+	{
+		m_device = device;
 
-	//	gli::texture_cube texCube(gli::load(filepath));
-	//	assert(!texCube.empty());
+		gli::texture_cube texCube(gli::load(filepath));
+		assert(!texCube.empty());
 
-	//	width = static_cast<uint32_t>(texCube.extent().x);
-	//	height = static_cast<uint32_t>(texCube.extent().y);
-	//	mipLevels = static_cast<uint32_t>(texCube.levels());
-	//	this->format = format;
-	//	aspectMask = aspectMask;
+		width = static_cast<uint32_t>(texCube.extent().x);
+		height = static_cast<uint32_t>(texCube.extent().y);
+		mipLevels = static_cast<uint32_t>(texCube.levels());
+		this->format = format;
+		aspectMask = aspectMask;
 
-	//	// Setup buffer copy regions for each face including all of it's miplevels
-	//	std::vector<VkBufferImageCopy> bufferCopyRegions;
-	//	size_t offset = 0;
+		// Setup buffer copy regions for each face including all of it's miplevels
+		std::vector<VkBufferImageCopy> bufferCopyRegions;
+		size_t offset = 0;
 
-	//	for (uint32_t face = 0; face < 6; face++)
-	//	{
-	//		for (uint32_t level = 0; level < mipLevels; level++)
-	//		{
-	//			VkBufferImageCopy bufferCopyRegion = {};
-	//			bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	//			bufferCopyRegion.imageSubresource.mipLevel = level;
-	//			bufferCopyRegion.imageSubresource.baseArrayLayer = face;
-	//			bufferCopyRegion.imageSubresource.layerCount = 1;
-	//			bufferCopyRegion.imageExtent.width = static_cast<uint32_t>(texCube[face][level].extent().x);
-	//			bufferCopyRegion.imageExtent.height = static_cast<uint32_t>(texCube[face][level].extent().y);
-	//			bufferCopyRegion.imageExtent.depth = 1;
-	//			bufferCopyRegion.bufferOffset = offset;
+		for (uint32_t face = 0; face < 6; face++)
+		{
+			for (uint32_t level = 0; level < mipLevels; level++)
+			{
+				VkBufferImageCopy bufferCopyRegion = {};
+				bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				bufferCopyRegion.imageSubresource.mipLevel = level;
+				bufferCopyRegion.imageSubresource.baseArrayLayer = face;
+				bufferCopyRegion.imageSubresource.layerCount = 1;
+				bufferCopyRegion.imageExtent.width = static_cast<uint32_t>(texCube[face][level].extent().x);
+				bufferCopyRegion.imageExtent.height = static_cast<uint32_t>(texCube[face][level].extent().y);
+				bufferCopyRegion.imageExtent.depth = 1;
+				bufferCopyRegion.bufferOffset = offset;
 
-	//			bufferCopyRegions.push_back(bufferCopyRegion);
+				bufferCopyRegions.push_back(bufferCopyRegion);
 
-	//			// Increase offset into staging buffer for next level / face
-	//			offset += texCube[face][level].size();
-	//		}
-	//	}
+				// Increase offset into staging buffer for next level / face
+				offset += texCube[face][level].size();
+			}
+		}
 
-	//	// Set up staging buffer
-	//	VulkanBuffer::StorageBuffer staging;
-	//	staging.CreateFromData(
-	//		device,
-	//		texCube.data(),
-	//		texCube.size(),
-	//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-	//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-	//	);
-	//	
-	//	this->Create(
-	//		device,
-	//		m_texture->width(),
-	//		m_texture->height(),
-	//		format,
-	//		VK_IMAGE_TILING_OPTIMAL,
-	//		VK_IMAGE_USAGE_TRANSFER_DST_BIT | imageUsageFlags,
-	//		VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
-	//		VK_IMAGE_ASPECT_COLOR_BIT,
-	//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-	//	);
+		// Set up staging buffer
+		VulkanBuffer::StorageBuffer staging;
+		staging.Create(
+			device,
+			texCube.size(),
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
 
-	//	VkImageSubresourceRange subresourceRange = {};
-	//	subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	//	subresourceRange.baseMipLevel = 0;
-	//	subresourceRange.levelCount = mipLevels;
-	//	subresourceRange.layerCount = 6;
+		device->MapMemory(
+			texCube.data(),
+			staging.memory,
+			texCube.size()
+		);
+		
+		this->Create(
+			device,
+			width,
+			height,
+			format,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | imageUsageFlags,
+			VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+		);
 
-	//	device->TransitionImageLayout(
-	//		image,
-	//		format,
-	//		VK_IMAGE_ASPECT_COLOR_BIT,
-	//		VK_IMAGE_LAYOUT_PREINITIALIZED,
-	//		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-	//		subresourceRange
-	//	);
+		VkImageSubresourceRange subresourceRange = {};
+		subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		subresourceRange.baseMipLevel = 0;
+		subresourceRange.levelCount = mipLevels;
+		subresourceRange.baseArrayLayer = 0;
+		subresourceRange.layerCount = 6;
 
-	//	device->CopyBufferToImage(
-	//		image,
-	//		staging.buffer,
-	//		bufferCopyRegions
-	//		);
+		device->TransitionImageLayout(
+			image,
+			format,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_LAYOUT_PREINITIALIZED,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			subresourceRange
+		);
 
-	//	device->TransitionImageLayout(
-	//		image,
-	//		format,
-	//		VK_IMAGE_ASPECT_COLOR_BIT,
-	//		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-	//		imageLayout,
-	//		subresourceRange
-	//	);
+		device->CopyBufferToImage(
+			image,
+			staging.buffer,
+			bufferCopyRegions
+			);
 
-	//	// Create sampler
-	//	VkSamplerCreateInfo samplerCreateInfo = MakeSamplerCreateInfo(
-	//		VK_FILTER_LINEAR,
-	//		VK_FILTER_LINEAR,
-	//		VK_SAMPLER_MIPMAP_MODE_LINEAR,
-	//		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-	//		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-	//		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-	//		0.0f,
-	//		8,
-	//		VK_COMPARE_OP_NEVER,
-	//		0.0f,
-	//		VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
-	//	);
-	//		
-	//	if (sampler != VK_NULL_HANDLE) {
-	//		vkDestroySampler(m_device->device, sampler, nullptr);
-	//	}
-	//	samplerCreateInfo.maxLod = (float)mipLevels;
-	//	CheckVulkanResult(vkCreateSampler(device->device, &samplerCreateInfo, nullptr, &sampler), "failed to create sampler for cubemap");
+		device->TransitionImageLayout(
+			image,
+			format,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			imageLayout,
+			subresourceRange
+		);
 
+		// Create sampler
+		VkSamplerCreateInfo samplerCreateInfo = MakeSamplerCreateInfo(
+			VK_FILTER_LINEAR,
+			VK_FILTER_LINEAR,
+			VK_SAMPLER_MIPMAP_MODE_LINEAR,
+			VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+			VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+			VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+			0.0f,
+			8,
+			VK_COMPARE_OP_NEVER,
+			0.0f,
+			VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
+		);
+			
+		if (sampler != VK_NULL_HANDLE) {
+			vkDestroySampler(m_device->device, sampler, nullptr);
+		}
 
-	//	staging.Destroy();
-	//}
+		// Create sampler
+		samplerCreateInfo = {};
+		samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
+		samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
+		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerCreateInfo.addressModeV = samplerCreateInfo.addressModeU;
+		samplerCreateInfo.addressModeW = samplerCreateInfo.addressModeU;
+		samplerCreateInfo.mipLodBias = 0.0f;
+		samplerCreateInfo.maxAnisotropy = 8;
+		samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
+		samplerCreateInfo.minLod = 0.0f;
+		samplerCreateInfo.maxLod = (float)mipLevels;
+		samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+		CheckVulkanResult(vkCreateSampler(device->device, &samplerCreateInfo, nullptr, &sampler), "failed to create sampler for cubemap");
+		SetDescriptorImageInfo(VK_IMAGE_LAYOUT_GENERAL, *this);
+
+		staging.Destroy();
+	}
 
 
 	void Image::Destroy() const {

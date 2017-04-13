@@ -283,10 +283,10 @@ void VulkanHybridRenderer::PrepareSkyboxCubemap() {
 	std::string path = "textures/";
 	m_skybox.textures.resize(6);
 
-	m_skybox.envmap.CreateFromFile(
+	m_skybox.envmap.CreateCubemapFromFile(
 		m_vulkanDevice,
-		"textures/skyboxes/SkyboxSet1/CloudyLightRays/CloudyLightRaysBack2048.png",
-		//"textures/statue.jpg",
+		//"textures/skyboxes/SkyboxSet1/CloudyLightRays/CloudyLightRaysBack2048.png",
+		"textures/cubemap_yokohama_astc_8x8_unorm.ktx",
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT
 	);
@@ -307,19 +307,7 @@ void VulkanHybridRenderer::PrepareSkyboxDescriptorLayout() {
 			1,
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
-		),
-		// Binding 2 : Normals texture target
-		MakeDescriptorSetLayoutBinding(
-			2,
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			VK_SHADER_STAGE_FRAGMENT_BIT
 		)
-		//// Binding 2 : Normals texture target
-		//MakeDescriptorSetLayoutBinding(
-		//	2,
-		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-		//	VK_SHADER_STAGE_FRAGMENT_BIT
-		//	)
 	};
 
 	VkDescriptorSetLayoutCreateInfo descriptorLayout =
@@ -367,22 +355,126 @@ void VulkanHybridRenderer::PrepareSkyboxDescriptorSet() {
 			1, // binding
 			1, // descriptor count
 			&m_skybox.envmap.descriptor
-		),
-		//// Binding 2: Normal map
-		//MakeWriteDescriptorSet(
-		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-		//	m_deferred.descriptorSet,
-		//	2, // binding
-		//	1, // descriptor count
-		//	nullptr, // buffer info
-		//	&m_deferred.textures.m_normalMap.descriptor // image info
-		//),
+		)
 	};
 
 	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
 }
 
 void VulkanHybridRenderer::PrepareSkyboxPipeline() {
+	VkShaderModule vertShader = MakeShaderModule(m_vulkanDevice->device, "shaders/hybrid/skybox.vert.spv");
+	VkShaderModule fragShader = MakeShaderModule(m_vulkanDevice->device, "shaders/hybrid/skybox.frag.spv");
+
+	std::vector<VkVertexInputBindingDescription> bindingDesc = {
+		MakeVertexInputBindingDescription(
+			0, // binding
+			sizeof(SWireframeVertexLayout), // stride
+			VK_VERTEX_INPUT_RATE_VERTEX
+		)
+	};
+
+	// Attribute description (position, normal, texcoord etc.)
+	std::vector<VkVertexInputAttributeDescription> attribDesc = {
+		MakeVertexInputAttributeDescription(
+			0, // binding
+			0, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			0 // offset
+		),
+		MakeVertexInputAttributeDescription(
+			0, // binding
+			1, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			offsetof(SPolygonVertexLayout, normal) // offset
+		),
+		MakeVertexInputAttributeDescription(
+			0, // binding
+			2, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			offsetof(SPolygonVertexLayout, uv) // offset
+		)
+	};
+
+	VkPipelineVertexInputStateCreateInfo vertexInputStageCreateInfo = MakePipelineVertexInputStateCreateInfo(
+		bindingDesc,
+		attribDesc
+	);
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo =
+		MakePipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+
+	std::vector<VkViewport> viewports = {
+		MakeFullscreenViewport(m_vulkanDevice->m_swapchain.extent)
+	};
+
+	VkRect2D scissor = {};
+	scissor.offset = { 0, 0 };
+	scissor.extent = m_vulkanDevice->m_swapchain.extent;
+
+	std::vector<VkRect2D> scissors = {
+		scissor
+	};
+
+	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = MakePipelineViewportStateCreateInfo(viewports, scissors);
+
+	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = MakePipelineRasterizationStateCreateInfo(
+		VK_POLYGON_MODE_LINE,
+		VK_CULL_MODE_NONE,
+		VK_FRONT_FACE_COUNTER_CLOCKWISE);
+
+	VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo =
+		MakePipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT);
+
+	VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = MakePipelineDepthStencilStateCreateInfo(VK_FALSE, VK_FALSE, VK_COMPARE_OP_NEVER);
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
+	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachmentState.blendEnable = VK_FALSE;
+
+	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
+		colorBlendAttachmentState
+	};
+
+	VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = MakePipelineColorBlendStateCreateInfo(colorBlendAttachments);
+
+	std::vector<VkPipelineShaderStageCreateInfo> shaderCreateInfos = {
+		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShader),
+		MakePipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShader)
+	};
+
+	VkGraphicsPipelineCreateInfo pipelineCreateInfo =
+		MakeGraphicsPipelineCreateInfo(
+			shaderCreateInfos,
+			&vertexInputStageCreateInfo,
+			&inputAssemblyStateCreateInfo,
+			nullptr,
+			&viewportStateCreateInfo,
+			&rasterizationStateCreateInfo,
+			&colorBlendStateCreateInfo,
+			&multisampleStateCreateInfo,
+			&depthStencilStateCreateInfo,
+			nullptr,
+			m_skybox.pipelineLayout,
+			m_graphics.renderPass,
+			0, // Subpass
+			VK_NULL_HANDLE,
+			-1
+		);
+
+	CheckVulkanResult(
+		vkCreateGraphicsPipelines(
+			m_vulkanDevice->device,
+			VK_NULL_HANDLE, // Pipeline caches here
+			1, // Pipeline count
+			&pipelineCreateInfo,
+			nullptr,
+			&m_skybox.pipeline // Pipelines
+		),
+		"Failed to create graphics pipeline"
+	);
+
+	vkDestroyShaderModule(m_vulkanDevice->device, vertShader, nullptr);
+	vkDestroyShaderModule(m_vulkanDevice->device, fragShader, nullptr);
 }
 
 void VulkanHybridRenderer::PreparePostSSAO() 
@@ -1830,6 +1922,7 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 	// skybox
 	{
+		vkCmdBindPipeline(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
 		std::vector<VkDeviceSize> offsets = {
 			m_skybox.m_buffers.skyboxBuffer.offsets.at(POLYGON),
 		};

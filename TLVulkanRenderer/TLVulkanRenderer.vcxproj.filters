@@ -54,7 +54,6 @@
     <ClCompile Include="src\geometry\Cube.cpp" />
     <ClCompile Include="thirdparty\pcg\pcg_basic.c" />
     <ClCompile Include="src\lights\DirectionalLight.h" />
-    <ClCompile Include="thirdparty\glm\detail\dummy.cpp" />
     <ClCompile Include="thirdparty\glm\detail\glm.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -512,6 +511,8 @@
     <None Include="thirdparty\glm\gtc\type_ptr.inl" />
     <None Include="thirdparty\glm\gtc\ulp.inl" />
     <None Include="thirdparty\glm\gtc\vec1.inl" />
+    <None Include="shaders\hybrid\skybox.vert" />
+    <None Include="shaders\hybrid\skybox.frag" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">
