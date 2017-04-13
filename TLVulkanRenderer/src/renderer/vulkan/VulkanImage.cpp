@@ -116,7 +116,7 @@ namespace VulkanImage
 			{
 				uint8_t* dataBytes = reinterpret_cast<uint8_t*>(data);
 
-				for (int y = 0; y < m_texture->height(); y++)
+				for (auto y = 0; y < m_texture->height(); y++)
 				{
 					memcpy(&dataBytes[y * stagingImageLayout.rowPitch], &m_texture->getRawByte()[y *  m_texture->width() * 4], m_texture->width() * 4);
 				}

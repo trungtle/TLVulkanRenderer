@@ -1,8 +1,6 @@
 #pragma once
 
 #include "renderer/Renderer.h"
-#include "renderer/vulkan/VulkanRenderer.h"
-#include "scene/Scene.h"
 
 class Application {
 public:

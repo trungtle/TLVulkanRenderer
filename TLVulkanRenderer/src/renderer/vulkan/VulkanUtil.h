@@ -1,10 +1,8 @@
 #pragma once
 
 #include <vector>
-#include <array>
 #include <map>
 #include <vulkan.h>
-#include <glm/mat4x4.hpp>
 #include "scene/SceneUtil.h"
 #include "VulkanImage.h"
 

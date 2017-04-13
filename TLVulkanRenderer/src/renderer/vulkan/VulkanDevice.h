@@ -1,8 +1,5 @@
 #pragma once
 
-//#include <gli/gli.hpp>
-
-#define GLFW_INCLUDE_VULKAN
 #include <vector>
 #include <glfw3.h>
 #include "VulkanSwapchain.h"

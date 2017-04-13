@@ -62,15 +62,15 @@ namespace VulkanImage {
 			bool forceLinear = false
 		);
 
-		//void
-		//CreateCubemapFromFile(
-		//	VulkanDevice* device,
-		//	std::string filepath,
-		//	VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
-		//	VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
-		//	VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		//	bool forceLinear = false
-		//);
+		void
+		CreateCubemapFromFile(
+			VulkanDevice* device,
+			std::string filepath,
+			VkFormat format = VK_FORMAT_R8G8B8A8_UNORM,
+			VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+			VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			bool forceLinear = false
+		);
 
 		void
 		Destroy() const;
@@ -91,19 +91,6 @@ namespace VulkanImage {
 		 */
 		ImageTexture* m_texture;
 	};
-
-	//struct Texture
-	//{
-	//	VkSampler sampler;
-	//	VkImage image;
-	//	VkImageLayout imageLayout;
-	//	VkDeviceMemory deviceMemory;
-	//	VkImageView view;
-	//	uint32_t width, height;
-	//	uint32_t mipLevels;
-	//	uint32_t layerCount;
-	//	VkDescriptorImageInfo descriptor;
-	//};
 
 	/**
 	* \brief Find a supported format from a list of candidates

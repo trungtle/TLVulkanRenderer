@@ -1,10 +1,8 @@
+#include <array>
 #include "VulkanHybridRenderer.h"
 #include "Utilities.h"
 #include "scene/Camera.h"
 #include "accel/SBVH.h"
-#include <gtc/quaternion.hpp>
-#include <GL/gl.h>
-#include "tinygltfloader/stb_image.h"
 
 VulkanHybridRenderer::VulkanHybridRenderer(
 	GLFWwindow* window,

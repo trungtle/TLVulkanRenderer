@@ -2,7 +2,6 @@
 /// @file gli/type.hpp
 
 #pragma once
-
 // STD
 #include <cstddef>
 

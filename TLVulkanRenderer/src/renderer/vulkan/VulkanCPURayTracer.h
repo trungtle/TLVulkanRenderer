@@ -4,6 +4,7 @@
 #include "renderer/Film.h"
 #include <thread>
 #include <queue>
+#include <array>
 
 class VulkanCPURaytracer : public VulkanRenderer
 {

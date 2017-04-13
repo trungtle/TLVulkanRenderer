@@ -1,6 +1,5 @@
 #pragma once
 
-#include "glm/glm.hpp"
 #include <geometry/Geometry.h>
 #include <memory>
 

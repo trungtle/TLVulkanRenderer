@@ -1,5 +1,8 @@
+#define GLFW_INCLUDE_VULKAN
+
 #include "VulkanDevice.h"
 #include <set>
+#include <array>
 #include <iostream>
 #include "VulkanImage.h"
 #include "VulkanUtil.h"

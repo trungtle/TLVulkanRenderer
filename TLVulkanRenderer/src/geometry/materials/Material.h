@@ -1,5 +1,4 @@
 #pragma once
-#include <glm/glm.hpp>
 #include <Texture.h>
 #include <scene/SceneUtil.h>
 #include <Color.h>
@@ -11,8 +10,8 @@ class Intersection;
 class Material {
 public:
 	Material()
-		: m_shininess(0), m_refracti(0), m_reflectivity(0), m_texture(nullptr)
-	{};
+		: m_castShadow(false), m_receiveShadow(false), m_translucent(false), m_shininess(0), m_refracti(0), m_reflectivity(0), m_texture(nullptr) {
+	};
 	Material(MaterialPacked packed, Texture* texture = nullptr) :
 		m_castShadow(false), // Optimize out shadows calculation
 		m_receiveShadow(false),
