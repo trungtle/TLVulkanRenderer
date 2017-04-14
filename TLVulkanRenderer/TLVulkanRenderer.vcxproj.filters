@@ -513,6 +513,9 @@
     <None Include="thirdparty\glm\gtc\vec1.inl" />
     <None Include="shaders\hybrid\skybox.vert" />
     <None Include="shaders\hybrid\skybox.frag" />
+    <None Include="..\LICENSE.md" />
+    <None Include="thirdparty\pcg\Makefile" />
+    <None Include="thirdparty\pcg\README.md" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">
@@ -554,5 +557,6 @@
     <Text Include="thirdparty\glm\CMakeLists.txt" />
     <Text Include="thirdparty\glm\copying.txt" />
     <Text Include="thirdparty\glfw-3.2.1.WIN64\include\COPYING.txt" />
+    <Text Include="thirdparty\pcg\LICENSE.txt" />
   </ItemGroup>
 </Project>

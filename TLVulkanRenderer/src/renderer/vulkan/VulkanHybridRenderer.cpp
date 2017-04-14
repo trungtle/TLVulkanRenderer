@@ -259,6 +259,7 @@ void VulkanHybridRenderer::RebuildCommandBuffers()
 
 void VulkanHybridRenderer::PrepareSkybox() {
 
+	m_logger->info<std::string>("Prepare skybox");
 	std::vector<uint16_t> indices;
 	std::vector<SPolygonVertexLayout> vertices;
 	Cube box(vec3(0), vec3(1000));
@@ -278,16 +279,12 @@ void VulkanHybridRenderer::PrepareSkybox() {
 void VulkanHybridRenderer::PrepareSkyboxCubemap() {
 
 	// Load skybox
-	int width, height;
-	unsigned char* image;
-	std::string path = "textures/";
-	m_skybox.textures.resize(6);
-
 	m_skybox.envmap.CreateCubemapFromFile(
 		m_vulkanDevice,
 		//"textures/skyboxes/SkyboxSet1/CloudyLightRays/CloudyLightRaysBack2048.png",
-		"textures/cubemap_yokohama_astc_8x8_unorm.ktx",
-		VK_FORMAT_R8G8B8A8_UNORM,
+		"textures/Environment/MonValley/Unfiltered_HDR.dds",
+		//"textures/cubemap_space.ktx",
+		VK_FORMAT_R32G32B32A32_SFLOAT,
 		VK_IMAGE_USAGE_SAMPLED_BIT
 	);
 
@@ -348,7 +345,7 @@ void VulkanHybridRenderer::PrepareSkyboxDescriptorSet() {
 			1, // descriptor count
 			&m_deferred.buffers.mvpUnifStorage.descriptor
 		),
-		//Binding 1: Color map
+		//Binding 1: Env map
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			m_skybox.descriptorSet,
@@ -368,7 +365,7 @@ void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 	std::vector<VkVertexInputBindingDescription> bindingDesc = {
 		MakeVertexInputBindingDescription(
 			0, // binding
-			sizeof(SWireframeVertexLayout), // stride
+			sizeof(SPolygonVertexLayout), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		)
 	};
@@ -390,7 +387,7 @@ void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 		MakeVertexInputAttributeDescription(
 			0, // binding
 			2, // location
-			VK_FORMAT_R32G32B32_SFLOAT,
+			VK_FORMAT_R32G32_SFLOAT,
 			offsetof(SPolygonVertexLayout, uv) // offset
 		)
 	};
@@ -401,7 +398,7 @@ void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 	);
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo =
-		MakePipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+		MakePipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
 	std::vector<VkViewport> viewports = {
 		MakeFullscreenViewport(m_vulkanDevice->m_swapchain.extent)
@@ -418,7 +415,7 @@ void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = MakePipelineViewportStateCreateInfo(viewports, scissors);
 
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = MakePipelineRasterizationStateCreateInfo(
-		VK_POLYGON_MODE_LINE,
+		VK_POLYGON_MODE_FILL,
 		VK_CULL_MODE_NONE,
 		VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
@@ -429,7 +426,14 @@ void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
 	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachmentState.blendEnable = VK_FALSE;
+	colorBlendAttachmentState.colorWriteMask = 0xF;
+	colorBlendAttachmentState.blendEnable = VK_TRUE;
+	colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_MAX;
+	colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+	colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	//colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_MAX;
+	//colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	//colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
 
 	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
 		colorBlendAttachmentState
@@ -637,6 +641,8 @@ VulkanHybridRenderer::CreateAttachment(
 }
 
 void VulkanHybridRenderer::PrepareDeferred() {
+	m_logger->info<std::string>("Prepare deferred");
+
 	PrepareDeferredDescriptorLayout();
 	PrepareDeferredAttachments();
 	PrepareDeferredDescriptorSet();
@@ -889,6 +895,8 @@ void VulkanHybridRenderer::PrepareWireframePipeline() {
 
 void VulkanHybridRenderer::PrepareOnscreen() 
 {
+	m_logger->info<std::string>("Prepare onscreen");
+
 	PrepareOnScreenQuadVertexBuffer();
 	PrepareOnscreenUniformBuffer();
 	PrepareOnscreenDescriptorLayout();
@@ -1355,6 +1363,18 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 
 		}
 		
+		// skybox
+		{
+			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
+			std::vector<VkDeviceSize> skyboxOffset = {
+				m_skybox.m_buffers.skyboxBuffer.offsets.at(POLYGON),
+			};
+
+			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipelineLayout, 0, 1, &m_skybox.descriptorSet, 0, NULL);
+			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_skybox.m_buffers.skyboxBuffer.storageBuffer.buffer, skyboxOffset.data());
+			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_skybox.m_buffers.skyboxBuffer.storageBuffer.buffer, m_skybox.m_buffers.skyboxBuffer.offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
+			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_skybox.m_buffers.skyboxBuffer.indexCount, 1, 0, 0, 0);
+		}
 
 		// Record end renderpass
 		vkCmdEndRenderPass(m_graphics.commandBuffers[i]);
@@ -1565,6 +1585,7 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 
 void VulkanHybridRenderer::PrepareTextures()
 {
+	m_logger->info<std::string>("Preparing textures");
 	for (auto m : m_scene->materials)
 	{
 		m->m_vkImage.CreateFromTexture(m_vulkanDevice, m->m_texture);
@@ -1920,19 +1941,6 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->models[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
 	}
 
-	// skybox
-	{
-		vkCmdBindPipeline(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
-		std::vector<VkDeviceSize> offsets = {
-			m_skybox.m_buffers.skyboxBuffer.offsets.at(POLYGON),
-		};
-
-		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_skybox.descriptorSet, 0, NULL);
-		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, 1, &m_skybox.m_buffers.skyboxBuffer.storageBuffer.buffer, offsets.data());
-		vkCmdBindIndexBuffer(m_deferred.commandBuffer, m_skybox.m_buffers.skyboxBuffer.storageBuffer.buffer, m_skybox.m_buffers.skyboxBuffer.offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
-		vkCmdDrawIndexed(m_deferred.commandBuffer, m_skybox.m_buffers.skyboxBuffer.indexCount, 1, 0, 0, 0);
-	}
-
 	vkCmdEndRenderPass(m_deferred.commandBuffer);
 
 	CheckVulkanResult(vkEndCommandBuffer(m_deferred.commandBuffer), "Failed to end renderpass");
@@ -1988,6 +1996,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 
 void
 VulkanHybridRenderer::PrepareComputeRaytrace() {
+	m_logger->info<std::string>("Prepare compute ray trace");
+
 	PrepareComputeRaytraceTextures();
 	PrepareComputeRaytraceStorageBuffer();
 	PrepareComputeRaytraceUniformBuffer();

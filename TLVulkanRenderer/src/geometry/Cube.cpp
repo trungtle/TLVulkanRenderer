@@ -259,7 +259,7 @@ void Cube::GenerateVertices(
 
 	for (int i = 0; i < CUB_VERT_COUNT; ++i) {
 		vertices.push_back({
-			cub_vert_pos[i],
+			m_transform.T() * vec4(cub_vert_pos[i], 1.),
 			cub_vert_nor[i],
 			GetUV(cub_vert_pos[i])
 		});

@@ -402,6 +402,7 @@
     <ClInclude Include="thirdparty\spdlog\include\spdlog\tweakme.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\LICENSE.md" />
     <None Include="..\README.md" />
     <None Include="shaders\deferred\debug.frag" />
     <None Include="shaders\deferred\debug.frag.spv" />
@@ -555,6 +556,8 @@
     <None Include="thirdparty\glm\gtx\vector_angle.inl" />
     <None Include="thirdparty\glm\gtx\vector_query.inl" />
     <None Include="thirdparty\glm\gtx\wrap.inl" />
+    <None Include="thirdparty\pcg\Makefile" />
+    <None Include="thirdparty\pcg\README.md" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Application.cpp" />
@@ -591,6 +594,7 @@
     <Text Include="thirdparty\gli\CMakeLists.txt" />
     <Text Include="thirdparty\glm\CMakeLists.txt" />
     <Text Include="thirdparty\glm\copying.txt" />
+    <Text Include="thirdparty\pcg\LICENSE.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -3,8 +3,11 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
-layout(std140, binding = 0) uniform UBO {
-	mat4 mvp;
+layout (binding = 0) uniform UBO 
+{
+	mat4 projection;
+	mat4 model;
+	mat4 view;
 } ubo;
 
 layout(location = 0) in vec3 iPos;
@@ -15,5 +18,5 @@ layout(location = 0) out vec3 oUVW;
 void main()
 {
 	oUVW = iPos;
-	gl_Position = ubo.mvp * vec4(iPos, 1.0);
+	gl_Position = ubo.projection * ubo.view * ubo.model * vec4(iPos, 1.0);
 }
