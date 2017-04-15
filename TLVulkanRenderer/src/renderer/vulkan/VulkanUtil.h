@@ -286,15 +286,15 @@ namespace VulkanUtil {
 
 		VkSubmitInfo
 		MakeSubmitInfo(
+			const std::vector<VkCommandBuffer>& cmdBuffers,
 			const std::vector<VkSemaphore>& waitSemaphores,
 			const std::vector<VkSemaphore>& signalSemaphores,
-			const std::vector<VkPipelineStageFlags>& waitStageFlags,
-			const VkCommandBuffer& commandBuffer
+			const std::vector<VkPipelineStageFlags>& waitStageFlags
 		);
 
 		VkSubmitInfo
 		MakeSubmitInfo(
-			const VkCommandBuffer& commandBuffer
+			const std::vector<VkCommandBuffer>& cmdBuffers
 		);
 
 		VkFenceCreateInfo

@@ -18,5 +18,6 @@ layout(location = 0) out vec3 oUVW;
 void main()
 {
 	oUVW = iPos;
+	oUVW.y = -oUVW.y;
 	gl_Position = ubo.projection * ubo.view * ubo.model * vec4(iPos, 1.0);
 }

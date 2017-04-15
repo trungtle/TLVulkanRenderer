@@ -82,6 +82,27 @@ namespace VulkanImage
 	{
 		m_texture = reinterpret_cast<ImageTexture*>(texture);
 
+		if (!m_texture) {
+			
+			int texWidth, texHeight, texChannels;
+			Byte* imageBytes = stbi_load(
+				"textures/white.png",
+				&texWidth,
+				&texHeight,
+				&texChannels,
+				STBI_rgb_alpha
+			);
+
+			std::vector<unsigned char> image;
+			m_texture = new ImageTexture(
+				"white",
+				image,
+				imageBytes,
+				texWidth,
+				texHeight
+			);
+		}
+
 		if (m_texture)
 		{
 			Image staging;
@@ -205,6 +226,9 @@ namespace VulkanImage
 
 		gli::texture_cube texCube(gli::load(filepath));
 		assert(!texCube.empty());
+
+		gli::format texFormat = texCube.format();
+		
 
 		width = static_cast<uint32_t>(texCube.extent().x);
 		height = static_cast<uint32_t>(texCube.extent().y);

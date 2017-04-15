@@ -153,8 +153,6 @@ layout (std140, binding = 10) buffer Spheres
 	Sphere spheres[ ];
 };
 
-layout (binding = 11) uniform samplerCube samplerEnvMap;
-
 // ==================================
 // LIGHTING
 // ==================================
@@ -637,19 +635,19 @@ void shade(
 
 		// Light feeler test
 		Ray feeler;
-		lightVec.y = -lightVec.y;
-		feeler.origin = isx.hitPoint + 0.001 * lightVec;
+		//lightVec.y = -lightVec.y;
+		feeler.origin = isx.hitPoint + 0.002 * lightVec;
 		feeler.direction = lightVec;
 		feeler.inv_direction = vec3(1.0/feeler.direction.x, 1.0/feeler.direction.y, 1.0/feeler.direction.z);
 		feeler.sign[0] = (feeler.inv_direction.x < 0) ? 1 : 0;
 		feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
 		feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
-		float shadow = calcShadow(feeler, isx.materialId, dist); 
-		//Intersection shadowIsx = calcShadowBVH(feeler, 0);
-		//if (shadowIsx.t > 0) {
-		//	shadow = 0.5;
-		//}
+		float shadow = 1;//calcShadow(feeler, isx.materialId, dist); 
+		Intersection shadowIsx = calcShadowBVH(feeler, 0);
+		if (shadowIsx.t > 0) {
+			shadow = 0.1;
+		}
 
 		vec3 diffuseColor = material.diffuse.rgb;
 		float atten = 0.1;
@@ -693,15 +691,7 @@ void main()
 	path.color = texture(albedo, uv).rgb;
 
 	if (normal == vec3(0, 0, 0)) {
-
-		// Shade background
-		float t = 0.5 * path.ray.direction.y + 1.0;
-		vec3 skyColor = mix(vec3(1, 1, 1), vec3(0.5, 0.8, 1.0), t);
-
-		skyColor = texture(samplerEnvMap,position).rgb;
-		imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(path.color, 1.0));
-		//imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(skyColor, 1.0));
-
+		imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(path.color, 0.0));
 		return;
 	}
 

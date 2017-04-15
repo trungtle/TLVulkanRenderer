@@ -158,8 +158,8 @@ void Scene::PrepareTestScene()
 	static const Point3 TRUCK_LOOKAT(0.926, 2.763, -2.958);
 	static const Point3 ELLIE_EYE(-2.75, -155.1811, 120.7701);
 	static const Point3 ELLIE_LOOKAT(-2.75, -135, -12);
-	camera.eye = vec3(0, -20, 45);
-	camera.eye = vec3(2, 7, 15);
+	camera.eye = vec3(0, -10, 15);
+	//camera.eye = vec3(2, 7, 15);
 	//camera.eye = SPONZA_EYE;
 	//camera.lookAt = SPONZA_LOOKAT;
 	//camera.eye = ELLIE_EYE;
@@ -187,6 +187,7 @@ void Scene::PrepareTestScene()
 	for (int m = 0; m < meshes.size(); m++)
 	{
 		size_t len = 232271 < meshes[m].triangles.size() ? 232271 : meshes[m].triangles.size();
+		len = meshes[m].triangles.size();
 		for (int t = 0; t < len; t++)
 		{
 			std::string name = "triangle" + t;

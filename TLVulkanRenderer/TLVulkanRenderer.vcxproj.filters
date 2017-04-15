@@ -158,7 +158,6 @@
     <ClInclude Include="src\geometry\materials\TranslucentMaterial.h" />
     <ClInclude Include="src\geometry\Cube.h" />
     <ClInclude Include="thirdparty\pcg\pcg_basic.h" />
-    <ClInclude Include="src\scene\Model.h" />
     <ClInclude Include="thirdparty\gli\clear.hpp" />
     <ClInclude Include="thirdparty\gli\comparison.hpp" />
     <ClInclude Include="thirdparty\gli\convert.hpp" />
@@ -348,6 +347,9 @@
     <ClInclude Include="thirdparty\glm\simd\platform.h" />
     <ClInclude Include="thirdparty\glm\simd\trigonometric.h" />
     <ClInclude Include="thirdparty\glm\simd\vector_relational.h" />
+    <ClInclude Include="src\ImprovedNoise.h" />
+    <ClInclude Include="src\geometry\Skybox.h" />
+    <ClInclude Include="src\geometry\Model.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

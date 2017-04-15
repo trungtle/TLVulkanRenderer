@@ -637,10 +637,10 @@ namespace VulkanUtil {
 
 		VkSubmitInfo
 		MakeSubmitInfo(
+			const std::vector<VkCommandBuffer>& cmdBuffers,
 			const std::vector<VkSemaphore>& waitSemaphores,
 			const std::vector<VkSemaphore>& signalSemaphores,
-			const std::vector<VkPipelineStageFlags>& waitStageFlags,
-			const VkCommandBuffer& commandBuffer
+			const std::vector<VkPipelineStageFlags>& waitStageFlags
 		) {
 			VkSubmitInfo submitInfo = {};
 			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -651,8 +651,8 @@ namespace VulkanUtil {
 			submitInfo.pWaitDstStageMask = waitStageFlags.data(); // At which stage to wait on
 
 			// The command buffer to submit													
-			submitInfo.commandBufferCount = 1;
-			submitInfo.pCommandBuffers = &commandBuffer;
+			submitInfo.commandBufferCount = cmdBuffers.size();
+			submitInfo.pCommandBuffers = cmdBuffers.data();
 
 			// Semaphore to signal
 			submitInfo.signalSemaphoreCount = signalSemaphores.size();
@@ -663,14 +663,14 @@ namespace VulkanUtil {
 
 		VkSubmitInfo
 		MakeSubmitInfo(
-			const VkCommandBuffer& commandBuffer
+			const std::vector<VkCommandBuffer>& cmdBuffers
 		) {
 			VkSubmitInfo submitInfo = {};
 			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
 			// The command buffer to submit													
-			submitInfo.commandBufferCount = 1;
-			submitInfo.pCommandBuffers = &commandBuffer;
+			submitInfo.commandBufferCount = cmdBuffers.size();
+			submitInfo.pCommandBuffers = cmdBuffers.data();
 
 			return submitInfo;
 		}

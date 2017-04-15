@@ -24,6 +24,9 @@ SBVH::Build(
 		return;
 	}
 
+	// pbrt suggested value
+	m_depthLimit = 8 + 1.3 * log(m_prims.size());
+
 	// Initialize primitives info
 	std::vector<PrimInfo> primInfos(size_t(prims.size() * 1.2), {INVALID_ID, BBox()}); // Pad 20% more space for spatial split fragments
 	for (size_t i = 0; i < m_prims.size(); i++)
@@ -228,7 +231,7 @@ SBVH::CalculateObjectSplitCost(
 		buckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, primInfos.at(i).bbox);
 	}
 
-	// Compute cost for splitting after each bucket
+	// Compute cost for splitting after each bucket 
 	for (int i = 0; i < NUM_BUCKET - 1; i++)
 	{
 		BBox bbox0, bbox1;

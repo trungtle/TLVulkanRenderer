@@ -34,6 +34,6 @@ void main()
 	//outNormal = vec4(tnorm, 1.0);
 	outNormal = vec4(inNormal, 0.0);
 
-	vec4 color = texture(samplerColor, inUV);
+	vec4 color = texture(samplerColor, inUV).xyzx;
 	outAlbedo = color;
 }

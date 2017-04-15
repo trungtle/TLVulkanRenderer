@@ -2,6 +2,7 @@
 #include "VulkanRenderer.h"
 #include "VulkanBuffer.h"
 #include "geometry/Cube.h"
+#include "geometry/Skybox.h"
 
 #define VERTEX_BUFFER_BIND_ID 0
 #define NUM_LIGHTS 6
@@ -167,7 +168,6 @@ protected:
 	// -----------
 
 	void PrepareSkybox();
-	void PrepareSkyboxCubemap();
 	void PrepareSkyboxDescriptorLayout();
 	void PrepareSkyboxDescriptorSet();
 	void PrepareSkyboxPipeline();
@@ -178,12 +178,7 @@ protected:
 		VkPipelineLayout pipelineLayout;
 		VkPipeline pipeline;
 
-		std::vector<VulkanImage::Image> textures;
-		VulkanImage::Image envmap;
-
-		struct {			
-			VulkanBuffer::VertexBuffer skyboxBuffer;
-		} m_buffers;
+		Skybox skybox;
 	} m_skybox;
 
 	// -----------

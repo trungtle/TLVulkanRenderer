@@ -54,10 +54,10 @@ VulkanGPURaytracer::Render() {
 	std::vector<VkSemaphore> signalSemaphores = {m_renderFinishedSemaphore};
 	std::vector<VkPipelineStageFlags> waitStages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 	VkSubmitInfo submitInfo = MakeSubmitInfo(
+		{ m_graphics.commandBuffers[imageIndex] },
 		waitSemaphores,
 		signalSemaphores,
-		waitStages,
-		m_graphics.commandBuffers[imageIndex]
+		waitStages
 	);
 
 	// Submit to queue
@@ -81,7 +81,7 @@ VulkanGPURaytracer::Render() {
 	vkResetFences(m_vulkanDevice->device, 1, &m_raytrace.fence);
 
 	VkSubmitInfo computeSubmitInfo = MakeSubmitInfo(
-		m_raytrace.commandBuffer
+	{ m_raytrace.commandBuffer }
 	);
 
 	CheckVulkanResult(

@@ -48,7 +48,6 @@ VulkanHybridRenderer::Update() {
 			m_deferred.buffers.lightsWireframeUnifStorage[l].memory,
 			sizeof(mvp)
 		);
-
 	}
 
 	// -- Update compute
@@ -77,81 +76,32 @@ VulkanHybridRenderer::Render() {
 	uint32_t imageIndex;
 
 	// Acquire the swapchain
-	vkAcquireNextImageKHR(
-		m_vulkanDevice->device,
-		m_vulkanDevice->m_swapchain.swapchain,
-		UINT64_MAX, // Timeout
-		m_imageAvailableSemaphore,
-		VK_NULL_HANDLE,
-		&imageIndex
-	);
+	m_vulkanDevice->AcquireSwapchain(m_imageAvailableSemaphore, &imageIndex);
 
 	// Submit command buffers
-	std::vector<VkSemaphore> waitSemaphores = { m_imageAvailableSemaphore };
-	std::vector<VkSemaphore> signalSemaphores = { m_renderFinishedSemaphore };
 	std::vector<VkPipelineStageFlags> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkSubmitInfo submitInfo = MakeSubmitInfo(
-		waitSemaphores,
-		signalSemaphores,
-		waitStages,
-		m_graphics.commandBuffers[imageIndex]
-	);
-
-
-	// The scene render command buffer has to wait for the offscreen
-	// rendering to be finished before we can use the framebuffer 
-	// color image for sampling during final rendering
-	// To ensure this we use a dedicated offscreen synchronization
-	// semaphore that will be signaled when offscreen renderin
-	// has been finished
-	// This is necessary as an implementation may start both
-	// command buffers at the same time, there is no guarantee
-	// that command buffers will be executed in the order they
-	// have been submitted by the application
 
 	// =====  Offscreen rendering
-
-	// Wait for swap chain presentation to finish
-	submitInfo.pWaitSemaphores = &m_imageAvailableSemaphore;
-	// Signal ready with offscreen semaphore
-	submitInfo.pSignalSemaphores = &m_deferred.semaphore;
-
-	// Submit work
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &m_deferred.commandBuffer;
-	CheckVulkanResult(vkQueueSubmit(m_graphics.queue, 1, &submitInfo, VK_NULL_HANDLE), "Failed to submit queue");
-
-	// ==== Submit rendering out for final pass
-
-	// Wait for fences
-	vkWaitForFences(m_vulkanDevice->device, 1, &m_graphics.fences[imageIndex], true, UINT64_MAX);
-	vkResetFences(m_vulkanDevice->device, 1, &m_graphics.fences[imageIndex]);
-
-	// Wait for offscreen semaphore
-	submitInfo.pWaitSemaphores = &m_deferred.semaphore;
-	// Signal ready with render complete semaphpre
-	submitInfo.pSignalSemaphores = &m_renderFinishedSemaphore;
-
-	submitInfo.pCommandBuffers = &m_graphics.commandBuffers[imageIndex];
-	CheckVulkanResult(vkQueueSubmit(m_graphics.queue, 1, &submitInfo, m_graphics.fences[imageIndex]), "Failed to submit queue");
-
-	// Present swapchain image! Use the signal semaphore for present swapchain to wait for the next one
-	std::vector<VkSwapchainKHR> swapchains = { m_vulkanDevice->m_swapchain.swapchain };
-	VkPresentInfoKHR presentInfo = MakePresentInfoKHR(
-		signalSemaphores,
-		swapchains,
-		&imageIndex
+	m_vulkanDevice->QueueNewSubmit(
+		{ m_deferred.commandBuffer },
+		{ m_imageAvailableSemaphore },
+		{ m_deferred.semaphore },
+		{}
 	);
 
-	vkQueuePresentKHR(m_graphics.queue, &presentInfo);
+	// ==== Submit rendering out for final pass
+	m_vulkanDevice->QueueNewSubmit(
+		{ m_graphics.commandBuffers[imageIndex] },
+		{ m_deferred.semaphore },
+		{ m_renderFinishedSemaphore },
+		{ m_graphics.fences[imageIndex] } 
+	);
 
+	m_vulkanDevice->PresentSwapchain({ m_renderFinishedSemaphore }, &imageIndex);
+	
 	// ===== Raytracing
-
-	// Submit compute commands
-	// Use a fence to ensure that compute command buffer has finished executing before using it again
 	vkWaitForFences(m_vulkanDevice->device, 1, &m_raytrace.fence, VK_TRUE, UINT64_MAX);
 	vkResetFences(m_vulkanDevice->device, 1, &m_raytrace.fence);
-
 	VkSubmitInfo computeSubmitInfo = {};
 	computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	computeSubmitInfo.pNext = NULL;
@@ -260,35 +210,13 @@ void VulkanHybridRenderer::RebuildCommandBuffers()
 void VulkanHybridRenderer::PrepareSkybox() {
 
 	m_logger->info<std::string>("Prepare skybox");
-	std::vector<uint16_t> indices;
-	std::vector<SPolygonVertexLayout> vertices;
-	Cube box(vec3(0), vec3(1000));
-	box.GenerateVertices(0, indices, vertices);
-	m_skybox.m_buffers.skyboxBuffer.CreatePolygon(
-		m_vulkanDevice, 
-		indices, 
-		vertices
-		);
+	m_skybox.skybox = Skybox(m_vulkanDevice, "textures/Environment/MonValley/Unfiltered_HDR.dds");
 
-	PrepareSkyboxCubemap();
 	PrepareSkyboxDescriptorLayout();
 	PrepareSkyboxDescriptorSet();
 	PrepareSkyboxPipeline();
 }
 
-void VulkanHybridRenderer::PrepareSkyboxCubemap() {
-
-	// Load skybox
-	m_skybox.envmap.CreateCubemapFromFile(
-		m_vulkanDevice,
-		//"textures/skyboxes/SkyboxSet1/CloudyLightRays/CloudyLightRaysBack2048.png",
-		"textures/Environment/MonValley/Unfiltered_HDR.dds",
-		//"textures/cubemap_space.ktx",
-		VK_FORMAT_R32G32B32A32_SFLOAT,
-		VK_IMAGE_USAGE_SAMPLED_BIT
-	);
-
-}
 
 void VulkanHybridRenderer::PrepareSkyboxDescriptorLayout() {
 	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
@@ -351,7 +279,7 @@ void VulkanHybridRenderer::PrepareSkyboxDescriptorSet() {
 			m_skybox.descriptorSet,
 			1, // binding
 			1, // descriptor count
-			&m_skybox.envmap.descriptor
+			&m_skybox.skybox.Cubemap().descriptor
 		)
 	};
 
@@ -428,12 +356,12 @@ void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachmentState.colorWriteMask = 0xF;
 	colorBlendAttachmentState.blendEnable = VK_TRUE;
-	colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_MAX;
+	colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
 	colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
 	colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	//colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_MAX;
-	//colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	//colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+	colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_MAX;
+	colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
 
 	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
 		colorBlendAttachmentState
@@ -1367,13 +1295,33 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 		{
 			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
 			std::vector<VkDeviceSize> skyboxOffset = {
-				m_skybox.m_buffers.skyboxBuffer.offsets.at(POLYGON),
+				m_skybox.skybox.Buffer().offsets.at(POLYGON),
 			};
 
-			vkCmdBindDescriptorSets(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipelineLayout, 0, 1, &m_skybox.descriptorSet, 0, NULL);
-			vkCmdBindVertexBuffers(m_graphics.commandBuffers[i], 0, 1, &m_skybox.m_buffers.skyboxBuffer.storageBuffer.buffer, skyboxOffset.data());
-			vkCmdBindIndexBuffer(m_graphics.commandBuffers[i], m_skybox.m_buffers.skyboxBuffer.storageBuffer.buffer, m_skybox.m_buffers.skyboxBuffer.offsets.at(INDEX), VK_INDEX_TYPE_UINT16);
-			vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_skybox.m_buffers.skyboxBuffer.indexCount, 1, 0, 0, 0);
+			vkCmdBindDescriptorSets(
+				m_graphics.commandBuffers[i], 
+				VK_PIPELINE_BIND_POINT_GRAPHICS, 
+				m_skybox.pipelineLayout, 
+				0, 
+				1, 
+				&m_skybox.descriptorSet, 
+				0, 
+				NULL);
+			vkCmdBindVertexBuffers(
+				m_graphics.commandBuffers[i], 
+				0, 
+				1, 
+				&m_skybox.skybox.Buffer().storageBuffer.buffer, 
+				skyboxOffset.data()
+				);
+			vkCmdBindIndexBuffer(
+				m_graphics.commandBuffers[i], 
+				m_skybox.skybox.Buffer().storageBuffer.buffer, 
+				m_skybox.skybox.Buffer().offsets.at(INDEX), 
+				VK_INDEX_TYPE_UINT16);
+			vkCmdDrawIndexed(\
+				m_graphics.commandBuffers[i], 
+				m_skybox.skybox.Buffer().indexCount, 1, 0, 0, 0);
 		}
 
 		// Record end renderpass
@@ -2075,12 +2023,6 @@ void VulkanHybridRenderer::PrepareComputeRaytraceDescriptorLayout() {
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			VK_SHADER_STAGE_COMPUTE_BIT
 		),
-		// Binding 11 : Env map
-		MakeDescriptorSetLayoutBinding(
-			11,
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			VK_SHADER_STAGE_COMPUTE_BIT
-		)
 	};
 
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo =
@@ -2201,14 +2143,6 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			10, // Binding 10
 			1,
 			&m_raytrace.buffers.spheres.descriptor
-		),
-		// Binding 11 : envr map
-		MakeWriteDescriptorSet(
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			m_raytrace.descriptorSet,
-			11, // Binding 10
-			1,
-			&m_skybox.envmap.descriptor
 		),
 	};
 

@@ -172,10 +172,12 @@
     <ClInclude Include="src\accel\SBVH.h" />
     <ClInclude Include="src\geometry\materials\MetalMaterial.h" />
     <ClInclude Include="src\geometry\materials\TranslucentMaterial.h" />
+    <ClInclude Include="src\geometry\Skybox.h" />
     <ClInclude Include="src\geometry\Transform.h" />
+    <ClInclude Include="src\ImprovedNoise.h" />
     <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanHybridRenderer.h" />
-    <ClInclude Include="src\scene\Model.h" />
+    <ClInclude Include="src\geometry\Model.h" />
     <ClInclude Include="src\Texture.h" />
     <ClInclude Include="src\MathUtil.h" />
     <ClInclude Include="src\renderer\Film.h" />

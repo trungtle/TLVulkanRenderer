@@ -67,5 +67,7 @@ namespace VulkanBuffer {
 			const std::vector<uint16_t>& indices,
 			const std::vector<SPolygonVertexLayout>& vertices
 		);
+
+		void Destroy();
 	};
 }

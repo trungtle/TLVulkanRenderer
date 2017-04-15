@@ -1029,6 +1029,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 									STBI_rgb_alpha
 								);
 
+								
 								texture = new ImageTexture(
 									image.name,
 									image.image,

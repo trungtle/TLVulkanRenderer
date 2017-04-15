@@ -647,6 +647,66 @@ VulkanDevice::GetMemoryType(
 	throw std::runtime_error("Failed to find a suitable memory type");
 }
 
+void VulkanDevice::AcquireSwapchain(
+	VkSemaphore& semaphore,
+	uint32_t* imageIndex
+	) 
+{
+	// Acquire the swapchain
+	vkAcquireNextImageKHR(
+		device,
+		m_swapchain.swapchain,
+		UINT64_MAX, // Timeout
+		semaphore,
+		VK_NULL_HANDLE,
+		imageIndex
+	);
+}
+
+void VulkanDevice::PresentSwapchain(
+	const std::vector<VkSemaphore>& signalSemaphores,
+	uint32_t* imageIndex
+	) 
+{
+	// Present swapchain image! Use the signal semaphore for present swapchain to wait for the next one
+	std::vector<VkSwapchainKHR> swapchains = { m_swapchain.swapchain };
+	VkPresentInfoKHR presentInfo = VulkanUtil::Make::MakePresentInfoKHR(
+		signalSemaphores,
+		swapchains,
+		imageIndex
+	);
+
+	vkQueuePresentKHR(m_graphicsDeviceQueue.queue, &presentInfo);
+}
+
+void VulkanDevice::QueueNewSubmit(
+	const std::vector<VkCommandBuffer>& cmdBuffers,
+	const std::vector<VkSemaphore>& waitSemaphores,
+	const std::vector<VkSemaphore>& signalSemaphores,
+	const std::vector<VkFence>& fences
+	) 
+{
+
+	// Wait for fences
+	if (fences.size())
+	{
+		vkWaitForFences(device, fences.size(), fences.data(), true, UINT64_MAX);
+		vkResetFences(device, fences.size(), fences.data());
+	}
+
+	// Submit command buffers
+	std::vector<VkPipelineStageFlags> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkSubmitInfo submitInfo = VulkanUtil::Make::MakeSubmitInfo(
+		cmdBuffers,
+		waitSemaphores,
+		signalSemaphores,
+		waitStages
+	);
+
+	VulkanUtil::CheckVulkanResult(vkQueueSubmit(m_graphicsDeviceQueue.queue, 1, &submitInfo, fences.size() ? fences[0] : VK_NULL_HANDLE), "Failed to submit queue");
+
+}
+
 void
 VulkanDevice::CreateBuffer(
 	const VkDeviceSize size,

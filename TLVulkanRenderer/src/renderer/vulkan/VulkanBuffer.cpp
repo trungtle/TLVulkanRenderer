@@ -296,3 +296,7 @@ VulkanBuffer::VertexBuffer::CreatePolygon(
 
 	indexCount = indices.size();
 }
+
+void VulkanBuffer::VertexBuffer::Destroy() {
+	this->storageBuffer.Destroy();
+}

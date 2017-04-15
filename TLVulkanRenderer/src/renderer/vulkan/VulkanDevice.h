@@ -135,6 +135,24 @@ public:
 		, VkMemoryPropertyFlags propertyFlags
 	) const;
 
+	void AcquireSwapchain(
+		VkSemaphore& semaphore,
+		uint32_t* imageIndex
+		);
+
+	void PresentSwapchain(
+		const std::vector<VkSemaphore>& signalSemaphores,
+		uint32_t* imageIndex
+
+		);
+
+	void QueueNewSubmit(
+		const std::vector<VkCommandBuffer>& cmdBuffers,
+		const std::vector<VkSemaphore>& waitSemaphores,
+		const std::vector<VkSemaphore>& signalSemaphores,
+		const std::vector<VkFence>& fences
+		);
+
 	void
 	CreateBuffer(
 		const VkDeviceSize size,
