@@ -319,26 +319,13 @@ namespace VulkanImage
 			subresourceRange
 		);
 
-		// Create sampler
-		VkSamplerCreateInfo samplerCreateInfo = MakeSamplerCreateInfo(
-			VK_FILTER_LINEAR,
-			VK_FILTER_LINEAR,
-			VK_SAMPLER_MIPMAP_MODE_LINEAR,
-			VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-			VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-			VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-			0.0f,
-			8,
-			VK_COMPARE_OP_NEVER,
-			0.0f,
-			VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
-		);
-			
 		if (sampler != VK_NULL_HANDLE) {
 			vkDestroySampler(m_device->device, sampler, nullptr);
 		}
 
 		// Create sampler
+		VkSamplerCreateInfo samplerCreateInfo;
+
 		samplerCreateInfo = {};
 		samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		samplerCreateInfo.magFilter = VK_FILTER_LINEAR;

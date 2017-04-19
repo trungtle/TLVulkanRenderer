@@ -403,6 +403,7 @@ Since my camera isn't initialized from glTF file but manually hard-coded, some s
  - [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF) by [AnalyticalGraphicsInc](https://github.com/AnalyticalGraphicsInc)
  - [spdlog](https://github.com/gabime/spdlog) by [gabime](https://github.com/gabime/) (see LICENSE for details on LICENSE)
  - [pcg](http://www.pcg-random.org/)
+ - [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h) by [Sean Barrett](https://github.com/nothings)
 
 # Vulkan References
 

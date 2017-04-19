@@ -350,6 +350,7 @@
     <ClInclude Include="src\ImprovedNoise.h" />
     <ClInclude Include="src\geometry\Skybox.h" />
     <ClInclude Include="src\geometry\Model.h" />
+    <ClInclude Include="thirdparty\stb\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

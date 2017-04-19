@@ -393,6 +393,7 @@
     <ClInclude Include="thirdparty\glm\vec4.hpp" />
     <ClInclude Include="thirdparty\glm\vector_relational.hpp" />
     <ClInclude Include="thirdparty\pcg\pcg_basic.h" />
+    <ClInclude Include="thirdparty\stb\stb_image.h" />
     <ClInclude Include="thirdparty\tinygltfloader\picojson.h" />
     <ClInclude Include="thirdparty\tinygltfloader\stb_image.h" />
     <ClInclude Include="thirdparty\tinygltfloader\tiny_gltf_loader.h" />

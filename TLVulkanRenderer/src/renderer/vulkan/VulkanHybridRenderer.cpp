@@ -113,6 +113,9 @@ VulkanHybridRenderer::Render() {
 
 VulkanHybridRenderer::~VulkanHybridRenderer() {
 
+	
+	delete m_skybox.skybox;
+
 	m_deferred.buffers.mvpUnifStorage.Destroy();
 
 	// Flush device to make sure all resources can be freed 
@@ -210,8 +213,8 @@ void VulkanHybridRenderer::RebuildCommandBuffers()
 void VulkanHybridRenderer::PrepareSkybox() {
 
 	m_logger->info<std::string>("Prepare skybox");
-	m_skybox.skybox = Skybox(m_vulkanDevice, "textures/Environment/MonValley/Unfiltered_HDR.dds");
-
+	m_skybox.skybox = new Skybox(m_vulkanDevice, "textures/Environment/MonValley/Unfiltered_HDR.dds");
+	
 	PrepareSkyboxDescriptorLayout();
 	PrepareSkyboxDescriptorSet();
 	PrepareSkyboxPipeline();
@@ -279,7 +282,7 @@ void VulkanHybridRenderer::PrepareSkyboxDescriptorSet() {
 			m_skybox.descriptorSet,
 			1, // binding
 			1, // descriptor count
-			&m_skybox.skybox.Cubemap().descriptor
+			&m_skybox.skybox->Cubemap().descriptor
 		)
 	};
 
@@ -1295,7 +1298,7 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 		{
 			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
 			std::vector<VkDeviceSize> skyboxOffset = {
-				m_skybox.skybox.Buffer().offsets.at(POLYGON),
+				m_skybox.skybox->Buffer().offsets.at(POLYGON),
 			};
 
 			vkCmdBindDescriptorSets(
@@ -1311,17 +1314,17 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 				m_graphics.commandBuffers[i], 
 				0, 
 				1, 
-				&m_skybox.skybox.Buffer().storageBuffer.buffer, 
+				&m_skybox.skybox->Buffer().storageBuffer.buffer, 
 				skyboxOffset.data()
 				);
 			vkCmdBindIndexBuffer(
 				m_graphics.commandBuffers[i], 
-				m_skybox.skybox.Buffer().storageBuffer.buffer, 
-				m_skybox.skybox.Buffer().offsets.at(INDEX), 
+				m_skybox.skybox->Buffer().storageBuffer.buffer, 
+				m_skybox.skybox->Buffer().offsets.at(INDEX),
 				VK_INDEX_TYPE_UINT16);
 			vkCmdDrawIndexed(\
 				m_graphics.commandBuffers[i], 
-				m_skybox.skybox.Buffer().indexCount, 1, 0, 0, 0);
+				m_skybox.skybox->Buffer().indexCount, 1, 0, 0, 0);
 		}
 
 		// Record end renderpass
@@ -1901,12 +1904,12 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 
 	// White
 	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -5.0f, 0.0f, 1.0f);
-	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(0.8f, 0.8f, 0.7f);
+	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(300, 300, 300);
 	m_deferred.lightsUnif.m_pointLights[0].radius = 100.0f;
 
 	// Red
 	m_deferred.lightsUnif.m_pointLights[1].position = glm::vec4(-2.0f, -2.0f, 0.0f, 0.0f);
-	m_deferred.lightsUnif.m_pointLights[1].color = glm::vec3(0.6f, 0.2f, 0.2f);
+	m_deferred.lightsUnif.m_pointLights[1].color = glm::vec3(300, 300, 300);
 	m_deferred.lightsUnif.m_pointLights[1].radius = 10.0f;
 	// Blue
 	m_deferred.lightsUnif.m_pointLights[2].position = glm::vec4(2.0f, 0.0f, 0.0f, 0.0f);
@@ -2021,6 +2024,18 @@ void VulkanHybridRenderer::PrepareComputeRaytraceDescriptorLayout() {
 		MakeDescriptorSetLayoutBinding(
 			10,
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 11 : radiance map
+		MakeDescriptorSetLayoutBinding(
+			11,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 12 : irradiance map
+		MakeDescriptorSetLayoutBinding(
+			12,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_COMPUTE_BIT
 		),
 	};
@@ -2143,6 +2158,22 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			10, // Binding 10
 			1,
 			&m_raytrace.buffers.spheres.descriptor
+		),
+		// Binding 11 : radiance map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			11, // Binding 11
+			1,
+			&m_skybox.skybox->RadianceMap().descriptor
+		),
+		// Binding 12 : irradiance map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			12, // Binding 11
+			1,
+			&m_skybox.skybox->IrradianceMap().descriptor
 		),
 	};
 
@@ -2494,10 +2525,11 @@ void VulkanHybridRenderer::UpdateComputeRaytraceUniform()
 	{
 		m_raytrace.ubo.m_lights[i] = m_deferred.lightsUnif.m_pointLights[i];
 	}
-	m_raytrace.ubo.m_lightCount = 1;
+	m_raytrace.ubo.m_lightCount = 2;
 	m_raytrace.ubo.m_materialCount = m_scene->materials.size();
+
 	m_vulkanDevice->MapMemory(
-		&m_raytrace.ubo.m_cameraPosition,
+		&m_raytrace.ubo,
 		m_raytrace.buffers.uniform.memory,
 		sizeof(m_raytrace.ubo)
 	);

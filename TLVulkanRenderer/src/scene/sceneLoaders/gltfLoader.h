@@ -1,5 +1,4 @@
 #pragma once
-#include <map>
 #include "tinygltfloader/tiny_gltf_loader.h"
 #include "SceneLoader.h"
 

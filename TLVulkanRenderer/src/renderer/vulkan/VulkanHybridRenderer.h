@@ -178,7 +178,7 @@ protected:
 		VkPipelineLayout pipelineLayout;
 		VkPipeline pipeline;
 
-		Skybox skybox;
+		Skybox* skybox;
 	} m_skybox;
 
 	// -----------
