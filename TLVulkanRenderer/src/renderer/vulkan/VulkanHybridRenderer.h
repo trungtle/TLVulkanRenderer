@@ -396,4 +396,6 @@ protected:
 	} m_raytrace;
 
 	VulkanImage::Image m_stagingImage;
+
+	std::vector<PBRMaterial> pbrMaterials;
 };

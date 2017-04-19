@@ -55,6 +55,7 @@
     <ClCompile Include="thirdparty\pcg\pcg_basic.c" />
     <ClCompile Include="src\lights\DirectionalLight.h" />
     <ClCompile Include="thirdparty\glm\detail\glm.cpp" />
+    <ClCompile Include="src\TimeCounter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thirdparty\spdlog\include\spdlog\async_logger.h">
@@ -351,6 +352,7 @@
     <ClInclude Include="src\geometry\Skybox.h" />
     <ClInclude Include="src\geometry\Model.h" />
     <ClInclude Include="thirdparty\stb\stb_image.h" />
+    <ClInclude Include="src\TimeCounter.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

@@ -14,7 +14,7 @@ public:
 
 		std::vector<uint16_t> indices;
 		std::vector<SPolygonVertexLayout> vertices;
-		Cube box(vec3(0), vec3(100));
+		Cube box(vec3(0), vec3(1000));
 		box.GenerateVertices(0, indices, vertices);
 		m_buffer.CreatePolygon(
 			device,

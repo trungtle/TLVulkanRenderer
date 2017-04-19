@@ -201,6 +201,7 @@
     <ClInclude Include="src\scene\Scene.h" />
     <ClInclude Include="src\scene\sceneLoaders\SceneLoader.h" />
     <ClInclude Include="src\scene\SceneUtil.h" />
+    <ClInclude Include="src\TimeCounter.h" />
     <ClInclude Include="src\Typedef.h" />
     <ClInclude Include="src\Utilities.h" />
     <ClInclude Include="thirdparty\glfw-3.2.1.WIN64\include\glfw3.h" />
@@ -588,6 +589,7 @@
     <ClCompile Include="src\scene\Camera.cpp" />
     <ClCompile Include="src\scene\Scene.cpp" />
     <ClCompile Include="src\scene\sceneLoaders\gltfLoader.cpp" />
+    <ClCompile Include="src\TimeCounter.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
     <ClCompile Include="thirdparty\glm\detail\glm.cpp" />
     <ClCompile Include="thirdparty\pcg\pcg_basic.c" />

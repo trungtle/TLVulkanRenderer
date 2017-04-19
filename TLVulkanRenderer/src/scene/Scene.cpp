@@ -7,6 +7,7 @@
 #include "geometry/materials/GlassMaterial.h"
 #include "geometry/materials/TranslucentMaterial.h"
 #include "geometry/Cube.h"
+#include "TimeCounter.h"
 #include <algorithm>
 
 Scene::Scene(
@@ -24,9 +25,10 @@ Scene::Scene(
 	// Construct SBVH
 	m_accel.reset(new SBVH(
 		100,
-		SBVH::Spatial
+		SBVH::SAH
 		));
 
+	TimeCounter::GetInstance()->NewCounter("SBVHBuild");
 	ParseSceneFile(fileName);
 	PrepareTestScene();
 }
@@ -237,8 +239,11 @@ void Scene::PrepareTestScene()
 
 	if (m_useAccel)
 	{
+		TimeCounter::GetInstance()->BeginRecord("SBVHBuild");
 		m_accel->Build(geometries);
+		TimeCounter::GetInstance()->EndRecord("SBVHBuild");
 		m_accel->PrintStats();
+		std::cout << "SBVH Build time: " << TimeCounter::GetInstance()->GetAverageRunTime("SBVHBuild") << " ms" << std::endl;
 	}
 
 	std::cout << "Number of triangles: " << indices.size() << std::endl;

@@ -3,6 +3,7 @@
 #include "Utilities.h"
 #include "scene/Camera.h"
 #include "accel/SBVH.h"
+#include "TimeCounter.h"
 
 VulkanHybridRenderer::VulkanHybridRenderer(
 	GLFWwindow* window,
@@ -73,6 +74,8 @@ VulkanHybridRenderer::Render() {
 		//m_logger->info("{0}", ms);
 	}
 
+	TimeCounter::GetInstance()->BeginRecord("Render");
+
 	uint32_t imageIndex;
 
 	// Acquire the swapchain
@@ -109,6 +112,12 @@ VulkanHybridRenderer::Render() {
 	computeSubmitInfo.pCommandBuffers = &m_raytrace.commandBuffer;
 
 	CheckVulkanResult(vkQueueSubmit(m_compute.queue, 1, &computeSubmitInfo, m_raytrace.fence), "failed to submit queue");
+
+	TimeCounter::GetInstance()->EndRecord("Render");
+
+	if (TimeCounter::GetInstance()->ReachedMaxSamples("Render")) {
+		//m_logger->info("Render time: {0} ms", TimeCounter::GetInstance()->GetAverageRunTime("Render"));
+	}
 }
 
 VulkanHybridRenderer::~VulkanHybridRenderer() {
@@ -149,6 +158,12 @@ VulkanHybridRenderer::~VulkanHybridRenderer() {
 }
 
 void VulkanHybridRenderer::Prepare() {
+
+	TimeCounter::GetInstance()->NewCounter("Render");
+	TimeCounter::GetInstance()->NewCounter("Update");
+	TimeCounter::GetInstance()->NewCounter("Prepare");
+
+
 	PrepareVertexBuffers();
 	PrepareDescriptorPool();
 	PrepareTextures();
@@ -1899,7 +1914,7 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	static float timer = 0.0f;
-	timer += 0.005f;
+	//timer += 0.005f;
 	float SPEED = 32.0f;
 
 	// White
@@ -1948,6 +1963,20 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 void
 VulkanHybridRenderer::PrepareComputeRaytrace() {
 	m_logger->info<std::string>("Prepare compute ray trace");
+
+	// Setup some default materials (source: https://seblagarde.wordpress.com/2011/08/17/feeding-a-physical-based-lighting-mode/)
+	pbrMaterials.push_back(PBRMaterial("Gold", glm::vec3(1.0f, 0.765557f, 0.336057f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Copper", glm::vec3(0.955008f, 0.637427f, 0.538163f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Chromium", glm::vec3(0.549585f, 0.556114f, 0.554256f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Nickel", glm::vec3(0.659777f, 0.608679f, 0.525649f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Titanium", glm::vec3(0.541931f, 0.496791f, 0.449419f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Cobalt", glm::vec3(0.662124f, 0.654864f, 0.633732f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Platinum", glm::vec3(0.672411f, 0.637331f, 0.585456f), 0.1f, 1.0f));
+	// Testing materials
+	pbrMaterials.push_back(PBRMaterial("White", glm::vec3(1.0f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Red", glm::vec3(1.0f, 0.0f, 0.0f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Blue", glm::vec3(0.0f, 0.0f, 1.0f), 0.1f, 1.0f));
+	pbrMaterials.push_back(PBRMaterial("Black", glm::vec3(0.0f), 0.1f, 1.0f));
 
 	PrepareComputeRaytraceTextures();
 	PrepareComputeRaytraceStorageBuffer();
@@ -2053,6 +2082,14 @@ void VulkanHybridRenderer::PrepareComputeRaytraceDescriptorLayout() {
 
 	// -- Create pipeline layout
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = MakePipelineLayoutCreateInfo(&m_raytrace.descriptorSetLayout);
+
+
+	std::vector<VkPushConstantRange> pushConstantRanges = {
+		MakePushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(PBRMaterial), 0),
+	};
+
+	pipelineLayoutCreateInfo.pushConstantRangeCount = pushConstantRanges.size();
+	pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
 
 	CheckVulkanResult(
 		vkCreatePipelineLayout(m_vulkanDevice->device, &pipelineLayoutCreateInfo, nullptr, &m_raytrace.pipelineLayout),
@@ -2506,6 +2543,7 @@ VulkanHybridRenderer::BuildComputeRaytraceCommandBuffer() {
 
 	// Bind descriptor sets
 	vkCmdBindDescriptorSets(m_raytrace.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_raytrace.pipelineLayout, 0, 1, &m_raytrace.descriptorSet, 0, nullptr);
+	vkCmdPushConstants(m_raytrace.commandBuffer, m_raytrace.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PBRMaterial), &pbrMaterials[0]);
 
 	vkCmdDispatch(m_raytrace.commandBuffer, m_raytrace.storageRaytraceImage.width / 16, m_raytrace.storageRaytraceImage.height / 16, 1);
 

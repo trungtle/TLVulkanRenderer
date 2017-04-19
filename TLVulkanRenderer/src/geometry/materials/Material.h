@@ -7,6 +7,19 @@
 
 class Intersection;
 
+
+struct PBRMaterial {
+	float roughness;
+	float metallic;
+	float specular;
+	float r, g, b;	// Color components as single floats because we use push constants
+	std::string name;
+	PBRMaterial() {};
+	PBRMaterial(std::string n, glm::vec3 c, float r, float m) : name(n), roughness(r), metallic(m), r(c.r), g(c.g), b(c.b) {
+		specular = 0.8f;
+	};
+};
+
 typedef struct MaterialTyp
 {
 	glm::vec4 diffuse;

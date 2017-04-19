@@ -96,9 +96,6 @@ struct Intersection {
 	int objectID;
 };
 
-float roughness = 1.0;
-float metallic = 0.0;
-
 // ==================================
 // BINDINGS
 // ==================================
@@ -158,6 +155,15 @@ layout (std140, binding = 10) buffer Spheres
 
 layout (binding = 11) uniform samplerCube radianceMap;
 layout (binding = 12) uniform samplerCube irradianceMap;
+
+layout(push_constant) uniform PushConsts {
+	layout(offset = 0) float roughness;
+	layout(offset = 4) float metallic;
+	layout(offset = 8) float specular;
+	layout(offset = 12) float r;
+	layout(offset = 16) float g;
+	layout(offset = 20) float b;
+} pbrMaterial;
 
 // ==================================
 // UTILITIES
@@ -686,10 +692,12 @@ void shade(
 	path.remainingBounces = 0;
 	int MAX_LIGHTS = 10;
 
+	float roughness = 1.0;//pbrMaterial.roughness;
+	float metallic = 0.0;//pbrMaterial.metallic;
 	vec3 N = normalize(isx.hitNormal);
 	vec3 V = normalize(vec3(ubo.cameraPosition) - isx.hitPoint);
 	vec3 R = reflect(-V, N);
-	vec3 albedo = path.color;
+	vec3 albedo = path.color;// * vec3(pbrMaterial.r, pbrMaterial.g, pbrMaterial.b);
 	vec3 F0 = vec3(0.04);
 	F0 = mix(F0, albedo, metallic);
 

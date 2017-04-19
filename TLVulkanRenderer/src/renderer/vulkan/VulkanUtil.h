@@ -51,6 +51,18 @@ namespace VulkanUtil {
 			uint32_t bindingCount = 1
 		);
 
+		inline VkPushConstantRange MakePushConstantRange(
+			VkShaderStageFlags stageFlags,
+			uint32_t size,
+			uint32_t offset)
+		{
+			VkPushConstantRange pushConstantRange{};
+			pushConstantRange.stageFlags = stageFlags;
+			pushConstantRange.offset = offset;
+			pushConstantRange.size = size;
+			return pushConstantRange;
+		}
+
 		VkDescriptorSetAllocateInfo
 		MakeDescriptorSetAllocateInfo(
 			VkDescriptorPool descriptorPool,
