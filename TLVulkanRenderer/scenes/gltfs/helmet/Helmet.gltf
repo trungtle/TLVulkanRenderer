@@ -93,22 +93,22 @@
 	],
 	"images": {
 		"image_Default_albedo_9098": {
-			"uri": "Default_albedo.jpg"
+			"uri": "Default_albedo.png"
 		},
 		"image_Default_MetalSmooth_21596_metallic": {
-			"uri": "Default_MetalSmooth_metallic.jpg"
+			"uri": "Default_MetalSmooth_metallic.png"
 		},
 		"image_Default_MetalSmooth_21596_roughness": {
-			"uri": "Default_MetalSmooth_roughness.jpg"
+			"uri": "Default_MetalSmooth_roughness.png"
 		},
 		"image_Default_normal_22700": {
-			"uri": "Default_normal.jpg"
+			"uri": "Default_normal.png"
 		},
 		"image_Default_AO_25064": {
-			"uri": "Default_AO.jpg"
+			"uri": "Default_AO.png"
 		},
 		"image_Default_emissive_22780": {
-			"uri": "Default_emissive.jpg"
+			"uri": "Default_emissive.png"
 		}
 	},
 	"materials": {

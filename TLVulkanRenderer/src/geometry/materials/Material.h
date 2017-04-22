@@ -35,7 +35,7 @@ typedef struct MaterialTyp
 class Material {
 public:
 	Material()
-		: m_castShadow(false), m_receiveShadow(false), m_translucent(false), m_shininess(0), m_refracti(0), m_reflectivity(0), m_texture(nullptr) {
+		: m_castShadow(false), m_receiveShadow(false), m_translucent(false), m_shininess(0), m_refracti(0), m_reflectivity(0), m_albedoMap(nullptr) {
 	};
 	Material(MaterialPacked packed, Texture* texture = nullptr) :
 		m_castShadow(false), // Optimize out shadows calculation
@@ -50,7 +50,7 @@ public:
 		m_shininess(packed.shininess),
 		m_refracti(packed.transparency),
 		m_reflectivity(0.0),
-		m_texture(texture)
+		m_albedoMap(texture)
 	{};
 	virtual ~Material() {}
 
@@ -75,6 +75,9 @@ public:
 	float		m_shininess;
 	float		m_refracti;
 	float	    m_reflectivity;
-	Texture*	m_texture;
-	VulkanImage::Image m_vkImage;
+
+	Texture*	m_albedoMap;
+	VulkanImage::Image m_vkAlbedoMap;
+
+
 };

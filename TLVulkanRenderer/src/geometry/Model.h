@@ -3,6 +3,7 @@
 #include <vector>
 #include <Typedef.h>
 #include "renderer/vulkan/VulkanImage.h"
+#include <memory>
 
 using namespace std;
 
@@ -28,11 +29,35 @@ typedef struct
 	int		componentTypeByteSize;
 } AttribInfo;
 
+enum EMap {
+	ALBEDO_MAP,
+	NORMAL_MAP,
+	ROUGHNESS_MAP,
+	METALLIC_MAP,
+	AO_MAP,
+	EMISSIVE_MAP
+};
 
-struct Model
+
+class Model
 {
+public:
+
+	Model() : descriptorSet(nullptr) 
+	{};
+
+
+	~Model() {
+		for (auto t : textures) {
+			delete t.second;
+		}
+	}
+
 	map<EAttrib, vector<Byte>> bytes;
 	map<EAttrib, AttribInfo> attribInfo;
-	VulkanImage::Image albedoMap;
-	VulkanImage::Image normalMap;
+	map<EMap, VulkanImage::Image> maps;
+	map<EMap, Texture*> textures;
+
+	VkDescriptorSet descriptorSet;
+
 };

@@ -549,7 +549,7 @@ VulkanCPURaytracer::PrepareGraphicsPipeline()
 }
 
 VkResult VulkanCPURaytracer::PrepareVertexBuffers() {
-	m_graphics.geometryBuffers.clear();
+	m_graphics.vertexBuffers.clear();
 
 	const std::vector<uint16_t> indices = {
 		0, 1, 2,
@@ -630,7 +630,7 @@ VkResult VulkanCPURaytracer::PrepareVertexBuffers() {
 	// Cleanup staging buffer memory
 	staging.Destroy();
 
-	m_graphics.geometryBuffers.push_back(vertexBuffer);
+	m_graphics.vertexBuffers.push_back(vertexBuffer);
 
 	return VK_SUCCESS;
 }
@@ -859,9 +859,9 @@ VkResult VulkanCPURaytracer::BuildCommandBuffers() {
 		scissor.extent = m_vulkanDevice->m_swapchain.extent;
 		vkCmdSetScissor(m_graphics.commandBuffers[i], 0, 1, &scissor);
 
-		for (int b = 0; b < m_graphics.geometryBuffers.size(); ++b)
+		for (int b = 0; b < m_graphics.vertexBuffers.size(); ++b)
 		{
-			VulkanBuffer::VertexBuffer& vertexBuffer = m_graphics.geometryBuffers[b];
+			VulkanBuffer::VertexBuffer& vertexBuffer = m_graphics.vertexBuffers[b];
 
 			// Bind vertex buffer
 			VkBuffer vertexBuffers[] = { vertexBuffer.storageBuffer.buffer, vertexBuffer.storageBuffer.buffer };

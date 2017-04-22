@@ -79,7 +79,7 @@ VulkanRenderer::~VulkanRenderer() {
 
 	vkDestroyDescriptorPool(m_vulkanDevice->device, m_graphics.descriptorPool, nullptr);
 
-	for (VulkanBuffer::VertexBuffer& vertexBuffer : m_graphics.geometryBuffers) {
+	for (VulkanBuffer::VertexBuffer& vertexBuffer : m_graphics.vertexBuffers) {
 		vertexBuffer.storageBuffer.Destroy();
 	}
 
@@ -598,7 +598,7 @@ VkResult VulkanRenderer::PrepareComputeCommandPool()
 
 VkResult
 VulkanRenderer::PrepareVertexBuffers() {
-	m_graphics.geometryBuffers.clear();
+	m_graphics.vertexBuffers.clear();
 
 	for (Model* geomData : m_scene->models) {
 		VulkanBuffer::VertexBuffer geomBuffer;
@@ -660,7 +660,7 @@ VulkanRenderer::PrepareVertexBuffers() {
 		// Cleanup staging buffer memory
 		staging.Destroy();
 
-		m_graphics.geometryBuffers.push_back(geomBuffer);
+		m_graphics.vertexBuffers.push_back(geomBuffer);
 	}
 	return VK_SUCCESS;
 }
@@ -772,8 +772,8 @@ VulkanRenderer::BuildCommandBuffers() {
 		// Record binding the graphics pipeline
 		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.m_pipeline);
 
-		for (int b = 0; b < m_graphics.geometryBuffers.size(); ++b) {
-			VulkanBuffer::VertexBuffer& vertexBuffer = m_graphics.geometryBuffers[b];
+		for (int b = 0; b < m_graphics.vertexBuffers.size(); ++b) {
+			VulkanBuffer::VertexBuffer& vertexBuffer = m_graphics.vertexBuffers[b];
 
 			// Bind vertex buffer
 			VkBuffer vertexBuffers[] = {

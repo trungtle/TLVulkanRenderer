@@ -14,20 +14,17 @@ layout (binding = 0) uniform UBO
 layout (location = 0) in vec3 inPos;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inUV;
-layout (location = 3) in float  inMaterialID;
+layout (location = 3) in vec3 inTangent;
+layout (location = 4) in float  inMaterialID;
 
 //layout (location = 3) in vec3 inColor;
-//layout (location = 4) in vec3 inTangent;
 //layout (location = 5) in float inMaterialIdNormalized;
 
 layout (location = 0) out vec3 outWorldPos;
 layout (location = 1) out vec3 outNormal;
 layout (location = 2) out vec2 outUV;
-layout (location = 3) out float outMaterialID;
-
-//layout (location = 3) out vec3 outColor;
-//layout (location = 4) out vec3 outTangent;
-//layout (location = 5) out float outMaterialIdNormalized;
+layout (location = 3) out vec3 outTangent;
+layout (location = 4) out float outMaterialID;
 
 out gl_PerVertex
 {
@@ -51,13 +48,9 @@ void main()
 	// Normal in world space
 	mat3 mNormal = transpose(inverse(mat3(ubo.model)));
 	outNormal = inNormal;
-	//outTangent = mNormal * normalize(inTangent);
 	
-	// Currently just vertex color
-	//outColor = inColor;
-	
-	// Normalized to 0.0 and 1.0
-	//outMaterialIdNormalized = inMaterialIdNormalized;
+	// Tangent in world space
+	outTangent = mNormal * normalize(inTangent);
 	
 	outMaterialID = inMaterialID;
 }

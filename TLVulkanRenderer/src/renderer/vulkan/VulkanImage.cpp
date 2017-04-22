@@ -129,8 +129,9 @@ namespace VulkanImage
 
 			void* data;
 
-			VkDeviceSize imageSize = m_texture->width() *  m_texture->width() * 4;
+			VkDeviceSize imageSize = m_texture->width() *  m_texture->width() *4;
 			vkMapMemory(device->device, staging.imageMemory, 0, imageSize, 0, &data);
+
 			if (stagingImageLayout.rowPitch == m_texture->width() * 4)
 			{
 				memcpy(data, m_texture->getRawByte(), static_cast<size_t>(imageSize));

@@ -165,7 +165,7 @@ protected:
 		*/
 		VkRenderPass renderPass;
 
-		std::vector<VulkanBuffer::VertexBuffer> geometryBuffers;
+		std::vector<VulkanBuffer::VertexBuffer> vertexBuffers;
 
 		/**
 		* \brief Uniform buffers

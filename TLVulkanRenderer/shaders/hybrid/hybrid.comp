@@ -156,6 +156,12 @@ layout (std140, binding = 10) buffer Spheres
 layout (binding = 11) uniform samplerCube radianceMap;
 layout (binding = 12) uniform samplerCube irradianceMap;
 
+
+layout (binding = 13) uniform sampler2D roughnessMap;
+layout (binding = 14) uniform sampler2D metallicMap;
+layout (binding = 15) uniform sampler2D aoMap;
+layout (binding = 16) uniform sampler2D emissiveMap;
+
 layout(push_constant) uniform PushConsts {
 	layout(offset = 0) float roughness;
 	layout(offset = 4) float metallic;
@@ -830,10 +836,10 @@ void main()
 	shade(isx, path);
 
 	// Trace ray
-	while(path.remainingBounces > 0) {		
-		isx = getIsx(path);
-		shade(isx, path);
-	}
+	//while(path.remainingBounces > 0) {		
+	//	isx = getIsx(path);
+	//	shade(isx, path);
+	//}
 
 	// Color by the number of bounces
 	if (ubo.isColorByRayBounces) {

@@ -5,14 +5,13 @@
 
 
 layout (binding = 1) uniform sampler2D samplerColor;
-//layout (binding = 2) uniform sampler2D samplerNormalMap;
+layout (binding = 2) uniform sampler2D samplerNormalMap;
  
 layout (location = 0) in vec3 inWorldPos;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inUV;
-layout (location = 3) in float inMaterialID;
-//layout (location = 3) in vec3 inColor;
-//layout (location = 4) in vec3 inTangent;
+layout (location = 3) in vec3 inTangent;
+layout (location = 4) in float inMaterialID;
 
 layout (location = 0) out vec4 outPosition;
 layout (location = 1) out vec4 outNormal;
@@ -25,13 +24,13 @@ void main()
 	// Calculate normal in tangent space
 
 	// Optional: read from normal map
-	//vec3 N = normalize(inNormal);
-	//N.y = -N.y;
-	//vec3 T = normalize(inTangent);
-	//vec3 B = cross(N, T);
-	//mat3 TBN = mat3(T, B, N);
-	//vec3 tnorm = TBN * normalize(texture(samplerNormalMap, inUV).xyz * 2.0 - vec3(1.0));
-	//outNormal = vec4(tnorm, 1.0);
+	vec3 N = normalize(inNormal);
+	N.y = -N.y;
+	vec3 T = normalize(inTangent);
+	vec3 B = cross(N, T);
+	mat3 TBN = mat3(T, B, N);
+	vec3 tnorm = TBN * normalize(texture(samplerNormalMap, inUV).xyz * 2.0 - vec3(1.0));
+	outNormal = vec4(tnorm, 1.0);
 	outNormal = vec4(inNormal, 0.0);
 
 	vec4 color = texture(samplerColor, inUV);

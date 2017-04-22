@@ -184,7 +184,13 @@ public:
 		ESplitMethod splitMethod
 	) : m_root(nullptr),
 		m_maxGeomsInNode(maxPrimInNode),
-		m_splitMethod(splitMethod)
+		m_splitMethod(splitMethod),
+		m_depthLimit(30),
+		m_maxDepth(0),
+		m_spatialSplitBudget(10000),
+		m_spatialSplitCount(0),
+		m_numPrimInfos(0)
+
 	{}
 
 	void Build(
@@ -318,14 +324,14 @@ protected:
 
 	void PrintStats();
 
-	SBVHNode* m_root;
-	int m_maxGeomsInNode;
-	ESplitMethod m_splitMethod;
+	SBVHNode*		m_root;
+	int				m_maxGeomsInNode;
+	ESplitMethod	m_splitMethod;
 	std::vector<std::shared_ptr<Geometry>> m_prims;
-	unsigned int m_depthLimit = 20;
-	unsigned int m_maxDepth = 0;
-	size_t m_spatialSplitBudget = 1000;
-	unsigned int m_spatialSplitCount = 0;
-	size_t m_numPrimInfos = 0;
+	unsigned int	m_depthLimit;
+	unsigned int	m_maxDepth;
+	size_t			m_spatialSplitBudget;
+	unsigned int	m_spatialSplitCount;
+	size_t			m_numPrimInfos;
 };
 

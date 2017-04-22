@@ -2115,6 +2115,37 @@ namespace tinygltf
 			}
 		}
 
+		auto extensionsIt = o.find("extensions");
+		if ((extensionsIt != o.end()) && (extensionsIt->second).is<picojson::object>()) {
+			auto extensions = (extensionsIt->second).get<picojson::object>();
+			auto FRAUNHOFER_materials_pbrIt = extensions.find("FRAUNHOFER_materials_pbr");
+			if ((FRAUNHOFER_materials_pbrIt != extensions.end()) && (FRAUNHOFER_materials_pbrIt->second).is<picojson::object>())
+			{
+				auto FRAUNHOFER_materials_pbr = (FRAUNHOFER_materials_pbrIt->second).get<picojson::object>();
+
+				valuesIt = FRAUNHOFER_materials_pbr.find("values");
+
+				if ((valuesIt != FRAUNHOFER_materials_pbr.end()) && (valuesIt->second).is<picojson::object>())
+				{
+					const picojson::object &values_object =
+						(valuesIt->second).get<picojson::object>();
+
+					picojson::object::const_iterator it(values_object.begin());
+					picojson::object::const_iterator itEnd(values_object.end());
+
+					for (; it != itEnd; it++)
+					{
+						Parameter param;
+						if (ParseParameterProperty(&param, err, values_object, it->first,
+							false))
+						{
+							material->values[it->first] = param;
+						}
+					}
+				}
+			}
+		}
+
 		ParseExtrasProperty(&(material->extras), o);
 
 		return true;

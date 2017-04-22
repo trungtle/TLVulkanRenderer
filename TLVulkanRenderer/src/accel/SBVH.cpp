@@ -501,9 +501,27 @@ SBVH::CalculateSpatialSplitCost(
 
 void SBVH::PrintStats()
 {
+	std::cout << "Split method: ";
+	switch (m_splitMethod)
+	{
+		case EqualCounts:
+			std::cout << "Equal counts";
+			break;
+		case SAH:
+			std::cout << "BinnedSAH";
+			break;
+		case Spatial:
+			std::cout << "Spatial split";
+			break;
+	} 
+	std::cout << endl;
+	std::cout << "Number of bins: " << NUM_BUCKET << std::endl;
+	std::cout << "Max geomtry in node: " << m_maxGeomsInNode << std::endl;
 	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
 	std::cout << "Number of spatial splits: " << m_spatialSplitCount << std::endl;
-	std::cout << "Max depth: " << m_maxDepth << std::endl;
+	std::cout << "Spatial split budget: " << m_spatialSplitBudget << std::endl;
+	std::cout << "Highest depth: " << m_maxDepth << std::endl;
+	std::cout << "Depth limit: " << m_depthLimit << std::endl;
 	std::cout << "Temp primitive infos generated: " << m_numPrimInfos << std::endl;
 }
 
@@ -633,7 +651,7 @@ SBVH::BuildRecursive(
 							right.bbox.m_transform = Transform(right.bbox.m_centroid, glm::vec3(0), right.bbox.m_max - right.bbox.m_min);
 
 
-							// Test whether we can unfit this reference if it's overlapping is too small
+							// Test whether we can unsplit this reference if its overlapping area is too small
 							// Remember that spatial split cost is :
 							// COST_TRAVERSAL + COST_INTERSECTION * (count0 * bbox0.GetSurfaceArea() + count1 * bbox1.GetSurfaceArea()) * invAllGeometriesSA;
 

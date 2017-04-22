@@ -24,11 +24,11 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_accel.reset(new SBVH(
-		100,
-		SBVH::SAH
+		10,
+		SBVH::Spatial
 		));
 
-	TimeCounter::GetInstance()->NewCounter("SBVHBuild");
+	TimeCounter::GetInstance()->NewCounter(BUILD_BVH_TIME);
 	ParseSceneFile(fileName);
 	PrepareTestScene();
 }
@@ -239,11 +239,11 @@ void Scene::PrepareTestScene()
 
 	if (m_useAccel)
 	{
-		TimeCounter::GetInstance()->BeginRecord("SBVHBuild");
+		TimeCounter::GetInstance()->BeginRecord(BUILD_BVH_TIME);
 		m_accel->Build(geometries);
-		TimeCounter::GetInstance()->EndRecord("SBVHBuild");
+		TimeCounter::GetInstance()->EndRecord(BUILD_BVH_TIME);
 		m_accel->PrintStats();
-		std::cout << "SBVH Build time: " << TimeCounter::GetInstance()->GetAverageRunTime("SBVHBuild") << " ms" << std::endl;
+		std::cout << "BVH build time: " << TimeCounter::GetInstance()->GetAverageRunTime(BUILD_BVH_TIME) << " ms" << std::endl;
 	}
 
 	std::cout << "Number of triangles: " << indices.size() << std::endl;

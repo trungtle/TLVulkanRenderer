@@ -985,6 +985,19 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 						}
 					}
 
+					// -------- Tangent attribute -----------
+
+					else if (attribute.first.compare("TANGENT") == 0)
+					{
+						attributeType = EAttrib::TANGENT;
+						int tangentCount = accessor.count;
+						glm::vec3* tangents = reinterpret_cast<glm::vec3*>(data.data());
+						for (auto p = 0; p < tangentCount; ++p)
+						{
+							scene->tangents.push_back(tangents[p]);
+						}
+					}
+
 					AttribInfo attributeInfo = {
 						accessor.byteStride,
 						accessor.count,
@@ -1021,6 +1034,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 								int texWidth, texHeight, texChannels;
 								path = GetFilepath(fileName);
 								path += image.uri;
+
 								Byte* imageBytes = stbi_load(
 									path.c_str(),
 									&texWidth,
@@ -1037,6 +1051,8 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 									image.width,
 									image.height
 								);
+
+								model->textures.insert(std::make_pair(ALBEDO_MAP, texture));
 							}
 						}
 						else
@@ -1051,13 +1067,11 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 						auto amb = mat.values.at("ambient").number_array;
 						materialPacked.ambient = glm::vec4(amb.at(0), amb.at(1), amb.at(2), amb.at(3));
 					}
-
 					if (mat.values.find("emission") != mat.values.end())
 					{
 						auto em = mat.values.at("emission").number_array;
 						materialPacked.emission = glm::vec4(em.at(0), em.at(1), em.at(2), em.at(3));
 					}
-
 					if (mat.values.find("specular") != mat.values.end())
 					{
 						auto spec = mat.values.at("specular").number_array;
@@ -1068,7 +1082,6 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 					{
 						materialPacked.shininess = mat.values.at("shininess").number_array.at(0);
 					}
-
 					if (mat.values.find("transparency") != mat.values.end())
 					{
 						materialPacked.transparency = mat.values.at("transparency").number_array.at(0);
@@ -1078,6 +1091,228 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 						materialPacked.transparency = 1.0f;
 					}
 
+
+					if (mat.values.find("baseColorTexture") != mat.values.end())
+					{
+						std::string normalTexName = mat.values.at("baseColorTexture").string_value;
+						if (gltfscene.textures.find(normalTexName) != gltfscene.textures.end())
+						{
+							const tinygltf::Texture& tex = gltfscene.textures.at(normalTexName);
+							if (gltfscene.images.find(tex.source) != gltfscene.images.end())
+							{
+								// Load texture
+								const tinygltf::Image& image = gltfscene.images.at(tex.source);
+
+								// Load texture bytes
+								int texWidth, texHeight, texChannels;
+								path = GetFilepath(fileName);
+								path += image.uri;
+
+								Byte* imageBytes = stbi_load(
+									path.c_str(),
+									&texWidth,
+									&texHeight,
+									&texChannels,
+									STBI_rgb_alpha
+								);
+
+
+								texture = new ImageTexture(
+									image.name,
+									image.image,
+									imageBytes,
+									image.width,
+									image.height
+								);
+
+								model->textures.insert(std::make_pair(ALBEDO_MAP, texture));
+							}
+						}
+					}
+
+					if (mat.values.find("normalTexture") != mat.values.end()) {
+						std::string normalTexName = mat.values.at("normalTexture").string_value;
+						if (gltfscene.textures.find(normalTexName) != gltfscene.textures.end())
+						{
+							const tinygltf::Texture& tex = gltfscene.textures.at(normalTexName);
+							if (gltfscene.images.find(tex.source) != gltfscene.images.end())
+							{
+								// Load texture
+								const tinygltf::Image& image = gltfscene.images.at(tex.source);
+
+								// Load texture bytes
+								int texWidth, texHeight, texChannels;
+								path = GetFilepath(fileName);
+								path += image.uri;
+
+								Byte* imageBytes = stbi_load(
+									path.c_str(),
+									&texWidth,
+									&texHeight,
+									&texChannels,
+									STBI_rgb_alpha
+								);
+
+								texture = new ImageTexture(
+									image.name,
+									image.image,
+									imageBytes,
+									image.width,
+									image.height
+								);
+
+								model->textures.insert(std::make_pair(NORMAL_MAP, texture));
+							}
+						}
+					}
+
+					if (mat.values.find("metallicTexture") != mat.values.end())
+					{
+						std::string texName = mat.values.at("metallicTexture").string_value;
+						if (gltfscene.textures.find(texName) != gltfscene.textures.end())
+						{
+							const tinygltf::Texture& tex = gltfscene.textures.at(texName);
+							if (gltfscene.images.find(tex.source) != gltfscene.images.end())
+							{
+								// Load texture
+								const tinygltf::Image& image = gltfscene.images.at(tex.source);
+
+								// Load texture bytes
+								int texWidth, texHeight, texChannels;
+								path = GetFilepath(fileName);
+								path += image.uri;
+
+								Byte* imageBytes = stbi_load(
+									path.c_str(),
+									&texWidth,
+									&texHeight,
+									&texChannels,
+									STBI_rgb_alpha
+								);
+
+								texture = new ImageTexture(
+									image.name,
+									image.image,
+									imageBytes,
+									image.width,
+									image.height
+								);
+
+								model->textures.insert(std::make_pair(METALLIC_MAP, texture));
+							}
+						}
+					}
+
+					if (mat.values.find("roughnessTexture") != mat.values.end())
+					{
+						std::string texName = mat.values.at("roughnessTexture").string_value;
+						if (gltfscene.textures.find(texName) != gltfscene.textures.end())
+						{
+							const tinygltf::Texture& tex = gltfscene.textures.at(texName);
+							if (gltfscene.images.find(tex.source) != gltfscene.images.end())
+							{
+								// Load texture
+								const tinygltf::Image& image = gltfscene.images.at(tex.source);
+
+								// Load texture bytes
+								int texWidth, texHeight, texChannels;
+								path = GetFilepath(fileName);
+								path += image.uri;
+
+								Byte* imageBytes = stbi_load(
+									path.c_str(),
+									&texWidth,
+									&texHeight,
+									&texChannels,
+									STBI_rgb_alpha
+								);
+
+								texture = new ImageTexture(
+									image.name,
+									image.image,
+									imageBytes,
+									image.width,
+									image.height
+								);
+
+								model->textures.insert(std::make_pair(ROUGHNESS_MAP, texture));
+							}
+						}
+					}
+
+					if (mat.values.find("aoTexture") != mat.values.end())
+					{
+						std::string texName = mat.values.at("aoTexture").string_value;
+						if (gltfscene.textures.find(texName) != gltfscene.textures.end())
+						{
+							const tinygltf::Texture& tex = gltfscene.textures.at(texName);
+							if (gltfscene.images.find(tex.source) != gltfscene.images.end())
+							{
+								// Load texture
+								const tinygltf::Image& image = gltfscene.images.at(tex.source);
+
+								// Load texture bytes
+								int texWidth, texHeight, texChannels;
+								path = GetFilepath(fileName);
+								path += image.uri;
+
+								Byte* imageBytes = stbi_load(
+									path.c_str(),
+									&texWidth,
+									&texHeight,
+									&texChannels,
+									STBI_rgb_alpha
+								);
+
+								texture = new ImageTexture(
+									image.name,
+									image.image,
+									imageBytes,
+									image.width,
+									image.height
+								);
+
+								model->textures.insert(std::make_pair(AO_MAP, texture));
+							}
+						}
+					}
+
+					if (mat.values.find("emissiveTexture") != mat.values.end())
+					{
+						std::string texName = mat.values.at("emissiveTexture").string_value;
+						if (gltfscene.textures.find(texName) != gltfscene.textures.end())
+						{
+							const tinygltf::Texture& tex = gltfscene.textures.at(texName);
+							if (gltfscene.images.find(tex.source) != gltfscene.images.end())
+							{
+								// Load texture
+								const tinygltf::Image& image = gltfscene.images.at(tex.source);
+
+								// Load texture bytes
+								int texWidth, texHeight, texChannels;
+								path = GetFilepath(fileName);
+								path += image.uri;
+
+								Byte* imageBytes = stbi_load(
+									path.c_str(),
+									&texWidth,
+									&texHeight,
+									&texChannels,
+									STBI_rgb_alpha
+								);
+
+								texture = new ImageTexture(
+									image.name,
+									image.image,
+									imageBytes,
+									image.width,
+									image.height
+								);
+
+								model->textures.insert(std::make_pair(EMISSIVE_MAP, texture));
+							}
+						}
+					}
 					scene->materials.push_back(new LambertMaterial(materialPacked, texture));
 					scene->materialPackeds.push_back(materialPacked);
 					++materialId;

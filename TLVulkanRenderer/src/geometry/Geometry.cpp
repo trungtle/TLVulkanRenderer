@@ -130,7 +130,7 @@ Intersection Triangle::GetIntersection(const Ray& r) {
 	isx.hitTangent = normalize(vert0 - isx.hitPoint); // @todo: For now, pick any tangent
 	isx.hitBitangent = glm::cross(isx.hitNormal, isx.hitTangent);
 	isx.t = t;
-	isx.hitTextureColor = m_material->m_texture == nullptr ? checkerTexture.value(uv, isx.hitPoint) : m_material->m_texture->value(uv, isx.hitPoint);
+	isx.hitTextureColor = m_material->m_albedoMap == nullptr ? checkerTexture.value(uv, isx.hitPoint) : m_material->m_albedoMap->value(uv, isx.hitPoint);
 	isx.hitObject = this;
 
 	return isx;

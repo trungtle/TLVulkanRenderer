@@ -393,10 +393,6 @@ cd TLVulkanRenderer/TLVulkanRenderer
  ./../build/Debug/VulkanRenderer.exe scenes/gltfs/duck/duck.gltf
 ```
 
-# Known issues
-
-Since my camera isn't initialized from glTF file but manually hard-coded, some scene might not work correctly.
-
 # Third party
 
  - [tinygltfloader](https://github.com/syoyo/tinygltfloader) by [@soyoyo](https://github.com/syoyo)
@@ -422,4 +418,5 @@ Listing of glTF models and scenes used in this project for testing and demos:
 * [wolf]() by [Rachel Hwang](https://www.linkedin.com/in/rachel-hwang-84a3b989). Model is converted using [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF).
 * [centaur model](http://tf3dm.com/3d-model/free-base-mesh-centaur--67384.html) by [BAQStudio](http://tf3dm.com/user/baqstudio), Model is converted using [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF).
 * Infinite, [3D Head Scan]() by Lee Perry-Smith is licensed under a Creative Commons Attribution 3.0 Unported License. Based on a work at www.triplegangers.com. This distribution was created by Morgan McGuire and Guedis Cardenas http://graphics.cs.williams.edu/data/. See [LICENSE](/gltfs/head/Infinite-Scan_License.txt). Model is converted using [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF).
+* [Boeing747](https://free3d.com/3d-model/boeing-747-26638.html)
 

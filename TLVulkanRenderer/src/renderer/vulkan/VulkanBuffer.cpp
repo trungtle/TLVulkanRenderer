@@ -71,23 +71,20 @@ void VulkanBuffer::VertexBuffer::Create(
 	Model* vertexData
 )
 {
-	// At the mimum we always have indices and position
-	VkDeviceSize offset = 0;
+	VkDeviceSize bufferSize = 0;
 
 	// -- Indices
 	std::vector<Byte>& indexData = vertexData->bytes.at(INDEX);
 	VkDeviceSize indexBufferSize = sizeof(indexData[0]) * indexData.size();
-	VkDeviceSize indexBufferOffset = offset;
+	VkDeviceSize indexBufferOffset = bufferSize;
 	indexCount = indexData.size();
-	offset += indexBufferSize;
+	bufferSize += indexBufferSize;
 
 	// -- Positions
 	std::vector<Byte>& positionData = vertexData->bytes.at(POSITION);
 	VkDeviceSize positionBufferSize = sizeof(positionData[0]) * positionData.size();
-	VkDeviceSize positionBufferOffset = offset;
-	offset += positionBufferSize;
-
-	VkDeviceSize bufferSize = indexBufferSize + positionBufferSize;
+	VkDeviceSize positionBufferOffset = bufferSize;
+	bufferSize += positionBufferSize;
 
 	// -- Normals
 	std::vector<Byte> normalData;
@@ -96,8 +93,7 @@ void VulkanBuffer::VertexBuffer::Create(
 	{
 		normalData = vertexData->bytes.at(NORMAL);
 		normalBufferSize = sizeof(normalData[0]) * normalData.size();
-		normalBufferOffset = offset;
-		offset += normalBufferSize;
+		normalBufferOffset = bufferSize;
 		bufferSize += normalBufferSize;
 	}
 
@@ -109,18 +105,30 @@ void VulkanBuffer::VertexBuffer::Create(
 	{
 		uvData = vertexData->bytes.at(TEXCOORD);
 		uvBufferSize = sizeof(uvData[0]) * uvData.size();
-		uvBufferOffset = offset;
-		offset += uvBufferSize;
+		uvBufferOffset = bufferSize;
 		bufferSize += uvBufferSize;
 	}
+
+	// -- UVs
+	std::vector<Byte> tangentData;
+	VkDeviceSize tangentBufferSize = 0;
+	VkDeviceSize tangentBufferOffset = 0;
+	if (vertexData->bytes.find(TANGENT) != vertexData->bytes.end())
+	{
+		tangentData = vertexData->bytes.at(TANGENT);
+		tangentBufferSize = sizeof(tangentData[0]) * tangentData.size();
+		tangentBufferOffset = bufferSize;
+		bufferSize += tangentBufferSize;
+	}
+
+	// -- Material IDs
 	std::vector<Byte> materialIDData;
 	VkDeviceSize materialIDBufferSize = 0, materialIDBufferOffset = 0;
 	if (vertexData->bytes.find(MATERIALID) != vertexData->bytes.end())
 	{
 		materialIDData = vertexData->bytes.at(MATERIALID);
 		materialIDBufferSize = sizeof(materialIDData[0]) * materialIDData.size();
-		materialIDBufferOffset = offset;
-		offset += materialIDBufferSize;
+		materialIDBufferOffset = bufferSize;
 		bufferSize += materialIDBufferSize;
 	}
 
@@ -128,6 +136,7 @@ void VulkanBuffer::VertexBuffer::Create(
 	this->offsets.insert(std::make_pair(POSITION, positionBufferOffset));
 	this->offsets.insert(std::make_pair(NORMAL, normalBufferOffset));
 	this->offsets.insert(std::make_pair(TEXCOORD, uvBufferOffset));
+	this->offsets.insert(std::make_pair(TANGENT, tangentBufferOffset));
 	this->offsets.insert(std::make_pair(MATERIALID, materialIDBufferOffset));
 
 	// Stage buffer memory on host
@@ -155,6 +164,10 @@ void VulkanBuffer::VertexBuffer::Create(
 	if (vertexData->bytes.find(TEXCOORD) != vertexData->bytes.end())
 	{
 		memcpy((Byte*)data + uvBufferOffset, uvData.data(), static_cast<size_t>(uvBufferSize));
+	}
+	if (vertexData->bytes.find(TANGENT) != vertexData->bytes.end())
+	{
+		memcpy((Byte*)data + tangentBufferOffset, tangentData.data(), static_cast<size_t>(tangentBufferSize));
 	}
 	if (vertexData->bytes.find(MATERIALID) != vertexData->bytes.end())
 	{

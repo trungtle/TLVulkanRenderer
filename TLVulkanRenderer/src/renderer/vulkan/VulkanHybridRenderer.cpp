@@ -17,6 +17,7 @@ VulkanHybridRenderer::VulkanHybridRenderer(
 
 void
 VulkanHybridRenderer::Update() {
+	TimeCounter::BeginRecord(UPDATE_TIME);
 	m_deferred.mvpUnif.m_model = glm::mat4(1.0);
 	m_deferred.mvpUnif.m_projection = m_scene->camera.GetProj();
 	m_deferred.mvpUnif.m_view = m_scene->camera.GetView();
@@ -56,6 +57,7 @@ VulkanHybridRenderer::Update() {
 
 	// -- update onscreen
 	UpdateOnscreenUniform();
+	TimeCounter::EndRecord(UPDATE_TIME);
 }
 
 void
@@ -74,7 +76,7 @@ VulkanHybridRenderer::Render() {
 		//m_logger->info("{0}", ms);
 	}
 
-	TimeCounter::GetInstance()->BeginRecord("Render");
+	TimeCounter::BeginRecord(RENDER_TIME);
 
 	uint32_t imageIndex;
 
@@ -103,6 +105,7 @@ VulkanHybridRenderer::Render() {
 	m_vulkanDevice->PresentSwapchain({ m_renderFinishedSemaphore }, &imageIndex);
 	
 	// ===== Raytracing
+	TimeCounter::BeginRecord(RAYTRACE_TIME);
 	vkWaitForFences(m_vulkanDevice->device, 1, &m_raytrace.fence, VK_TRUE, UINT64_MAX);
 	vkResetFences(m_vulkanDevice->device, 1, &m_raytrace.fence);
 	VkSubmitInfo computeSubmitInfo = {};
@@ -112,10 +115,14 @@ VulkanHybridRenderer::Render() {
 	computeSubmitInfo.pCommandBuffers = &m_raytrace.commandBuffer;
 
 	CheckVulkanResult(vkQueueSubmit(m_compute.queue, 1, &computeSubmitInfo, m_raytrace.fence), "failed to submit queue");
+	TimeCounter::EndRecord(RAYTRACE_TIME);
+	if (TimeCounter::ReachedMaxSamples(RAYTRACE_TIME)) {
+		m_logger->info("Raytrace time: {0} ms", TimeCounter::GetAverageRunTime(RAYTRACE_TIME));
+	}
 
-	TimeCounter::GetInstance()->EndRecord("Render");
+	TimeCounter::EndRecord(RENDER_TIME);
 
-	if (TimeCounter::GetInstance()->ReachedMaxSamples("Render")) {
+	if (TimeCounter::ReachedMaxSamples(RENDER_TIME)) {
 		//m_logger->info("Render time: {0} ms", TimeCounter::GetInstance()->GetAverageRunTime("Render"));
 	}
 }
@@ -159,11 +166,14 @@ VulkanHybridRenderer::~VulkanHybridRenderer() {
 
 void VulkanHybridRenderer::Prepare() {
 
-	TimeCounter::GetInstance()->NewCounter("Render");
-	TimeCounter::GetInstance()->NewCounter("Update");
-	TimeCounter::GetInstance()->NewCounter("Prepare");
+	TimeCounter::NewCounter(RENDER_TIME);
+	TimeCounter::NewCounter(DEFERRED_TIME);
+	TimeCounter::NewCounter(RAYTRACE_TIME);
+	TimeCounter::NewCounter(PRESENT_TIME);
+	TimeCounter::NewCounter(UPDATE_TIME);
+	TimeCounter::NewCounter(PREPARE_TIME);
 
-
+	TimeCounter::BeginRecord(PREPARE_TIME);
 	PrepareVertexBuffers();
 	PrepareDescriptorPool();
 	PrepareTextures();
@@ -175,11 +185,13 @@ void VulkanHybridRenderer::Prepare() {
 	PrepareWireframe();
 	PreparePostSSAO();
 	PrepareOnscreen();
+	TimeCounter::EndRecord(PREPARE_TIME);
+	m_logger->info("Prepare time: {0}", TimeCounter::GetAverageRunTime(PREPARE_TIME));
 }
 
 VkResult
 VulkanHybridRenderer::PrepareVertexBuffers() {
-	m_graphics.geometryBuffers.clear();
+	m_graphics.vertexBuffers.clear();
 
 	// ----------- Vertex attributes --------------
 
@@ -191,7 +203,7 @@ VulkanHybridRenderer::PrepareVertexBuffers() {
 			vertexData
 		);
 
-		m_graphics.geometryBuffers.push_back(vertexBuffer);
+		m_graphics.vertexBuffers.push_back(vertexBuffer);
 	}
 
 	return VK_SUCCESS;
@@ -228,7 +240,7 @@ void VulkanHybridRenderer::RebuildCommandBuffers()
 void VulkanHybridRenderer::PrepareSkybox() {
 
 	m_logger->info<std::string>("Prepare skybox");
-	m_skybox.skybox = new Skybox(m_vulkanDevice, "textures/Environment/MonValley/Unfiltered_HDR.dds");
+	m_skybox.skybox = new Skybox(m_vulkanDevice, "textures/Environment/PaperMill/Unfiltered_HDR.dds");
 	
 	PrepareSkyboxDescriptorLayout();
 	PrepareSkyboxDescriptorSet();
@@ -377,9 +389,9 @@ void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 	colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
 	colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
 	colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_MAX;
-	colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+	//colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_MAX;
+	//colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	//colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
 
 	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
 		colorBlendAttachmentState
@@ -1311,35 +1323,35 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 		
 		// skybox
 		{
-			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
-			std::vector<VkDeviceSize> skyboxOffset = {
-				m_skybox.skybox->Buffer().offsets.at(POLYGON),
-			};
+			//vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
+			//std::vector<VkDeviceSize> skyboxOffset = {
+			//	m_skybox.skybox->Buffer().offsets.at(POLYGON),
+			//};
 
-			vkCmdBindDescriptorSets(
-				m_graphics.commandBuffers[i], 
-				VK_PIPELINE_BIND_POINT_GRAPHICS, 
-				m_skybox.pipelineLayout, 
-				0, 
-				1, 
-				&m_skybox.descriptorSet, 
-				0, 
-				NULL);
-			vkCmdBindVertexBuffers(
-				m_graphics.commandBuffers[i], 
-				0, 
-				1, 
-				&m_skybox.skybox->Buffer().storageBuffer.buffer, 
-				skyboxOffset.data()
-				);
-			vkCmdBindIndexBuffer(
-				m_graphics.commandBuffers[i], 
-				m_skybox.skybox->Buffer().storageBuffer.buffer, 
-				m_skybox.skybox->Buffer().offsets.at(INDEX),
-				VK_INDEX_TYPE_UINT16);
-			vkCmdDrawIndexed(\
-				m_graphics.commandBuffers[i], 
-				m_skybox.skybox->Buffer().indexCount, 1, 0, 0, 0);
+			//vkCmdBindDescriptorSets(
+			//	m_graphics.commandBuffers[i], 
+			//	VK_PIPELINE_BIND_POINT_GRAPHICS, 
+			//	m_skybox.pipelineLayout, 
+			//	0, 
+			//	1, 
+			//	&m_skybox.descriptorSet, 
+			//	0, 
+			//	NULL);
+			//vkCmdBindVertexBuffers(
+			//	m_graphics.commandBuffers[i], 
+			//	0, 
+			//	1, 
+			//	&m_skybox.skybox->Buffer().storageBuffer.buffer, 
+			//	skyboxOffset.data()
+			//	);
+			//vkCmdBindIndexBuffer(
+			//	m_graphics.commandBuffers[i], 
+			//	m_skybox.skybox->Buffer().storageBuffer.buffer, 
+			//	m_skybox.skybox->Buffer().offsets.at(INDEX),
+			//	VK_INDEX_TYPE_UINT16);
+			//vkCmdDrawIndexed(\
+			//	m_graphics.commandBuffers[i], 
+			//	m_skybox.skybox->Buffer().indexCount, 1, 0, 0, 0);
 		}
 
 		// Record end renderpass
@@ -1552,15 +1564,13 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 void VulkanHybridRenderer::PrepareTextures()
 {
 	m_logger->info<std::string>("Preparing textures");
-	for (auto m : m_scene->materials)
+	for (auto& m : m_scene->models)
 	{
-		m->m_vkImage.CreateFromTexture(m_vulkanDevice, m->m_texture);
+		for (auto& tex : m->textures) {
+			m->maps.insert(std::make_pair(tex.first, VulkanImage::Image()));
+			m->maps.at(tex.first).CreateFromTexture(m_vulkanDevice, tex.second);
+		}
 	}
-
-	VulkanUtil::Make::SetDescriptorImageInfo(
-		VK_IMAGE_LAYOUT_GENERAL,
-		m_deferred.textures.m_normalMap
-	);
 
 }
 
@@ -1582,15 +1592,9 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorLayout() {
 		// Binding 2 : Normals texture target
 		MakeDescriptorSetLayoutBinding(
 			2,
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_FRAGMENT_BIT
 			)
-		//// Binding 2 : Normals texture target
-		//MakeDescriptorSetLayoutBinding(
-		//	2,
-		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-		//	VK_SHADER_STAGE_FRAGMENT_BIT
-		//	)
 	};
 
 	VkDescriptorSetLayoutCreateInfo descriptorLayout =
@@ -1615,44 +1619,48 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorLayout() {
 }
 
 void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
+
 	VkDescriptorSetAllocateInfo descriptorSetAllocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_deferred.descriptorSetLayout);
 
-	CheckVulkanResult(
-		vkAllocateDescriptorSets(m_vulkanDevice->device, &descriptorSetAllocInfo, &m_deferred.descriptorSet),
-		"failed to allocate descriptor sets"
-	);
+	for (auto m = 0; m < m_scene->models.size(); ++m) {
 
-	std::vector<VkWriteDescriptorSet> writeDescriptorSets =
-	{
-		// Binding 0: Vertex shader uniform buffer
-		MakeWriteDescriptorSet(
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			m_deferred.descriptorSet,
-			0, // binding
-			1, // descriptor count
-			&m_deferred.buffers.mvpUnifStorage.descriptor
-		),
-		 //Binding 1: Color map
-		MakeWriteDescriptorSet(
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			m_deferred.descriptorSet,
-			1, // binding
-			1, // descriptor count
-			&m_scene->materials[0]->m_vkImage.descriptor 
-		),
-		//// Binding 2: Normal map
-		//MakeWriteDescriptorSet(
-		//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-		//	m_deferred.descriptorSet,
-		//	2, // binding
-		//	1, // descriptor count
-		//	nullptr, // buffer info
-		//	&m_deferred.textures.m_normalMap.descriptor // image info
-		//),
-	};
+		VkDescriptorSet& descriptorSet = m_scene->models[m]->descriptorSet;
 
-	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
+		CheckVulkanResult(
+			vkAllocateDescriptorSets(m_vulkanDevice->device, &descriptorSetAllocInfo, &descriptorSet),
+			"failed to allocate descriptor sets"
+		);
 
+		std::vector<VkWriteDescriptorSet> writeDescriptorSets =
+		{
+			// Binding 0: Vertex shader uniform buffer
+			MakeWriteDescriptorSet(
+				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				descriptorSet,
+				0, // binding
+				1, // descriptor count 
+				&m_deferred.buffers.mvpUnifStorage.descriptor
+			),
+			//Binding 1: Color map
+			MakeWriteDescriptorSet(
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				descriptorSet,
+				1, // binding
+				1, // descriptor count
+				&m_scene->models[m]->maps.at(ALBEDO_MAP).descriptor
+			),
+			// Binding 2: Normal map
+			MakeWriteDescriptorSet(
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				descriptorSet,
+				2, // binding
+				1, // descriptor count
+				&m_scene->models[m]->maps.at(NORMAL_MAP).descriptor
+			),
+		};
+
+		vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
+	}
 }
 
 void VulkanHybridRenderer::PrepareDeferredUniformBuffer() 
@@ -1702,6 +1710,11 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 		),
 		MakeVertexInputBindingDescription(
 			3, // binding
+			sizeof(glm::vec3), // stride
+			VK_VERTEX_INPUT_RATE_VERTEX
+		),
+		MakeVertexInputBindingDescription(
+			4, // binding
 			sizeof(float), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		)
@@ -1730,6 +1743,12 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 		MakeVertexInputAttributeDescription(
 			3, // binding
 			3, // location
+			VK_FORMAT_R32G32B32_SFLOAT,
+			0 // offset
+		),
+		MakeVertexInputAttributeDescription(
+			4, // binding
+			4, // location
 			VK_FORMAT_R32_SFLOAT,
 			0 // offset
 		)
@@ -1878,13 +1897,14 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 	// Object
 
-	for (int b = 0; b < m_graphics.geometryBuffers.size(); ++b)
+	for (int b = 0; b < m_graphics.vertexBuffers.size(); ++b)
 	{
-		VulkanBuffer::VertexBuffer& vertexBuffer = m_graphics.geometryBuffers[b];
+		VulkanBuffer::VertexBuffer& vertexBuffer = m_graphics.vertexBuffers[b];
 
 		// Bind vertex buffer
 		std::vector<VkBuffer> vertexBuffers = { 
 			vertexBuffer.storageBuffer.buffer, 
+			vertexBuffer.storageBuffer.buffer,
 			vertexBuffer.storageBuffer.buffer,
 			vertexBuffer.storageBuffer.buffer,
 			vertexBuffer.storageBuffer.buffer
@@ -1893,6 +1913,7 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 			vertexBuffer.offsets.at(POSITION),
 			vertexBuffer.offsets.at(NORMAL),
 			vertexBuffer.offsets.at(TEXCOORD),
+			vertexBuffer.offsets.at(TANGENT),
 			vertexBuffer.offsets.at(MATERIALID)
 		};
 		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
@@ -1903,7 +1924,7 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 			indexType = VK_INDEX_TYPE_UINT32;
 		}
 		vkCmdBindIndexBuffer(m_deferred.commandBuffer, vertexBuffer.storageBuffer.buffer, vertexBuffer.offsets.at(INDEX), indexType);
-		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_deferred.descriptorSet, 0, nullptr);
+		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_scene->models[b]->descriptorSet, 0, nullptr);
 		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->models[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
 	}
 
@@ -1914,17 +1935,17 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 
 void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	static float timer = 0.0f;
-	//timer += 0.005f;
+	timer += 0.005f;
 	float SPEED = 32.0f;
 
 	// White
-	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -5.0f, 0.0f, 1.0f);
-	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(300, 300, 300);
-	m_deferred.lightsUnif.m_pointLights[0].radius = 100.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -1.0f, 0.0f, 1.0f);
+	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(100, 100, 100);
+	m_deferred.lightsUnif.m_pointLights[0].radius = 10.0f;
 
 	// Red
 	m_deferred.lightsUnif.m_pointLights[1].position = glm::vec4(-2.0f, -2.0f, 0.0f, 0.0f);
-	m_deferred.lightsUnif.m_pointLights[1].color = glm::vec3(300, 300, 300);
+	m_deferred.lightsUnif.m_pointLights[1].color = glm::vec3(100, 100, 100);
 	m_deferred.lightsUnif.m_pointLights[1].radius = 10.0f;
 	// Blue
 	m_deferred.lightsUnif.m_pointLights[2].position = glm::vec4(2.0f, 0.0f, 0.0f, 0.0f);
@@ -1943,8 +1964,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	m_deferred.lightsUnif.m_pointLights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
 	m_deferred.lightsUnif.m_pointLights[5].radius = 25.0f;
 
-	m_deferred.lightsUnif.m_pointLights[0].position.x = sin(glm::radians(SPEED * timer)) * 5.0f;
-	m_deferred.lightsUnif.m_pointLights[0].position.z = cos(glm::radians(SPEED * timer)) * 5.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position.x = sin(glm::radians(SPEED * timer)) * 10.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position.z = cos(glm::radians(SPEED * timer)) * 10.0f;
 
 	m_deferred.lightsUnif.m_pointLights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
 	m_deferred.lightsUnif.m_pointLights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 1.0f;

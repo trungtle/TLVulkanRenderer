@@ -25,6 +25,7 @@ public:
 	std::vector<glm::vec4> positions;
 	std::vector<glm::vec4> normals;
 	std::vector<glm::vec2> uvs;
+	std::vector<glm::vec3> tangents;
 
 	std::vector<Model*> models;
 	std::vector<MaterialPacked> materialPackeds;

@@ -46,12 +46,6 @@ public:
 
 protected:
 
-	struct SInputTextures
-	{
-		VulkanImage::Image m_colorMap;
-		VulkanImage::Image m_normalMap;
-	};
-
 	struct SVertexShaderUniforms
 	{
 		glm::mat4 m_projection;
@@ -271,9 +265,6 @@ protected:
 
 	struct Deferred
 	{
-		// -- Textures
-		SInputTextures textures;
-
 		// -- Framebuffer
 		SFrameBuffer framebuffer;
 
