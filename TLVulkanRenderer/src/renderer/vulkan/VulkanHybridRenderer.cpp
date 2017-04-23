@@ -4,6 +4,7 @@
 #include "scene/Camera.h"
 #include "accel/SBVH.h"
 #include "TimeCounter.h"
+#define PBR
 
 VulkanHybridRenderer::VulkanHybridRenderer(
 	GLFWwindow* window,
@@ -17,7 +18,7 @@ VulkanHybridRenderer::VulkanHybridRenderer(
 
 void
 VulkanHybridRenderer::Update() {
-	TimeCounter::BeginRecord(UPDATE_TIME);
+	TimeCounter::BeginRecord(TQ_UPDATE);
 	m_deferred.mvpUnif.m_model = glm::mat4(1.0);
 	m_deferred.mvpUnif.m_projection = m_scene->camera.GetProj();
 	m_deferred.mvpUnif.m_view = m_scene->camera.GetView();
@@ -57,26 +58,11 @@ VulkanHybridRenderer::Update() {
 
 	// -- update onscreen
 	UpdateOnscreenUniform();
-	TimeCounter::EndRecord(UPDATE_TIME);
+	TimeCounter::EndRecord(TQ_UPDATE);
 }
 
 void
 VulkanHybridRenderer::Render() {
-
-	// -- Profiling
-	static int profileCount = 0;
-	static auto startTime = std::chrono::high_resolution_clock::now();
-	if (++profileCount >= 100)
-	{
-		profileCount = 0;
-		auto endTime = std::chrono::high_resolution_clock::now();
-		float ms = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-		ms /= 100.0f;
-		startTime = endTime;
-		//m_logger->info("{0}", ms);
-	}
-
-	TimeCounter::BeginRecord(RENDER_TIME);
 
 	uint32_t imageIndex;
 
@@ -105,7 +91,7 @@ VulkanHybridRenderer::Render() {
 	m_vulkanDevice->PresentSwapchain({ m_renderFinishedSemaphore }, &imageIndex);
 	
 	// ===== Raytracing
-	TimeCounter::BeginRecord(RAYTRACE_TIME);
+	TimeCounter::BeginRecord(TQ_RAYTRACE);
 	vkWaitForFences(m_vulkanDevice->device, 1, &m_raytrace.fence, VK_TRUE, UINT64_MAX);
 	vkResetFences(m_vulkanDevice->device, 1, &m_raytrace.fence);
 	VkSubmitInfo computeSubmitInfo = {};
@@ -115,15 +101,28 @@ VulkanHybridRenderer::Render() {
 	computeSubmitInfo.pCommandBuffers = &m_raytrace.commandBuffer;
 
 	CheckVulkanResult(vkQueueSubmit(m_compute.queue, 1, &computeSubmitInfo, m_raytrace.fence), "failed to submit queue");
-	TimeCounter::EndRecord(RAYTRACE_TIME);
-	if (TimeCounter::ReachedMaxSamples(RAYTRACE_TIME)) {
-		m_logger->info("Raytrace time: {0} ms", TimeCounter::GetAverageRunTime(RAYTRACE_TIME));
-	}
+	TimeCounter::EndRecord(TQ_RAYTRACE);
+	if (TimeCounter::ReachedMaxSamples(TQ_RAYTRACE)) {
 
-	TimeCounter::EndRecord(RENDER_TIME);
+		std::array<uint64_t, 2> queryResults;
 
-	if (TimeCounter::ReachedMaxSamples(RENDER_TIME)) {
-		//m_logger->info("Render time: {0} ms", TimeCounter::GetInstance()->GetAverageRunTime("Render"));
+		if (vkGetQueryPoolResults(
+			m_vulkanDevice->device,
+			m_queryPool,
+			0,
+			queryResults.size(),
+			sizeof(uint64_t) * queryResults.size(),
+			queryResults.data(),
+			sizeof(uint64_t),
+			VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT
+		) == VK_SUCCESS)
+		{
+			uint64_t increment = queryResults[1] - queryResults[0];
+			uint64_t ns = increment * m_vulkanDevice->properties.limits.timestampPeriod;
+			float ms = ns * 1e-6f;
+			m_logger->info("Raytrace time: {0} ms\n", ms / (float)TimeCounter::GetNumSamples(TQ_RAYTRACE));
+		}
+
 	}
 }
 
@@ -166,14 +165,30 @@ VulkanHybridRenderer::~VulkanHybridRenderer() {
 
 void VulkanHybridRenderer::Prepare() {
 
-	TimeCounter::NewCounter(RENDER_TIME);
-	TimeCounter::NewCounter(DEFERRED_TIME);
-	TimeCounter::NewCounter(RAYTRACE_TIME);
-	TimeCounter::NewCounter(PRESENT_TIME);
-	TimeCounter::NewCounter(UPDATE_TIME);
-	TimeCounter::NewCounter(PREPARE_TIME);
+	TimeCounter::NewCounter(TQ_RENDER);
+	TimeCounter::NewCounter(TQ_DEFERRED);
+	TimeCounter::NewCounter(TQ_RAYTRACE);
+	TimeCounter::NewCounter(TQ_PRESENT);
+	TimeCounter::NewCounter(TQ_UPDATE);
+	TimeCounter::NewCounter(TQ_PREPARE_TIME);
 
-	TimeCounter::BeginRecord(PREPARE_TIME);
+	TimeCounter::BeginRecord(TQ_PREPARE_TIME);
+
+	// Create query pool
+
+	VkQueryPoolCreateInfo queryPoolCreateInfo = {};
+	queryPoolCreateInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+	queryPoolCreateInfo.pNext = nullptr;
+	queryPoolCreateInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+	queryPoolCreateInfo.queryCount = 2;
+
+	vkCreateQueryPool(
+		m_vulkanDevice->device,
+		&queryPoolCreateInfo,
+		nullptr,
+		&m_queryPool
+	);
+
 	PrepareVertexBuffers();
 	PrepareDescriptorPool();
 	PrepareTextures();
@@ -185,8 +200,8 @@ void VulkanHybridRenderer::Prepare() {
 	PrepareWireframe();
 	PreparePostSSAO();
 	PrepareOnscreen();
-	TimeCounter::EndRecord(PREPARE_TIME);
-	m_logger->info("Prepare time: {0}", TimeCounter::GetAverageRunTime(PREPARE_TIME));
+	TimeCounter::EndRecord(TQ_PREPARE_TIME);
+	m_logger->info("Prepare time: {0}", TimeCounter::GetAverageRunTime(TQ_PREPARE_TIME));
 }
 
 VkResult
@@ -213,7 +228,7 @@ VkResult
 VulkanHybridRenderer::PrepareDescriptorPool() {
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 30),
-		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 14),
+		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 18),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1),
 		MakeDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10)
 	};
@@ -221,7 +236,7 @@ VulkanHybridRenderer::PrepareDescriptorPool() {
 	VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = MakeDescriptorPoolCreateInfo(
 		poolSizes.size(),
 		poolSizes.data(),
-		30
+		40
 	);
 
 	CheckVulkanResult(
@@ -383,15 +398,9 @@ void VulkanHybridRenderer::PrepareSkyboxPipeline() {
 	VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = MakePipelineDepthStencilStateCreateInfo(VK_FALSE, VK_FALSE, VK_COMPARE_OP_NEVER);
 
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
-	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachmentState.colorWriteMask = 0xF;
-	colorBlendAttachmentState.blendEnable = VK_TRUE;
-	colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
-	colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-	colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	//colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_MAX;
-	//colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	//colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+	colorBlendAttachmentState.blendEnable = VK_FALSE;
+
 
 	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
 		colorBlendAttachmentState
@@ -1147,7 +1156,13 @@ void VulkanHybridRenderer::PrepareOnscreenPipeline()
 
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
 	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachmentState.blendEnable = VK_FALSE;
+	colorBlendAttachmentState.blendEnable = VK_TRUE;
+	colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+	colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	//colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_MAX;
+	//colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	//colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
 
 	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
 		colorBlendAttachmentState
@@ -1257,6 +1272,39 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 		// Record begin renderpass
 		vkCmdBeginRenderPass(m_graphics.commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+		// skybox
+		{
+			//vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
+			//std::vector<VkDeviceSize> skyboxOffset = {
+			//	m_skybox.skybox->Buffer().offsets.at(POLYGON),
+			//};
+
+			//vkCmdBindDescriptorSets(
+			//	m_graphics.commandBuffers[i], 
+			//	VK_PIPELINE_BIND_POINT_GRAPHICS, 
+			//	m_skybox.pipelineLayout, 
+			//	0, 
+			//	1, 
+			//	&m_skybox.descriptorSet, 
+			//	0, 
+			//	NULL);
+			//vkCmdBindVertexBuffers(
+			//	m_graphics.commandBuffers[i], 
+			//	0, 
+			//	1, 
+			//	&m_skybox.skybox->Buffer().storageBuffer.buffer, 
+			//	skyboxOffset.data()
+			//	);
+			//vkCmdBindIndexBuffer(
+			//	m_graphics.commandBuffers[i], 
+			//	m_skybox.skybox->Buffer().storageBuffer.buffer, 
+			//	m_skybox.skybox->Buffer().offsets.at(INDEX),
+			//	VK_INDEX_TYPE_UINT16);
+			//vkCmdDrawIndexed(
+			//	m_graphics.commandBuffers[i], 
+			//	m_skybox.skybox->Buffer().indexCount, 1, 0, 0, 0);
+		}
+
 		// Record binding the graphics pipeline
 		vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics.m_pipeline);
 
@@ -1319,39 +1367,6 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 				vkCmdDrawIndexed(m_graphics.commandBuffers[i], m_deferred.buffers.lightsVertexBuffer[l].indexCount, 1, 0, 0, 0);
 			}
 
-		}
-		
-		// skybox
-		{
-			//vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
-			//std::vector<VkDeviceSize> skyboxOffset = {
-			//	m_skybox.skybox->Buffer().offsets.at(POLYGON),
-			//};
-
-			//vkCmdBindDescriptorSets(
-			//	m_graphics.commandBuffers[i], 
-			//	VK_PIPELINE_BIND_POINT_GRAPHICS, 
-			//	m_skybox.pipelineLayout, 
-			//	0, 
-			//	1, 
-			//	&m_skybox.descriptorSet, 
-			//	0, 
-			//	NULL);
-			//vkCmdBindVertexBuffers(
-			//	m_graphics.commandBuffers[i], 
-			//	0, 
-			//	1, 
-			//	&m_skybox.skybox->Buffer().storageBuffer.buffer, 
-			//	skyboxOffset.data()
-			//	);
-			//vkCmdBindIndexBuffer(
-			//	m_graphics.commandBuffers[i], 
-			//	m_skybox.skybox->Buffer().storageBuffer.buffer, 
-			//	m_skybox.skybox->Buffer().offsets.at(INDEX),
-			//	VK_INDEX_TYPE_UINT16);
-			//vkCmdDrawIndexed(\
-			//	m_graphics.commandBuffers[i], 
-			//	m_skybox.skybox->Buffer().indexCount, 1, 0, 0, 0);
 		}
 
 		// Record end renderpass
@@ -1435,6 +1450,13 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 		m_deferred.framebuffer.albedo
 	);
 
+	// uv
+	CreateAttachment(
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		m_deferred.framebuffer.uv
+	);
+
 
 	// Depth attachment
 	// Find a suitable depth format	
@@ -1447,10 +1469,10 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 	);
 
 	// Set up a new renderpass for the attachment
-	std::array<VkAttachmentDescription, 4> attachmentDescs = {};
+	std::array<VkAttachmentDescription, 5> attachmentDescs = {};
 
 	// Init attachment properties
-	for (uint8_t i = 0; i < 4; ++i)
+	for (uint8_t i = 0; i < 5; ++i)
 	{
 		attachmentDescs[i].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachmentDescs[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -1458,7 +1480,7 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 		attachmentDescs[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachmentDescs[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		// for depth
-		if (i == 3)
+		if (i == 4)
 		{
 			attachmentDescs[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			attachmentDescs[i].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -1474,15 +1496,17 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 	attachmentDescs[0].format = m_deferred.framebuffer.position.format;
 	attachmentDescs[1].format = m_deferred.framebuffer.normal.format;
 	attachmentDescs[2].format = m_deferred.framebuffer.albedo.format;
-	attachmentDescs[3].format = m_deferred.framebuffer.depth.format;
+	attachmentDescs[3].format = m_deferred.framebuffer.uv.format;
+	attachmentDescs[4].format = m_deferred.framebuffer.depth.format;
 
 	// Attachment references
-	std::array<VkAttachmentReference, 3> colorReferences;
+	std::array<VkAttachmentReference, 4> colorReferences;
 	colorReferences[0] = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 	colorReferences[1] = { 1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 	colorReferences[2] = { 2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+	colorReferences[3] = { 3, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 
-	VkAttachmentReference depthReference = { 3, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
+	VkAttachmentReference depthReference = { 4, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
 
 	// Subpass description
 	VkSubpassDescription subpass = {};
@@ -1521,11 +1545,12 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 
 	CheckVulkanResult(vkCreateRenderPass(m_vulkanDevice->device, &renderPassInfo, nullptr, &m_deferred.framebuffer.renderPass), "Failed to create deferred render pass");
 
-	std::array<VkImageView, 4> attachments;
+	std::array<VkImageView, 5> attachments;
 	attachments[0] = m_deferred.framebuffer.position.imageView;
 	attachments[1] = m_deferred.framebuffer.normal.imageView;
 	attachments[2] = m_deferred.framebuffer.albedo.imageView;
-	attachments[3] = m_deferred.framebuffer.depth.imageView;
+	attachments[3] = m_deferred.framebuffer.uv.imageView;
+	attachments[4] = m_deferred.framebuffer.depth.imageView;
 
 	VkFramebufferCreateInfo fbufCreateInfo = {};
 	fbufCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1558,12 +1583,14 @@ void VulkanHybridRenderer::PrepareDeferredAttachments()
 	m_deferred.framebuffer.position.sampler = m_deferred.framebuffer.sampler;
 	m_deferred.framebuffer.normal.sampler = m_deferred.framebuffer.sampler;
 	m_deferred.framebuffer.albedo.sampler = m_deferred.framebuffer.sampler;
+	m_deferred.framebuffer.uv.sampler = m_deferred.framebuffer.sampler;
 	m_deferred.framebuffer.depth.sampler = m_deferred.framebuffer.sampler;
 }
 
 void VulkanHybridRenderer::PrepareTextures()
 {
 	m_logger->info<std::string>("Preparing textures");
+#ifdef PBR
 	for (auto& m : m_scene->models)
 	{
 		for (auto& tex : m->textures) {
@@ -1571,7 +1598,11 @@ void VulkanHybridRenderer::PrepareTextures()
 			m->maps.at(tex.first).CreateFromTexture(m_vulkanDevice, tex.second);
 		}
 	}
-
+#else
+	for (auto& m : m_scene->materials) {
+		m->m_vkAlbedoMap.CreateFromTexture(m_vulkanDevice, m->m_albedoMap);
+	}
+#endif
 }
 
 void VulkanHybridRenderer::PrepareDeferredDescriptorLayout() {
@@ -1622,6 +1653,7 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 
 	VkDescriptorSetAllocateInfo descriptorSetAllocInfo = MakeDescriptorSetAllocateInfo(m_graphics.descriptorPool, &m_deferred.descriptorSetLayout);
 
+#ifdef PBR
 	for (auto m = 0; m < m_scene->models.size(); ++m) {
 
 		VkDescriptorSet& descriptorSet = m_scene->models[m]->descriptorSet;
@@ -1661,6 +1693,44 @@ void VulkanHybridRenderer::PrepareDeferredDescriptorSet() {
 
 		vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
 	}
+#else
+	VkDescriptorSet& descriptorSet = m_deferred.descriptorSet;
+
+	CheckVulkanResult(
+		vkAllocateDescriptorSets(m_vulkanDevice->device, &descriptorSetAllocInfo, &descriptorSet),
+		"failed to allocate descriptor sets"
+	);
+
+	std::vector<VkWriteDescriptorSet> writeDescriptorSets =
+	{
+		// Binding 0: Vertex shader uniform buffer
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			descriptorSet,
+			0, // binding
+			1, // descriptor count 
+			&m_deferred.buffers.mvpUnifStorage.descriptor
+		),
+		//Binding 1: Color map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			descriptorSet,
+			1, // binding
+			1, // descriptor count
+			&m_scene->materials[0]->m_vkAlbedoMap.descriptor
+		),
+		// Binding 2: Normal map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			descriptorSet,
+			2, // binding
+			1, // descriptor count
+			&m_scene->materials[0]->m_vkAlbedoMap.descriptor
+		),
+	};
+
+	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
+#endif
 }
 
 void VulkanHybridRenderer::PrepareDeferredUniformBuffer() 
@@ -1708,6 +1778,7 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			sizeof(glm::vec2), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		),
+#ifdef PBR
 		MakeVertexInputBindingDescription(
 			3, // binding
 			sizeof(glm::vec3), // stride
@@ -1718,7 +1789,13 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			sizeof(float), // stride
 			VK_VERTEX_INPUT_RATE_VERTEX
 		)
-
+#else
+		MakeVertexInputBindingDescription(
+			3, // binding
+			sizeof(float), // stride
+			VK_VERTEX_INPUT_RATE_VERTEX
+		)
+#endif
 	};
 
 	std::vector<VkVertexInputAttributeDescription> attribDesc = {
@@ -1740,6 +1817,7 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			VK_FORMAT_R32G32_SFLOAT,
 			0 // offset
 		),
+#ifdef PBR
 		MakeVertexInputAttributeDescription(
 			3, // binding
 			3, // location
@@ -1752,6 +1830,14 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 			VK_FORMAT_R32_SFLOAT,
 			0 // offset
 		)
+#else
+		MakeVertexInputAttributeDescription(
+			3, // binding
+			3, // location
+			VK_FORMAT_R32_SFLOAT,
+			0 // offset
+		)
+#endif
 	};
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStageCreateInfo = MakePipelineVertexInputStateCreateInfo(
@@ -1794,6 +1880,7 @@ VulkanHybridRenderer::PrepareDeferredPipeline()
 	// This is important, as color write mask will otherwise be 0x0 and you
 	// won't see anything rendered to the attachment
 	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {
+		colorBlendAttachmentState,
 		colorBlendAttachmentState,
 		colorBlendAttachmentState,
 		colorBlendAttachmentState
@@ -1868,11 +1955,12 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 	VkCommandBufferBeginInfo cmdBufInfo = MakeCommandBufferBeginInfo();
 
 	// Clear values for all attachments written in the fragment sahder
-	std::vector<VkClearValue> clearValues(4);
+	std::vector<VkClearValue> clearValues(5);
 	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
 	clearValues[1].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
 	clearValues[2].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
-	clearValues[3].depthStencil = { 1.0f, 0 };
+	clearValues[3].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
+	clearValues[4].depthStencil = { 1.0f, 0 };
 
 	// Begin renderpassw
 	VkRenderPassBeginInfo renderPassBeginInfo = MakeRenderPassBeginInfo(
@@ -1906,14 +1994,18 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 			vertexBuffer.storageBuffer.buffer, 
 			vertexBuffer.storageBuffer.buffer,
 			vertexBuffer.storageBuffer.buffer,
+#ifdef PBR
 			vertexBuffer.storageBuffer.buffer,
+#endif
 			vertexBuffer.storageBuffer.buffer
 		};
 		std::vector<VkDeviceSize> offsets = { 
 			vertexBuffer.offsets.at(POSITION),
 			vertexBuffer.offsets.at(NORMAL),
 			vertexBuffer.offsets.at(TEXCOORD),
+#ifdef PBR
 			vertexBuffer.offsets.at(TANGENT),
+#endif
 			vertexBuffer.offsets.at(MATERIALID)
 		};
 		vkCmdBindVertexBuffers(m_deferred.commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
@@ -1924,7 +2016,11 @@ void VulkanHybridRenderer::BuildDeferredCommandBuffer()
 			indexType = VK_INDEX_TYPE_UINT32;
 		}
 		vkCmdBindIndexBuffer(m_deferred.commandBuffer, vertexBuffer.storageBuffer.buffer, vertexBuffer.offsets.at(INDEX), indexType);
+#ifdef PBR
 		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_scene->models[b]->descriptorSet, 0, nullptr);
+#else
+		vkCmdBindDescriptorSets(m_deferred.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_deferred.pipelineLayout, 0, 1, &m_deferred.descriptorSet, 0, nullptr);
+#endif
 		vkCmdDrawIndexed(m_deferred.commandBuffer, m_scene->models[b]->attribInfo.at(INDEX).count, 1, 0, 0, 0);
 	}
 
@@ -1940,8 +2036,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 
 	// White
 	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -1.0f, 0.0f, 1.0f);
-	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(100, 100, 100);
-	m_deferred.lightsUnif.m_pointLights[0].radius = 10.0f;
+	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(300, 300, 300);
+	m_deferred.lightsUnif.m_pointLights[0].radius = 100.0f;
 
 	// Red
 	m_deferred.lightsUnif.m_pointLights[1].position = glm::vec4(-2.0f, -2.0f, 0.0f, 0.0f);
@@ -1949,8 +2045,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	m_deferred.lightsUnif.m_pointLights[1].radius = 10.0f;
 	// Blue
 	m_deferred.lightsUnif.m_pointLights[2].position = glm::vec4(2.0f, 0.0f, 0.0f, 0.0f);
-	m_deferred.lightsUnif.m_pointLights[2].color = glm::vec3(0.0f, 0.0f, 2.5f);
-	m_deferred.lightsUnif.m_pointLights[2].radius = 5.0f;
+	m_deferred.lightsUnif.m_pointLights[2].color = glm::vec3(100.0f, 100.0f, 100.5f);
+	m_deferred.lightsUnif.m_pointLights[2].radius = 10.0f;
 	//// Yellow
 	m_deferred.lightsUnif.m_pointLights[3].position = glm::vec4(0.0f, 0.9f, 0.5f, 0.0f);
 	m_deferred.lightsUnif.m_pointLights[3].color = glm::vec3(1.0f, 1.0f, 0.0f);
@@ -1967,8 +2063,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	m_deferred.lightsUnif.m_pointLights[0].position.x = sin(glm::radians(SPEED * timer)) * 10.0f;
 	m_deferred.lightsUnif.m_pointLights[0].position.z = cos(glm::radians(SPEED * timer)) * 10.0f;
 
-	m_deferred.lightsUnif.m_pointLights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
-	m_deferred.lightsUnif.m_pointLights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 1.0f;
+	m_deferred.lightsUnif.m_pointLights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 5.0f;
+	m_deferred.lightsUnif.m_pointLights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 5.0f;
 
 	m_deferred.lightsUnif.m_pointLights[2].position.x = 4.0f + sin(glm::radians(SPEED * timer)) * 2.0f;
 	m_deferred.lightsUnif.m_pointLights[2].position.z = 0.0f + cos(glm::radians(SPEED * timer)) * 2.0f;
@@ -2085,6 +2181,36 @@ void VulkanHybridRenderer::PrepareComputeRaytraceDescriptorLayout() {
 		// Binding 12 : irradiance map
 		MakeDescriptorSetLayoutBinding(
 			12,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 13 : roughness map
+		MakeDescriptorSetLayoutBinding(
+			13,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 14 : metallic map
+		MakeDescriptorSetLayoutBinding(
+			14,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 15 : ao map
+		MakeDescriptorSetLayoutBinding(
+			15,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 16 : emissive map
+		MakeDescriptorSetLayoutBinding(
+			16,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			VK_SHADER_STAGE_COMPUTE_BIT
+		),
+		// Binding 17 :  uv sampler
+		MakeDescriptorSetLayoutBinding(
+			17,
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			VK_SHADER_STAGE_COMPUTE_BIT
 		),
@@ -2209,6 +2335,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			1,
 			&m_deferred.framebuffer.albedo.descriptor
 		),
+#ifdef SPHERES
 		// Binding 10 : spheres
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
@@ -2217,6 +2344,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 			1,
 			&m_raytrace.buffers.spheres.descriptor
 		),
+#endif
 		// Binding 11 : radiance map
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -2229,10 +2357,52 @@ VulkanHybridRenderer::PrepareComputeRaytraceDescriptorSet() {
 		MakeWriteDescriptorSet(
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			m_raytrace.descriptorSet,
-			12, // Binding 11
+			12, // Binding 12
 			1,
 			&m_skybox.skybox->IrradianceMap().descriptor
 		),
+#ifdef PBR
+		// Binding 13 : roughness map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			13, // Binding 13
+			1,
+			&m_scene->models[0]->maps.at(ROUGHNESS_MAP).descriptor
+		),
+		// Binding 14 : metallic map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			14, // Binding 14
+			1,
+			&m_scene->models[0]->maps.at(METALLIC_MAP).descriptor
+		),
+		// Binding 15 : ao map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			15, // Binding 15
+			1,
+			&m_scene->models[0]->maps.at(AO_MAP).descriptor
+		),
+		// Binding 16 : emissive map
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			16, // Binding 16
+			1,
+			&m_scene->models[0]->maps.at(EMISSIVE_MAP).descriptor
+		),
+		// Binding 17 : uv sampler
+		MakeWriteDescriptorSet(
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			m_raytrace.descriptorSet,
+			17, // Binding 17
+			1,
+			&m_deferred.framebuffer.uv.descriptor
+		),
+#endif
 	};
 
 	vkUpdateDescriptorSets(m_vulkanDevice->device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
@@ -2416,6 +2586,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 	stagingBuffer.Destroy();
 
 	// =========== Spheres
+#ifdef SPHERES
 	bufferSize = m_scene->spherePackeds.size() * sizeof(SpherePacked);
 
 	// Stage
@@ -2454,6 +2625,7 @@ VulkanHybridRenderer::PrepareComputeRaytraceStorageBuffer() {
 
 	// Cleanup staging buffer memory
 	stagingBuffer.Destroy();
+#endif
 
 }
 
@@ -2566,7 +2738,15 @@ VulkanHybridRenderer::BuildComputeRaytraceCommandBuffer() {
 	vkCmdBindDescriptorSets(m_raytrace.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_raytrace.pipelineLayout, 0, 1, &m_raytrace.descriptorSet, 0, nullptr);
 	vkCmdPushConstants(m_raytrace.commandBuffer, m_raytrace.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PBRMaterial), &pbrMaterials[0]);
 
+	static bool once = true;
+	if (once) {
+		vkCmdResetQueryPool(m_raytrace.commandBuffer, m_queryPool, 0, 1); // Reset query #1
+		once = false;
+	}
+	vkCmdWriteTimestamp(m_raytrace.commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPool, 0);
 	vkCmdDispatch(m_raytrace.commandBuffer, m_raytrace.storageRaytraceImage.width / 16, m_raytrace.storageRaytraceImage.height / 16, 1);
+	vkCmdResetQueryPool(m_raytrace.commandBuffer, m_queryPool, 1, 1); // Reset query #2
+	vkCmdWriteTimestamp(m_raytrace.commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPool, 1);
 
 	CheckVulkanResult(
 		vkEndCommandBuffer(m_raytrace.commandBuffer),
@@ -2584,7 +2764,7 @@ void VulkanHybridRenderer::UpdateComputeRaytraceUniform()
 	{
 		m_raytrace.ubo.m_lights[i] = m_deferred.lightsUnif.m_pointLights[i];
 	}
-	m_raytrace.ubo.m_lightCount = 2;
+	m_raytrace.ubo.m_lightCount = 1;
 	m_raytrace.ubo.m_materialCount = m_scene->materials.size();
 
 	m_vulkanDevice->MapMemory(

@@ -6,6 +6,7 @@
 #include <spdlog/logger.h>
 #include "VulkanImage.h"
 #include "VulkanBuffer.h"
+#include "VDeleter.h"
 
 class VulkanDevice {
 
@@ -52,13 +53,13 @@ public:
 	*		 Creating an instance also initializes the Vulkan library.
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#initialization-instances
 	*/
-	VkInstance instance;
+	VDeleter<VkInstance> instance {vkDestroyInstance};
 
 	/**
 	* \brief Abstract for native platform surface or window object
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#_wsi_surface
 	*/
-	VkSurfaceKHR surfaceKHR;
+	VDeleter<VkSurfaceKHR> surfaceKHR {instance, vkDestroySurfaceKHR};
 
 	/**
 	* \brief Handle to the actual GPU, or physical device. It is used for informational purposes only and maynot affect the Vulkan state itself.
@@ -71,7 +72,7 @@ public:
 	*		  to physical device and how the application sees it.
 	* \ref https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#devsandqueues-devices
 	*/
-	VkDevice device;
+	VDeleter<VkDevice> device {vkDestroyDevice};
 
 	Swapchain m_swapchain;
 

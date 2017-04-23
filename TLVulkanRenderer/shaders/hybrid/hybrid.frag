@@ -112,7 +112,7 @@ void main()
 
 	vec4 color = texture(samplerColor, inUV);
 	if(postOptions.ssao) {
-		color = color * SSAO();
+		//color = color * SSAO();
 		// -- Blur
 		//vec2 texelSize = 1.0 / vec2(textureSize(samplerColor, 0));
 		//float blur = 0.0;

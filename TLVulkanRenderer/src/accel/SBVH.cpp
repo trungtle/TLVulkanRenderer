@@ -523,6 +523,18 @@ void SBVH::PrintStats()
 	std::cout << "Highest depth: " << m_maxDepth << std::endl;
 	std::cout << "Depth limit: " << m_depthLimit << std::endl;
 	std::cout << "Temp primitive infos generated: " << m_numPrimInfos << std::endl;
+
+	unsigned int avgPrimsPerLeaf = 0;
+	unsigned int numLeaf = 0;
+	for (auto n : m_nodes) {
+		if (n->IsLeaf()) {
+			SBVHLeaf* leaf = reinterpret_cast<SBVHLeaf*>(n);
+			avgPrimsPerLeaf += leaf->m_geomIds.size();
+			++numLeaf;
+		}
+	}
+	std::cout << "Num leaf: " << numLeaf << std::endl;
+	std::cout << "Avg primitives per leaf: " << avgPrimsPerLeaf / (float)numLeaf << std::endl;
 }
 
 SBVHNode*
@@ -758,15 +770,14 @@ SBVH::BuildRecursive(
 	if (nearChild) {
 		nearChild->m_parent = node;	
 		node->m_nearChild = nearChild;
-		m_maxDepth = m_maxDepth < depth ? depth : m_maxDepth;
 		node->m_bbox = BBox::BBoxUnion(node->m_bbox, nearChild->m_bbox);
 	}
 	if (farChild) {
 		farChild->m_parent = node;
 		node->m_farChild = farChild;
-		m_maxDepth = m_maxDepth < depth ? depth : m_maxDepth;
 		node->m_bbox = BBox::BBoxUnion(node->m_bbox, farChild->m_bbox);
 	}
+	m_maxDepth = std::max(static_cast<unsigned int>(depth), m_maxDepth);
 
 	return node;
 }
@@ -1100,7 +1111,7 @@ void SBVH::FlattenRecursive(
 		return;
 	}
 
-	m_nodes.push_back(node);
+	m_nodes.emplace_back(node);
 
 	SBVHNodePacked packed;
 	packed.parent = node->m_parent == nullptr ? -1 : node->m_parent->m_nodeIdx;
@@ -1152,10 +1163,10 @@ void SBVH::GenerateVertices(
 		{
 			color = vec3(1, 0, 1);
 		}
-		vec3 red(1, 0, 0);
-		vec3 green(0, 1, 0);
-		auto t = node->m_depth / (float)m_maxDepth;		
-		color = TLMath::lerp(green, red, t);
+		//vec3 red(1, 0, 0);
+		//vec3 green(0, 1, 0);
+		//auto t = node->m_depth / (float)m_maxDepth;		
+		//color = TLMath::lerp(green, red, t);
 		// Setup vertices
 		glm::vec3 centroid = node->m_bbox.m_centroid;
 		glm::vec3 translation = centroid;

@@ -16,6 +16,7 @@ layout (location = 4) in float inMaterialID;
 layout (location = 0) out vec4 outPosition;
 layout (location = 1) out vec4 outNormal;
 layout (location = 2) out vec4 outAlbedo;
+layout (location = 3) out vec4 outUV;
 
 void main() 
 {
@@ -31,8 +32,9 @@ void main()
 	mat3 TBN = mat3(T, B, N);
 	vec3 tnorm = TBN * normalize(texture(samplerNormalMap, inUV).xyz * 2.0 - vec3(1.0));
 	outNormal = vec4(tnorm, 1.0);
-	outNormal = vec4(inNormal, 0.0);
+	//outNormal = vec4(inNormal, 0.0);
 
 	vec4 color = texture(samplerColor, inUV);
 	outAlbedo = color;
+	outUV = vec4(inUV, 0, 0);
 }

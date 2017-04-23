@@ -229,7 +229,7 @@ VulkanRenderer::PrepareGraphicsPipeline() {
 	// -- VERTEX INPUT STAGE
 	// \see https://www.khronos.org/registry/vulkan/specs/1.0/xhtml/vkspec.html#VkPipelineVertexInputStateCreateInfo
 	// Input binding description
-	AttribInfo positionAttrib = m_scene->models[0]->attribInfo.at(POSITION);
+ 	AttribInfo positionAttrib = m_scene->models[0]->attribInfo.at(POSITION);
 	AttribInfo normalAttrib = m_scene->models[0]->attribInfo.at(NORMAL);
 	std::vector<VkVertexInputBindingDescription> bindingDesc = {
 		MakeVertexInputBindingDescription(

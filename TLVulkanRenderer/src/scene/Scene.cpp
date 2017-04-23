@@ -24,11 +24,11 @@ Scene::Scene(
 
 	// Construct SBVH
 	m_accel.reset(new SBVH(
-		10,
+		100,
 		SBVH::Spatial
 		));
 
-	TimeCounter::GetInstance()->NewCounter(BUILD_BVH_TIME);
+	TimeCounter::GetInstance()->NewCounter(TQ_BUILD_BVH);
 	ParseSceneFile(fileName);
 	PrepareTestScene();
 }
@@ -36,18 +36,24 @@ Scene::Scene(
 
 Scene::~Scene() {
 	for (Model* geom : models) {
-		delete geom;
-		geom = nullptr;
+		if (geom) {
+			delete geom;
+			geom = nullptr;
+		}
 	}
 
 	for (Material* mat : materials) {
-		delete mat;
-		mat = nullptr;
+		if (mat) {
+			delete mat;
+			mat = nullptr;
+		}
 	}
 
 	for (Light* l : lights) {
-		delete l;
-		l = nullptr;
+		if (l) {
+			delete l;
+			l = nullptr;
+		}
 	}
 
 	m_accel->Destroy();
@@ -126,7 +132,7 @@ Scene::ShadowRay(
 				}
 			}
 		}
-
+		
 		return result;
 	}
 }
@@ -201,31 +207,31 @@ void Scene::PrepareTestScene()
 	// duplicate meshes
 
 	 //Add spheres
-	int numSpheres = 5;
-	for (int i = 0; i < numSpheres; i++) {
-		Material* mat;
-		if (i % 2)
-		{
-			mat = mirror;
-		}
-		else
-		{
-			mat = glass;
-		}
-		vec3 position = glm::vec3(
-			sin(glm::radians(360.0f * i / numSpheres)) * 1,
-			-2.4 + (0.5 + i * 0.25) * 0.5 + 2.5,
-			cos(glm::radians(360.0f * i / numSpheres)) * 1 + 3
-		);
-		float radius = 0.5 + i * 0.25;
-		std::shared_ptr<Sphere> s(new Sphere(position, radius, mat));
-		std::string name = "Sphere" + i;
-		s.get()->SetName(name);
-		geometries.push_back(s);
+	//int numSpheres = 5;
+	//for (int i = 0; i < numSpheres; i++) {
+	//	Material* mat;
+	//	if (i % 2)
+	//	{
+	//		mat = mirror;
+	//	}
+	//	else
+	//	{
+	//		mat = glass;
+	//	}
+	//	vec3 position = glm::vec3(
+	//		sin(glm::radians(360.0f * i / numSpheres)) * 1,
+	//		-2.4 + (0.5 + i * 0.25) * 0.5 + 2.5,
+	//		cos(glm::radians(360.0f * i / numSpheres)) * 1 + 3
+	//	);
+	//	float radius = 0.5 + i * 0.25;
+	//	std::shared_ptr<Sphere> s(new Sphere(position, radius, mat));
+	//	std::string name = "Sphere" + i;
+	//	s.get()->SetName(name);
+	//	geometries.push_back(s);
 
-		SpherePacked packedSphere = { position, radius };
-		spherePackeds.push_back(packedSphere);
-	}
+	//	SpherePacked packedSphere = { position, radius };
+	//	spherePackeds.push_back(packedSphere);
+	//}
 
 	//PrepareBoxes();
 	//PrepareCornellBox();
@@ -239,11 +245,11 @@ void Scene::PrepareTestScene()
 
 	if (m_useAccel)
 	{
-		TimeCounter::GetInstance()->BeginRecord(BUILD_BVH_TIME);
+		TimeCounter::GetInstance()->BeginRecord(TQ_BUILD_BVH);
 		m_accel->Build(geometries);
-		TimeCounter::GetInstance()->EndRecord(BUILD_BVH_TIME);
+		TimeCounter::GetInstance()->EndRecord(TQ_BUILD_BVH);
 		m_accel->PrintStats();
-		std::cout << "BVH build time: " << TimeCounter::GetInstance()->GetAverageRunTime(BUILD_BVH_TIME) << " ms" << std::endl;
+		std::cout << "BVH build time: " << TimeCounter::GetInstance()->GetAverageRunTime(TQ_BUILD_BVH) << " ms" << std::endl;
 	}
 
 	std::cout << "Number of triangles: " << indices.size() << std::endl;

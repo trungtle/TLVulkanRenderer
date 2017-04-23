@@ -419,4 +419,5 @@ Listing of glTF models and scenes used in this project for testing and demos:
 * [centaur model](http://tf3dm.com/3d-model/free-base-mesh-centaur--67384.html) by [BAQStudio](http://tf3dm.com/user/baqstudio), Model is converted using [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF).
 * Infinite, [3D Head Scan]() by Lee Perry-Smith is licensed under a Creative Commons Attribution 3.0 Unported License. Based on a work at www.triplegangers.com. This distribution was created by Morgan McGuire and Guedis Cardenas http://graphics.cs.williams.edu/data/. See [LICENSE](/gltfs/head/Infinite-Scan_License.txt). Model is converted using [obj2gltf](https://github.com/AnalyticalGraphicsInc/OBJ2GLTF).
 * [Boeing747](https://free3d.com/3d-model/boeing-747-26638.html)
+* Many thanks to the incredible artists who featured their works on [sketchfab for gltf2.0](https://sketchfab.com/features/gltf)
 

@@ -845,8 +845,10 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 	// -------- For each mesh -----------
 
-	unsigned int idxOffset = 0;
-	unsigned vertOffset = 0;
+	unsigned long idxOffset = 0;
+	unsigned long posIdxOffset = 0;
+	unsigned long norIdxOffset = 0;
+	unsigned long uvIdxOffset = 0;
 	for (auto& nodeString : nodeString2Matrix) {
 
 		const tinygltf::Node& node = gltfscene.nodes.at(nodeString.first);
@@ -1052,7 +1054,7 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 									image.height
 								);
 
-								model->textures.insert(std::make_pair(ALBEDO_MAP, texture));
+								model->textures.emplace (ALBEDO_MAP, texture);
 							}
 						}
 						else
@@ -1064,13 +1066,13 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 
 					if (mat.values.find("ambient") != mat.values.end())
 					{
-						auto amb = mat.values.at("ambient").number_array;
-						materialPacked.ambient = glm::vec4(amb.at(0), amb.at(1), amb.at(2), amb.at(3));
+						//auto amb = mat.values.at("ambient").number_array;
+						//materialPacked.ambient = glm::vec4(amb.at(0), amb.at(1), amb.at(2), amb.at(3));
 					}
 					if (mat.values.find("emission") != mat.values.end())
 					{
-						auto em = mat.values.at("emission").number_array;
-						materialPacked.emission = glm::vec4(em.at(0), em.at(1), em.at(2), em.at(3));
+						//auto em = mat.values.at("emission").number_array;
+						//materialPacked.emission = glm::vec4(em.at(0), em.at(1), em.at(2), em.at(3));
 					}
 					if (mat.values.find("specular") != mat.values.end())
 					{
@@ -1309,59 +1311,57 @@ bool gltfLoader::Load(std::string fileName, Scene* scene)
 									image.height
 								);
 
-								model->textures.insert(std::make_pair(EMISSIVE_MAP, texture));
+								model->textures.emplace(EMISSIVE_MAP, texture);
 							}
 						}
 					}
-					scene->materials.push_back(new LambertMaterial(materialPacked, texture));
-					scene->materialPackeds.push_back(materialPacked);
+					scene->materials.emplace_back(new LambertMaterial(materialPacked, texture));
+					scene->materialPackeds.emplace_back(materialPacked);
 					++materialId;
 
 				} // --End of materials
 
-				scene->models.push_back(model);
-				
+				scene->models.emplace_back(model);
+				if (scene->models.size() >= 34) continue;;
 				// Generate mesh for ray tracing
 				Mesh newMesh;
-				for (unsigned int j = idxOffset; j < scene->indices.size(); j++)
+				for (unsigned long j = idxOffset; j < scene->indices.size(); j++)
 				{
-					ivec4 idx = scene->indices[j];
+					const ivec4& idx = scene->indices[j];
 					
 					if (scene->uvs.size() == 0) {
 						// No UVs
-						newMesh.triangles.push_back(
-							Triangle(
-								scene->positions[idx.x + vertOffset],
-								scene->positions[idx.y + vertOffset],
-								scene->positions[idx.z + vertOffset],
-								scene->normals[idx.x + vertOffset],
-								scene->normals[idx.y + vertOffset],
-								scene->normals[idx.z + vertOffset],
+						newMesh.triangles.emplace_back(
+								scene->positions[idx.x + posIdxOffset],
+								scene->positions[idx.y + posIdxOffset],
+								scene->positions[idx.z + posIdxOffset],
+								scene->normals[idx.x + norIdxOffset],
+								scene->normals[idx.y + norIdxOffset],
+								scene->normals[idx.z + norIdxOffset],
 								scene->materials[materialId - 1]
-							)
 						);
 					}
 					else
 					{
-						newMesh.triangles.push_back(
-							Triangle(
-								scene->positions[idx.x + vertOffset],
-								scene->positions[idx.y + vertOffset],
-								scene->positions[idx.z + vertOffset],
-								scene->normals[idx.x + vertOffset],
-								scene->normals[idx.y + vertOffset],
-								scene->normals[idx.z + vertOffset],
-								scene->uvs[idx.x + vertOffset],
-								scene->uvs[idx.y + vertOffset],
-								scene->uvs[idx.z + vertOffset],
+						newMesh.triangles.emplace_back(
+								scene->positions[idx.x + posIdxOffset],
+								scene->positions[idx.y + posIdxOffset],
+								scene->positions[idx.z + posIdxOffset],
+								scene->normals[idx.x + norIdxOffset],
+								scene->normals[idx.y + norIdxOffset],
+								scene->normals[idx.z + norIdxOffset],
+								scene->uvs[idx.x + uvIdxOffset],
+								scene->uvs[idx.y + uvIdxOffset],
+								scene->uvs[idx.z + uvIdxOffset],
 								scene->materials[materialId - 1]
-							)
 						);
 					}
 				}
-				scene->meshes.push_back(newMesh);
+				scene->meshes.emplace_back(newMesh);
 				idxOffset = scene->indices.size();
-				vertOffset = scene->positions.size();
+				posIdxOffset = scene->positions.size();
+				norIdxOffset = scene->normals.size();
+				uvIdxOffset = scene->uvs.size();
 
 			} // -- End of mesh primitives
 		} // -- End of meshes

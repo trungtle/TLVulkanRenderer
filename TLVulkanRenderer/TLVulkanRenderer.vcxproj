@@ -176,6 +176,7 @@
     <ClInclude Include="src\geometry\Transform.h" />
     <ClInclude Include="src\ImprovedNoise.h" />
     <ClInclude Include="src\renderer\samplers\StratifiedSampler.h" />
+    <ClInclude Include="src\renderer\vulkan\VDeleter.h" />
     <ClInclude Include="src\renderer\vulkan\VulkanHybridRenderer.h" />
     <ClInclude Include="src\geometry\Model.h" />
     <ClInclude Include="src\Texture.h" />

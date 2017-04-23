@@ -259,7 +259,7 @@ protected:
 		VkRenderPass renderPass;
 		VkSampler sampler;
 
-		VulkanImage::Image position, normal, albedo;
+		VulkanImage::Image position, normal, albedo, uv;
 		VulkanImage::Image depth;
 	};
 

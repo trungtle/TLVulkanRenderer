@@ -42,13 +42,12 @@ public:
 		SBVHNode* nearChild, 
 		SBVHNode* farChild, 
 		SBVHNodeId nodeIdx, 
-		Dim m_dim) : 
+		Dim m_dim) :
 		m_parent(parent),
 		m_nearChild(nearChild),
 		m_farChild(farChild),
 		m_nodeIdx(nodeIdx),
-		m_dim(m_dim)
-	{
+		m_dim(m_dim), m_depth(0), m_isSpatialSplit(false) {
 		if (nearChild) {
 			m_bbox = BBox::BBoxUnion(m_bbox, nearChild->m_bbox);
 		}

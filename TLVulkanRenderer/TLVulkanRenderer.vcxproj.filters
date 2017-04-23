@@ -353,6 +353,7 @@
     <ClInclude Include="src\geometry\Model.h" />
     <ClInclude Include="thirdparty\stb\stb_image.h" />
     <ClInclude Include="src\TimeCounter.h" />
+    <ClInclude Include="src\renderer\vulkan\VDeleter.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing\raytrace.comp">

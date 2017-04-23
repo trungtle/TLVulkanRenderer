@@ -94,7 +94,7 @@ VulkanDevice::InitializeVulkanInstance() {
 		instanceCreateInfo.enabledLayerCount = 0;
 	}
 
-	return vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
+	return vkCreateInstance(&instanceCreateInfo, nullptr, instance.replace());
 }
 
 VkResult
@@ -118,7 +118,7 @@ VkResult
 VulkanDevice::CreateWindowSurface(
 	GLFWwindow* window
 ) {
-	VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surfaceKHR);
+	VkResult result = glfwCreateWindowSurface(instance, window, nullptr, surfaceKHR.replace());
 	if (result != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create window surface");
 	}
@@ -196,7 +196,7 @@ VulkanDevice::SetupLogicalDevice() {
 	}
 
 	// Create the logical device
-	VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+	VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, device.replace());
 
 	return result;
 }
@@ -457,13 +457,8 @@ VulkanDevice::Destroy() {
 
 	vkDestroySwapchainKHR(device, m_swapchain.swapchain, nullptr);
 
-	vkDestroyDevice(device, nullptr);
-
-	vkDestroySurfaceKHR(instance, surfaceKHR, nullptr);
-
 	DestroyDebugReportCallbackEXT(instance, debugCallback, nullptr);
 
-	vkDestroyInstance(instance, nullptr);
 }
 
 // ==================================

@@ -89,9 +89,10 @@ struct PathSegment {
 };
 
 struct Intersection {
-	vec3 hitNormal;
 	float t;
 	vec3 hitPoint;
+	vec3 hitNormal;
+	vec2 hitUV;
 	int materialId;
 	int objectID;
 };
@@ -161,6 +162,7 @@ layout (binding = 13) uniform sampler2D roughnessMap;
 layout (binding = 14) uniform sampler2D metallicMap;
 layout (binding = 15) uniform sampler2D aoMap;
 layout (binding = 16) uniform sampler2D emissiveMap;
+layout (binding = 17) uniform sampler2D samplerUV;
 
 layout(push_constant) uniform PushConsts {
 	layout(offset = 0) float roughness;
@@ -199,11 +201,10 @@ void buildTriangle(int i, inout Triangle tri) {
 	tri.norm2 = vec3(normals[indicesAndMaterialID[i].z]);
 }
 
-float triangleIntersect(
+bool triangleIntersect(
 	in Triangle tri, 
 	in Ray r,
-	out vec3 normal,
-	out vec3 hitPoint
+	out Intersection isx
 	) 
 {
 	// Compute fast intersection using Muller and Trumbore, this skips computing the plane's equation.
@@ -220,7 +221,7 @@ float triangleIntersect(
 	// If determinant is 0, ray lies in plane of triangle
 	float det = dot(pvec, edge1);
 	if (abs(det) < EPSILON) {
-		return -1;
+		return false;
 	}
 	float inv_det = 1.0 / det;
 	vec3 tvec = r.origin - tri.vert0;
@@ -232,23 +233,25 @@ float triangleIntersect(
 	// Compute u
 	u = dot(pvec, tvec) * inv_det;
 	if (u < 0.0 || u > 1.0) {
-		return -1;
+		return false;
 	}
 
 	// Compute v
 	vec3 qvec = cross(tvec, edge1);
 	v = dot(r.direction, qvec) * inv_det;
 	if (v < 0.0 || (u + v) > 1.0) {
-		return -1;
+		return false;
 	}
 
 	// Compute t
 	t = dot(edge2, qvec) * inv_det;
 
-	hitPoint = getPointOnRay(r, t);
-	normal = normalize(tri.norm0 * (1 - u - v) + tri.norm1 * u + tri.norm2 * v);
+	isx.t = t;
+	isx.hitPoint = getPointOnRay(r, t);
+	isx.hitNormal = normalize(tri.norm0 * (1 - u - v) + tri.norm1 * u + tri.norm2 * v);
+	isx.hitUV = vec2(u, v);
 
-	return t;
+	return true;
 }
 
 // ==================================
@@ -365,11 +368,8 @@ Intersection calcShadowBVH(
 	int farChild;
 	int state = FROM_PARENT;
 	int root = node;
-	float t = 0;
-	vec3 tmp_normal;
-	vec3 tmp_hitPoint;
 	float tMin = MAXLEN;
-
+	Intersection tmp_isx;
 	Intersection isx;
 	isx.t = -1;
 
@@ -413,19 +413,18 @@ Intersection calcShadowBVH(
 			{
 				if (bvhNodes[current].geomId > -1) {
 					// Leaf node
-					isx.t = 1;
-					return isx;
 					
 					// Reconstruct triangle
 					Triangle tri;
 					buildTriangle(bvhNodes[current].geomId, tri);
-					t = triangleIntersect(tri, ray, tmp_normal, tmp_hitPoint);
-					if ((t > EPSILON) && (t < tMin))
+					bool doesIntersect = triangleIntersect(tri, ray, tmp_isx);
+					if (doesIntersect && (tmp_isx.t < tMin))
 					{
-						tMin = t;
-						isx.t = t;
-						isx.hitPoint = tmp_hitPoint;
-						isx.hitNormal = tmp_normal;
+						tMin = tmp_isx.t;
+						isx.t = tmp_isx.t;
+						isx.hitPoint = tmp_isx.hitPoint;
+						isx.hitNormal = tmp_isx.hitNormal;
+						isx.hitUV = tmp_isx.hitUV;
 						isx.objectID = tri.materialId;
 					}
 
@@ -434,7 +433,7 @@ Intersection calcShadowBVH(
 
 				} else {
 					// When this isn't a leaf node, check bbox intersection
-					t = aabbIntersect(ray, current);
+					float t = aabbIntersect(ray, current);
 					if ( (t < MAXLEN) && (t > EPSILON) ) {
 						// Hit, enter its subtree (near child)
 						int nearChild = getNearChild(current);
@@ -473,13 +472,14 @@ Intersection calcShadowBVH(
 					// Reconstruct triangle
 					Triangle tri;
 					buildTriangle(bvhNodes[current].geomId, tri);
-					t = triangleIntersect(tri, ray, tmp_normal, tmp_hitPoint);
-					if ((t > EPSILON) && (t < tMin))
+					bool doesIntersect = triangleIntersect(tri, ray, tmp_isx);
+					if (doesIntersect && (tmp_isx.t < tMin))
 					{
-						tMin = t;
-						isx.t = t;
-						isx.hitPoint = tmp_hitPoint;
-						isx.hitNormal = tmp_normal;
+						tMin = tmp_isx.t;
+						isx.t = tmp_isx.t;
+						isx.hitPoint = tmp_isx.hitPoint;
+						isx.hitNormal = tmp_isx.hitNormal;
+						isx.hitUV = tmp_isx.hitUV;
 						isx.objectID = tri.materialId;
 					}
 
@@ -493,7 +493,7 @@ Intersection calcShadowBVH(
 
 				} else {
 					// Not a leaf node, check internal node intersection
-					t = aabbIntersect(ray, current);
+					float t = aabbIntersect(ray, current);
 					if ( (t < MAXLEN) && t > EPSILON) {
 
 						// Hit, enter its subtree (near child)
@@ -556,15 +556,14 @@ Intersection getIsx(
 		Triangle tri;
 		buildTriangle(i, tri);
 
-		vec3 tmp_normal;
-		vec3 tmp_hitPoint;
-		float tTri = triangleIntersect(tri, path.ray, tmp_normal, tmp_hitPoint);
-		if ((tTri > EPSILON) && (tTri < tMin))
+		Intersection tmp_isx;
+		bool doesIntersect = triangleIntersect(tri, path.ray, tmp_isx);
+		if (doesIntersect && (tmp_isx.t < tMin))
 		{
 			objectID = tri.materialId;
-			tMin = tTri;
-			normal = tmp_normal;
-			hitPoint = tmp_hitPoint;
+			tMin = tmp_isx.t;
+			normal = tmp_isx.hitNormal;
+			hitPoint = tmp_isx.hitPoint;
 			materialID = tri.materialId;
 			path.objectId = objectID;
 		}
@@ -596,10 +595,9 @@ float calcShadow(in Ray feeler, in int objectId, in float t)
 		Triangle tri;
 		buildTriangle(i, tri);
 
-		vec3 tmp_normal;
-		vec3 tmp_hitPoint;
-		float tTri = triangleIntersect(tri, feeler, tmp_normal, tmp_hitPoint);
-		if (tTri > EPSILON && tTri < t)
+		Intersection tmp_isx;
+		bool doesIntersect = triangleIntersect(tri, feeler, tmp_isx);
+		if (doesIntersect && tmp_isx.t < t)
 		{
 			return 0.5;
 		}
@@ -698,8 +696,8 @@ void shade(
 	path.remainingBounces = 0;
 	int MAX_LIGHTS = 10;
 
-	float roughness = 1.0;//pbrMaterial.roughness;
-	float metallic = 0.0;//pbrMaterial.metallic;
+	float roughness = texture(roughnessMap, isx.hitUV).r; //1.0;//pbrMaterial.roughness;
+	float metallic =  texture(metallicMap, isx.hitUV).r;// 0.0;//pbrMaterial.metallic;
 	vec3 N = normalize(isx.hitNormal);
 	vec3 V = normalize(vec3(ubo.cameraPosition) - isx.hitPoint);
 	vec3 R = reflect(-V, N);
@@ -715,9 +713,6 @@ void shade(
 		}
 
 		float dist = length(vec3(ubo.lights[i].position) - isx.hitPoint);
-		if (dist >= ubo.lights[i].radius) {
-			continue;
-		}
 
 		vec3 L = normalize(vec3(ubo.lights[i].position) - isx.hitPoint);
 		vec3 H = normalize(V + L);
@@ -738,20 +733,20 @@ void shade(
 		vec3 kD = vec3(1.0) - kS;
 		kD *= 1.0 - metallic;
 
-		//// Light feeler test
-		//Ray feeler;
-		//feeler.origin = isx.hitPoint + 0.002 * L;
-		//feeler.direction = L;
-		//feeler.inv_direction = vec3(1.0/feeler.direction.x, 1.0/feeler.direction.y, 1.0/feeler.direction.z);
-		//feeler.sign[0] = (feeler.inv_direction.x < 0) ? 1 : 0;
-		//feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
-		//feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
+		// Light feeler test
+		Ray feeler;
+		feeler.origin = isx.hitPoint + 0.002 * L;
+		feeler.direction = L;
+		feeler.inv_direction = vec3(1.0/feeler.direction.x, 1.0/feeler.direction.y, 1.0/feeler.direction.z);
+		feeler.sign[0] = (feeler.inv_direction.x < 0) ? 1 : 0;
+		feeler.sign[1] = (feeler.inv_direction.y < 0) ? 1 : 0;
+		feeler.sign[2] = (feeler.inv_direction.z < 0) ? 1 : 0;
 			
-		//float shadow = 1;//calcShadow(feeler, isx.materialId, dist); 
-		//Intersection shadowIsx = calcShadowBVH(feeler, 0);
-		//if (shadowIsx.t > 0) {
-		//	shadow = 0.1;
-		//}
+		float shadow = 1;//calcShadow(feeler, isx.materialId, dist); 
+		Intersection shadowIsx = calcShadowBVH(feeler, 0);
+		if (shadowIsx.t > 0) {
+			shadow = 0.1;
+		}
 
 		//vec3 diffuseColor = material.diffuse.rgb;
 		//float atten = 0.1;
@@ -771,18 +766,19 @@ void shade(
 
 		vec3 reflection = EnvBRDFApprox(specular, pow(roughness, 1.0f), clamp(dot(N, V), 0.0, 1.0));
 	
-
 		// Combine specular IBL and BRDF
-		//albedo = albedo * irradianceSample;
-		//specular = radianceSample * reflection;
+		albedo = albedo * irradianceSample;
+		specular = radianceSample * reflection;
 
-		Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+		Lo += (kD * albedo / PI + specular) * radiance * NdotL;// * shadow;
 
 
 	}
-
-	vec3 ambient = vec3(0.03) * albedo;
-	path.color = ambient + Lo;
+	
+	float ao = texture(aoMap, isx.hitUV).r;
+	vec3 emissive = texture(emissiveMap, isx.hitUV).rgb;
+	vec3 ambient = vec3(0.13) * albedo;
+	path.color = ambient + Lo * ao + emissive;
 	path.color = Uncharted2Tonemap(path.color * 1.0);
 	path.color = path.color / Uncharted2Tonemap(vec3(11.2));
 	path.color = pow(path.color, vec3(1.0/2.2));
@@ -802,6 +798,7 @@ void main()
 	
 	vec3 position = texture(positionsImage, uv).rgb;
 	vec3 normal = texture(normalsImage, uv).rgb;
+	vec2 hitUV = texture(samplerUV, uv).rg;
 	
 	// Here, materialId was normalized and packed as the fourth value
 	float materialIdNormalized = texture(positionsImage, uv).w;
@@ -823,6 +820,7 @@ void main()
 	Intersection isx;
 	isx.hitPoint = position;
 	isx.hitNormal = normal;
+	isx.hitUV = hitUV;
 	isx.materialId = materialId;
 	isx.t = 1;
 

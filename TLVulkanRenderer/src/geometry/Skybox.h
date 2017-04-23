@@ -25,8 +25,9 @@ public:
 		// Load skybox
 		m_cubemap.CreateCubemapFromFile(
 			device,
-			filename,
-			VK_FORMAT_R32G32B32A32_SFLOAT,
+			"textures/hamarikyu_bridge_radiance_cube.ktx",
+			VK_FORMAT_R16G16B16A16_SFLOAT,
+			//VK_FORMAT_R32G32B32A32_SFLOAT,
 			VK_IMAGE_USAGE_SAMPLED_BIT
 		);
 

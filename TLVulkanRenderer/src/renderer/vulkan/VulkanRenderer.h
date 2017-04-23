@@ -247,4 +247,9 @@ protected:
 	 * \brief PCG random number generator
 	 */
 	pcg32_random_t m_rng;
+
+	/**
+	 * \brief Query pool
+	 */
+	VkQueryPool m_queryPool;
 };
