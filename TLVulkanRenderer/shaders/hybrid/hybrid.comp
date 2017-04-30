@@ -696,8 +696,8 @@ void shade(
 	path.remainingBounces = 0;
 	int MAX_LIGHTS = 10;
 
-	float roughness = texture(roughnessMap, isx.hitUV).r; //1.0;//pbrMaterial.roughness;
-	float metallic =  texture(metallicMap, isx.hitUV).r;// 0.0;//pbrMaterial.metallic;
+	float roughness = 0.0;//texture(roughnessMap, isx.hitUV).r; //1.0;//pbrMaterial.roughness;
+	float metallic =  1.0;//texture(metallicMap, isx.hitUV).r;// 0.0;//pbrMaterial.metallic;
 	vec3 N = normalize(isx.hitNormal);
 	vec3 V = normalize(vec3(ubo.cameraPosition) - isx.hitPoint);
 	vec3 R = reflect(-V, N);
@@ -756,7 +756,6 @@ void shade(
 		//	diffuseColor *= diffuse;
 		//}
 
-		//path.color *= shadow;
 		// Cubemap sampling
 		ivec2 cubeDim = textureSize(radianceMap, 0);
 		int numMipLevels = int(log2(max(cubeDim.s, cubeDim.y)));
@@ -770,18 +769,19 @@ void shade(
 		albedo = albedo * irradianceSample;
 		specular = radianceSample * reflection;
 
-		Lo += (kD * albedo / PI + specular) * radiance * NdotL;// * shadow;
+		Lo += (kD * albedo / PI + specular) * radiance * NdotL * shadow;
 
 
 	}
 	
-	float ao = texture(aoMap, isx.hitUV).r;
-	vec3 emissive = texture(emissiveMap, isx.hitUV).rgb;
+	//float ao = texture(aoMap, isx.hitUV).r;
+	//vec3 emissive = texture(emissiveMap, isx.hitUV).rgb;
 	vec3 ambient = vec3(0.13) * albedo;
-	path.color = ambient + Lo * ao + emissive;
+	path.color = ambient + Lo;// * ao + emissive;
 	path.color = Uncharted2Tonemap(path.color * 1.0);
 	path.color = path.color / Uncharted2Tonemap(vec3(11.2));
 	path.color = pow(path.color, vec3(1.0/2.2));
+	path.color.x = 1.0;
 }
 
 vec2 envMapEquirect(vec3 normal) 

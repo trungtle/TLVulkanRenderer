@@ -5,6 +5,13 @@
 
 typedef unsigned int Dim;
 
+enum EAxis
+{
+	X,
+	Y,
+	Z
+};
+
 enum EPlane {
 	XY,
 	ZY,
@@ -33,6 +40,9 @@ public:
 	bool DoesIntersect(const Ray& r) const;
 	glm::vec3 Offset(const glm::vec3& point) const;
 	float GetSurfaceArea();
+	inline vec3 GetCenter() const {
+		return m_min + (m_max - m_min) / 2.0f;
+	};
 
 	bool IsInside(const vec3& point) const;
 

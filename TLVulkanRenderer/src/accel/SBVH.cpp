@@ -283,6 +283,7 @@ SBVH::CalculateSpatialSplitCost(
 	Cost costs[NUM_BUCKET - 1];
 	float invAllGeometriesSA = 1.0f / bboxAllGeoms.GetSurfaceArea();
 	float bucketSize = (bboxAllGeoms.m_max[dim] - bboxAllGeoms.m_min[dim]) / NUM_BUCKET;
+	PrimInfo tightFragInfo;
 
 
 	// For each primitive in range, determine which bucket it falls into
@@ -319,31 +320,18 @@ SBVH::CalculateSpatialSplitCost(
 				bbox.m_centroid = BBox::Centroid(bbox.m_min, bbox.m_max);
 				bbox.m_transform = Transform(bbox.m_centroid, glm::vec3(0), bbox.m_max - bbox.m_min);
 #ifdef TIGHT_BBOX
-				vec3 pointOnSplittingPlane = bboxAllGeoms.m_min;
-				for (auto bucket = startEdgeBucket; bucket < endEdgeBucket; bucket++)
+
+				// Get the primitive reference from geometry info, then clip it against the splitting plane
+				std::shared_ptr<Geometry> pPrim = m_prims[primInfos[i].primitiveId];
+
+				// Cast to triangle
+				Triangle* pTri = dynamic_cast<Triangle*>(pPrim.get());
+				if (pTri != nullptr)
 				{
-					// Get the primitive reference from geometry info, then clip it against the splitting plane
-					std::shared_ptr<Geometry> pGeom = m_geoms[geomInfos[i].geometryId];
-
-					// Cast to triangle
-					Triangle* pTri = dynamic_cast<Triangle*>(pGeom.get());
-					if (pTri == nullptr)
-					{
-						// not a triangle
-						// Geometry reference completely falls inside bucket
-						int whichBucket = NUM_BUCKET * bboxCentroids.Offset(geomInfos.at(i).bbox.m_centroid)[dim];
-						assert(whichBucket <= NUM_BUCKET);
-						if (whichBucket == NUM_BUCKET) whichBucket = NUM_BUCKET - 1;
-
-						spatialSplitBuckets[whichBucket].count++;
-						spatialSplitBuckets[whichBucket].bbox = BBox::BBoxUnion(buckets[whichBucket].bbox, geomInfos.at(i).bbox);
-						geomInfos[i].straddling = false;
-						break;
-
-					}
+					vec3 pointOnSplittingPlane = bboxAllGeoms.GetCenter();
 
 					// Find intersection with splitting plane
-					pointOnSplittingPlane[dim] = bucketSize * (bucket + 1) + bboxAllGeoms.m_min[dim];
+					pointOnSplittingPlane[dim] = farSplitPlane;
 
 					vec3 planeNormal;
 					EAxis splittinPlaneAxis[2];
@@ -416,44 +404,41 @@ SBVH::CalculateSpatialSplitCost(
 					}
 
 					// Found intersection, grow tight bounding box of reference for bucket
-					SBVHGeometryInfo tightBBoxGeomInfo;
-
 					// Create additional geometry info to whole the new tight bbox
-					tightBBoxGeomInfo.geometryId = geomInfos[i].geometryId;
-					tightBBoxGeomInfo.bbox = BBox::BBoxFromPoints(isxPoints);
+					tightFragInfo.primitiveId = primInfos[i].primitiveId;
+					tightFragInfo.bbox = BBox::BBoxFromPoints(isxPoints);
 					if (pTri->vert0[dim] > pointOnSplittingPlane[dim] - bucketSize &&
 						pTri->vert0[dim] < pointOnSplittingPlane[dim])
 					{
-						tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert0);
+						tightFragInfo.bbox = BBox::BBoxUnion(tightFragInfo.bbox, pTri->vert0);
 					}
 					if (pTri->vert1[dim] > pointOnSplittingPlane[dim] - bucketSize &&
 						pTri->vert1[dim] < pointOnSplittingPlane[dim])
 					{
-						tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert1);
+						tightFragInfo.bbox = BBox::BBoxUnion(tightFragInfo.bbox, pTri->vert1);
 					}
 					if (pTri->vert2[dim] > pointOnSplittingPlane[dim] - bucketSize &&
 						pTri->vert2[dim] < pointOnSplittingPlane[dim])
 					{
-						tightBBoxGeomInfo.bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, pTri->vert2);
+						tightFragInfo.bbox = BBox::BBoxUnion(tightFragInfo.bbox, pTri->vert2);
 					}
-
-					geomInfos.push_back(tightBBoxGeomInfo);
-
-					spatialSplitBuckets[bucket].bbox = BBox::BBoxUnion(tightBBoxGeomInfo.bbox, spatialSplitBuckets[bucket].bbox);
 				}
 
-				// Increment entering and exiting reference counts
-				spatialSplitBuckets[startEdgeBucket].enter++;
-				spatialSplitBuckets[endEdgeBucket].exit++;
+
 #endif
 				// Create a new geom info to hold the splitted geometry
 				PrimInfo fragInfo;
 				fragInfo.bbox = bbox;
 				fragInfo.primitiveId = primInfos.at(i).primitiveId;
 				fragInfo.origPrimOffset = i;
+#ifdef TIGHT_BBOX
+				tightFragInfo.origPrimOffset = i;
+				buckets[b].fragments.push_back(tightFragInfo);
+				buckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, tightFragInfo.bbox);
+#else
 				buckets[b].fragments.push_back(fragInfo);
-
 				buckets[b].bbox = BBox::BBoxUnion(buckets[b].bbox, bbox);
+#endif
 			}
 		} else {
 			buckets[minBucket].bbox = primInfos.at(i).bbox;
@@ -1214,7 +1199,7 @@ void SBVH::GenerateVertices(
 
 		// Setup indices
 
-		indices.push_back(0 + verticeCount);
+		indices.emplace_back(0 + verticeCount);
 		indices.push_back(1 + verticeCount);
 		indices.push_back(1 + verticeCount);
 		indices.push_back(3 + verticeCount);

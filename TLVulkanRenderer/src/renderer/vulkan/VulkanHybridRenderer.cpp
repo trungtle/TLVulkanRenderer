@@ -4,7 +4,7 @@
 #include "scene/Camera.h"
 #include "accel/SBVH.h"
 #include "TimeCounter.h"
-#define PBR
+//#define PBR
 
 VulkanHybridRenderer::VulkanHybridRenderer(
 	GLFWwindow* window,
@@ -103,6 +103,7 @@ VulkanHybridRenderer::Render() {
 	CheckVulkanResult(vkQueueSubmit(m_compute.queue, 1, &computeSubmitInfo, m_raytrace.fence), "failed to submit queue");
 	TimeCounter::EndRecord(TQ_RAYTRACE);
 	if (TimeCounter::ReachedMaxSamples(TQ_RAYTRACE)) {
+		m_logger->info("Raytrace time CPU: {0} ms", TimeCounter::GetAverageRunTime(TQ_RAYTRACE));
 
 		std::array<uint64_t, 2> queryResults;
 
@@ -1274,35 +1275,35 @@ void VulkanHybridRenderer::BuildOnscreenCommandBuffer()
 
 		// skybox
 		{
-			//vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
-			//std::vector<VkDeviceSize> skyboxOffset = {
-			//	m_skybox.skybox->Buffer().offsets.at(POLYGON),
-			//};
+			vkCmdBindPipeline(m_graphics.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_skybox.pipeline);
+			std::vector<VkDeviceSize> skyboxOffset = {
+				m_skybox.skybox->Buffer().offsets.at(POLYGON),
+			};
 
-			//vkCmdBindDescriptorSets(
-			//	m_graphics.commandBuffers[i], 
-			//	VK_PIPELINE_BIND_POINT_GRAPHICS, 
-			//	m_skybox.pipelineLayout, 
-			//	0, 
-			//	1, 
-			//	&m_skybox.descriptorSet, 
-			//	0, 
-			//	NULL);
-			//vkCmdBindVertexBuffers(
-			//	m_graphics.commandBuffers[i], 
-			//	0, 
-			//	1, 
-			//	&m_skybox.skybox->Buffer().storageBuffer.buffer, 
-			//	skyboxOffset.data()
-			//	);
-			//vkCmdBindIndexBuffer(
-			//	m_graphics.commandBuffers[i], 
-			//	m_skybox.skybox->Buffer().storageBuffer.buffer, 
-			//	m_skybox.skybox->Buffer().offsets.at(INDEX),
-			//	VK_INDEX_TYPE_UINT16);
-			//vkCmdDrawIndexed(
-			//	m_graphics.commandBuffers[i], 
-			//	m_skybox.skybox->Buffer().indexCount, 1, 0, 0, 0);
+			vkCmdBindDescriptorSets(
+				m_graphics.commandBuffers[i], 
+				VK_PIPELINE_BIND_POINT_GRAPHICS, 
+				m_skybox.pipelineLayout, 
+				0, 
+				1, 
+				&m_skybox.descriptorSet, 
+				0, 
+				NULL);
+			vkCmdBindVertexBuffers(
+				m_graphics.commandBuffers[i], 
+				0, 
+				1, 
+				&m_skybox.skybox->Buffer().storageBuffer.buffer, 
+				skyboxOffset.data()
+				);
+			vkCmdBindIndexBuffer(
+				m_graphics.commandBuffers[i], 
+				m_skybox.skybox->Buffer().storageBuffer.buffer, 
+				m_skybox.skybox->Buffer().offsets.at(INDEX),
+				VK_INDEX_TYPE_UINT16);
+			vkCmdDrawIndexed(
+				m_graphics.commandBuffers[i], 
+				m_skybox.skybox->Buffer().indexCount, 1, 0, 0, 0);
 		}
 
 		// Record binding the graphics pipeline
@@ -2036,7 +2037,7 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 
 	// White
 	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -1.0f, 0.0f, 1.0f);
-	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(300, 300, 300);
+	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(100, 100, 100);
 	m_deferred.lightsUnif.m_pointLights[0].radius = 100.0f;
 
 	// Red

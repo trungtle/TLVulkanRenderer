@@ -196,6 +196,7 @@ void Scene::PrepareTestScene()
 	{
 		size_t len = 232271 < meshes[m].triangles.size() ? 232271 : meshes[m].triangles.size();
 		//len = meshes[m].triangles.size();
+		//len = 1;
 		for (int t = 0; t < len; t++)
 		{
 			std::string name = "triangle" + t;
