@@ -696,12 +696,12 @@ void shade(
 	path.remainingBounces = 0;
 	int MAX_LIGHTS = 10;
 
-	float roughness = 0.0;//texture(roughnessMap, isx.hitUV).r; //1.0;//pbrMaterial.roughness;
-	float metallic =  1.0;//texture(metallicMap, isx.hitUV).r;// 0.0;//pbrMaterial.metallic;
+	float roughness = pbrMaterial.roughness;//texture(roughnessMap, isx.hitUV).r; //1.0;//pbrMaterial.roughness;
+	float metallic =  pbrMaterial.metallic;//texture(metallicMap, isx.hitUV).r;// 0.0;//pbrMaterial.metallic;
 	vec3 N = normalize(isx.hitNormal);
 	vec3 V = normalize(vec3(ubo.cameraPosition) - isx.hitPoint);
 	vec3 R = reflect(-V, N);
-	vec3 albedo = path.color;// * vec3(pbrMaterial.r, pbrMaterial.g, pbrMaterial.b);
+	vec3 albedo = path.color * vec3(pbrMaterial.r, pbrMaterial.g, pbrMaterial.b);
 	vec3 F0 = vec3(0.04);
 	F0 = mix(F0, albedo, metallic);
 
@@ -715,9 +715,10 @@ void shade(
 		float dist = length(vec3(ubo.lights[i].position) - isx.hitPoint);
 
 		vec3 L = normalize(vec3(ubo.lights[i].position) - isx.hitPoint);
+		L = normalize(vec3(1, 1, 1));
 		vec3 H = normalize(V + L);
 		float attenuation	= 1.0 / (dist * dist);
-		vec3 radiance		= ubo.lights[i].color * attenuation;
+		vec3 radiance		= ubo.lights[i].color;// * attenuation;
 
 		vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
 
@@ -781,7 +782,6 @@ void shade(
 	path.color = Uncharted2Tonemap(path.color * 1.0);
 	path.color = path.color / Uncharted2Tonemap(vec3(11.2));
 	path.color = pow(path.color, vec3(1.0/2.2));
-	path.color.x = 1.0;
 }
 
 vec2 envMapEquirect(vec3 normal) 

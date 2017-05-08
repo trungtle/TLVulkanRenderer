@@ -2036,14 +2036,14 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	float SPEED = 32.0f;
 
 	// White
-	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -1.0f, 0.0f, 1.0f);
-	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(100, 100, 100);
+	m_deferred.lightsUnif.m_pointLights[0].position = glm::vec4(0.0f, -20.0f, 0.0f, 1.0f);
+	m_deferred.lightsUnif.m_pointLights[0].color = glm::vec3(300, 300, 300);
 	m_deferred.lightsUnif.m_pointLights[0].radius = 100.0f;
 
 	// Red
-	m_deferred.lightsUnif.m_pointLights[1].position = glm::vec4(-2.0f, -2.0f, 0.0f, 0.0f);
-	m_deferred.lightsUnif.m_pointLights[1].color = glm::vec3(100, 100, 100);
-	m_deferred.lightsUnif.m_pointLights[1].radius = 10.0f;
+	m_deferred.lightsUnif.m_pointLights[1].position = glm::vec4(-2.0f, 20.0f, 0.0f, 0.0f);
+	m_deferred.lightsUnif.m_pointLights[1].color = glm::vec3(300, 300, 300);
+	m_deferred.lightsUnif.m_pointLights[1].radius = 1000.0f;
 	// Blue
 	m_deferred.lightsUnif.m_pointLights[2].position = glm::vec4(2.0f, 0.0f, 0.0f, 0.0f);
 	m_deferred.lightsUnif.m_pointLights[2].color = glm::vec3(100.0f, 100.0f, 100.5f);
@@ -2061,8 +2061,8 @@ void VulkanHybridRenderer::UpdateDeferredLightsUniform() {
 	m_deferred.lightsUnif.m_pointLights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
 	m_deferred.lightsUnif.m_pointLights[5].radius = 25.0f;
 
-	m_deferred.lightsUnif.m_pointLights[0].position.x = sin(glm::radians(SPEED * timer)) * 10.0f;
-	m_deferred.lightsUnif.m_pointLights[0].position.z = cos(glm::radians(SPEED * timer)) * 10.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position.x = sin(glm::radians(SPEED * timer)) * 5.0f;
+	m_deferred.lightsUnif.m_pointLights[0].position.z = cos(glm::radians(SPEED * timer)) * 5.0f;
 
 	m_deferred.lightsUnif.m_pointLights[1].position.x = -4.0f + sin(glm::radians(SPEED * timer) + 45.0f) * 5.0f;
 	m_deferred.lightsUnif.m_pointLights[1].position.z = 0.0f + cos(glm::radians(SPEED * timer) + 45.0f) * 5.0f;
@@ -2765,7 +2765,7 @@ void VulkanHybridRenderer::UpdateComputeRaytraceUniform()
 	{
 		m_raytrace.ubo.m_lights[i] = m_deferred.lightsUnif.m_pointLights[i];
 	}
-	m_raytrace.ubo.m_lightCount = 1;
+	m_raytrace.ubo.m_lightCount = 3;
 	m_raytrace.ubo.m_materialCount = m_scene->materials.size();
 
 	m_vulkanDevice->MapMemory(

@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_set>
+#include "gtx/string_cast.hpp"
 
 // This comparator is used to sort bvh nodes based on its centroid's maximum extent
 struct CompareCentroid
@@ -29,10 +30,13 @@ SBVH::Build(
 
 	// Initialize primitives info
 	std::vector<PrimInfo> primInfos(size_t(prims.size() * 1.2), {INVALID_ID, BBox()}); // Pad 20% more space for spatial split fragments
+	BBox rootAABB;
 	for (size_t i = 0; i < m_prims.size(); i++)
 	{
-		primInfos[i] = { i, m_prims[i]->GetBBox()};
+		primInfos[i] = { i, m_prims[i]->GetBBox() };
+		rootAABB = BBox::BBoxUnion(rootAABB, primInfos[i].bbox);
 	}
+	m_rootAABB_SA = rootAABB.GetSurfaceArea();
 
 	m_numPrimInfos = primInfos.size();
 
@@ -211,7 +215,8 @@ SBVH::CalculateObjectSplitCost(
 	PrimID last,
 	std::vector<PrimInfo>& primInfos,
 	BBox& bboxCentroids,
-	BBox& bboxAllGeoms
+	BBox& bboxAllGeoms,
+	bool& shouldRestrictSpatialSplit
 	) const 
 {
 	BucketInfo buckets[NUM_BUCKET];
@@ -265,6 +270,33 @@ SBVH::CalculateObjectSplitCost(
 			minCost = costs[i];
 			minCostBucket = i;
 		}
+	}
+
+	// Determin if we need to restrict spatial split
+	BBox bbox0, bbox1;
+	// Compute cost for buckets before split candidate
+	for (int j = 0; j <= minCostBucket; j++)
+	{
+		bbox0 = BBox::BBoxUnion(bbox0, buckets[j].bbox);
+	}
+
+	// Compute cost for buckets after split candidate
+	for (int j = minCostBucket + 1; j < NUM_BUCKET; j++)
+	{
+		bbox1 = BBox::BBoxUnion(bbox1, buckets[j].bbox);
+	}
+
+	BBox overlapAABB = BBox::BBoxOverlap(bbox0, bbox1);
+	float overlapSA = overlapAABB.GetSurfaceArea();
+	float ratio = (overlapSA / m_rootAABB_SA);
+
+	shouldRestrictSpatialSplit = ratio < RESTRICT_SPATIAL_SPLIT_THRESHOLD;
+	if (shouldRestrictSpatialSplit) {
+		//std::cout << "Ratio: " << ratio << std::endl;
+		//std::cout << "overlapSA: " << overlapSA << std::endl;
+		//std::cout << "minCostBucket: " << minCostBucket << std::endl;
+		//std::cout << "min: " << glm::to_string(bbox0.m_min) << std::endl;
+		//std::cout << "max: " << glm::to_string(bbox0.m_max) << std::endl;
 	}
 
 	return std::tuple<Cost, BucketID>(minCost, minCostBucket);
@@ -502,9 +534,11 @@ void SBVH::PrintStats()
 	std::cout << endl;
 	std::cout << "Number of bins: " << NUM_BUCKET << std::endl;
 	std::cout << "Max geomtry in node: " << m_maxGeomsInNode << std::endl;
-	std::cout << "Number of BVH nodes: " << m_nodes.size() << std::endl;
-	std::cout << "Number of spatial splits: " << m_spatialSplitCount << std::endl;
+	std::cout << "# BVH nodes: " << m_nodes.size() << std::endl;
+	std::cout << "# spatial splits: " << m_spatialSplitCount << std::endl;
 	std::cout << "Spatial split budget: " << m_spatialSplitBudget << std::endl;
+	std::cout << "Restrict alpha: " << RESTRICT_SPATIAL_SPLIT_THRESHOLD << std::endl;
+	std::cout << "# restricted split: " << m_restrictSplitCount << std::endl;
 	std::cout << "Highest depth: " << m_maxDepth << std::endl;
 	std::cout << "Depth limit: " << m_depthLimit << std::endl;
 	std::cout << "Temp primitive infos generated: " << m_numPrimInfos << std::endl;
@@ -518,7 +552,7 @@ void SBVH::PrintStats()
 			++numLeaf;
 		}
 	}
-	std::cout << "Num leaf: " << numLeaf << std::endl;
+	std::cout << "# leafs: " << numLeaf << std::endl;
 	std::cout << "Avg primitives per leaf: " << avgPrimsPerLeaf / (float)numLeaf << std::endl;
 }
 
@@ -594,16 +628,15 @@ SBVH::BuildRecursive(
 				// Update maximum extend to be all bounding boxes, not just the centroids
 				Dim allGeomsDim = BBox::BBoxMaximumExtent(bboxAllGeoms);
 
-				const float RESTRICT_ALPHA = 1e-5;
-
 				// === FIND OBJECT SPLIT CANDIDATE
 				// For each primitive in range, determine which bucket it falls into
+				bool shouldRestrictSpatialSplit;
 				objSplitCost =
-					CalculateObjectSplitCost(dim, first, last, primInfos, bboxCentroids, bboxAllGeoms);
+					CalculateObjectSplitCost(dim, first, last, primInfos, bboxCentroids, bboxAllGeoms, shouldRestrictSpatialSplit);
 
 				Cost minSplitCost = std::get<Cost>(objSplitCost);
 				std::tuple<Cost, BucketID> spatialSplitCost;
-				if (m_spatialSplitBudget > 0) {
+				if (m_spatialSplitBudget > 0 && !shouldRestrictSpatialSplit) {
 					std::vector<BucketInfo> spatialBuckets;
 					spatialBuckets.resize(NUM_BUCKET);
 					spatialSplitCost =
@@ -679,6 +712,8 @@ SBVH::BuildRecursive(
 
 						}
 					}
+				} else {
+					++m_restrictSplitCount;
 				}
 
 				// == CREATE LEAF OR SPLIT
@@ -713,8 +748,9 @@ SBVH::BuildRecursive(
 			}
 			else
 			{
+				bool unused;
 				objSplitCost =
-					CalculateObjectSplitCost(dim, first, last, primInfos, bboxCentroids, bboxAllGeoms);
+					CalculateObjectSplitCost(dim, first, last, primInfos, bboxCentroids, bboxAllGeoms, unused);
 
 				// Either create a leaf or split
 				float leafCost = numPrimitives;

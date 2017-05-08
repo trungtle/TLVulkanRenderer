@@ -13,7 +13,8 @@ typedef size_t BucketID;
 typedef float Cost;
 
 const PrimID INVALID_ID = std::numeric_limits<size_t>::max();
-const BucketID NUM_BUCKET = 12;
+const BucketID NUM_BUCKET = 15;
+const float RESTRICT_SPATIAL_SPLIT_THRESHOLD = 0.15;
 
 struct PrimInfo
 {
@@ -175,22 +176,21 @@ public:
 		Spatial
 	};
 
-	SBVH() : m_root(nullptr), m_maxGeomsInNode(1), m_splitMethod(EqualCounts)
-	{};
+	SBVH() : m_root(nullptr), m_maxGeomsInNode(1), m_splitMethod(EqualCounts), m_depthLimit(30), m_maxDepth(0), m_spatialSplitBudget(10000), m_spatialSplitCount(0), m_numPrimInfos(0), m_rootAABB_SA(0), m_restrictSplitCount(0) {
+	};
 
 	SBVH(
 		int maxPrimInNode,
 		ESplitMethod splitMethod
 	) : m_root(nullptr),
-		m_maxGeomsInNode(maxPrimInNode),
-		m_splitMethod(splitMethod),
-		m_depthLimit(30),
-		m_maxDepth(0),
-		m_spatialSplitBudget(10000),
-		m_spatialSplitCount(0),
-		m_numPrimInfos(0)
-
-	{}
+	    m_maxGeomsInNode(maxPrimInNode),
+	    m_splitMethod(splitMethod),
+	    m_depthLimit(30),
+	    m_maxDepth(0),
+	    m_spatialSplitBudget(10000),
+	    m_spatialSplitCount(0),
+	    m_numPrimInfos(0), m_rootAABB_SA(0), m_restrictSplitCount(0) {
+	}
 
 	void Build(
 		std::vector<std::shared_ptr<Geometry>>& geoms
@@ -308,7 +308,8 @@ protected:
 		PrimID last,
 		std::vector<PrimInfo>& geomInfos,
 		BBox& bboxCentroids,
-		BBox& bboxAllGeoms
+		BBox& bboxAllGeoms,
+		bool& shouldRestrictSpatialSplit
 	) const;
 
 	std::tuple<Cost, BucketID>
@@ -321,7 +322,7 @@ protected:
 		std::vector<BucketInfo>& buckets
 		) const;
 
-	void PrintStats();
+	void PrintStats() override;
 
 	SBVHNode*		m_root;
 	int				m_maxGeomsInNode;
@@ -332,5 +333,7 @@ protected:
 	size_t			m_spatialSplitBudget;
 	unsigned int	m_spatialSplitCount;
 	size_t			m_numPrimInfos;
+	float			m_rootAABB_SA;
+	size_t			m_restrictSplitCount;
 };
 
